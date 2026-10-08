@@ -76,6 +76,7 @@ avion_tycoon := class(creative_device):
     TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White}
 
     OnBegin<override>()<suspends>:void =
+        Print("Avion : device démarré")
         # Tout est caché au départ, sauf le claim.
         Claim.Arrivee.Hide()
         for (R : Rangees):
@@ -88,6 +89,7 @@ avion_tycoon := class(creative_device):
             block:
                 Joueur := AttendreSurPlaque(Claim.Plaque, false)
                 set Proprio = option{Joueur}
+                Print("Avion : claim OK")
             SuivreRegard(Claim.Panneau)
         Claim.Panneau.Hide()
         if (Joueur := Proprio?):
@@ -99,10 +101,19 @@ avion_tycoon := class(creative_device):
             AcheterRangee(R)
 
     # ---------- Téléportation ----------
+    # TeleportTo échoue sans rien dire si l'endroit est bloqué (collision, sol trop proche).
+    # On essaie donc à la position du repère, puis un peu plus haut, et on l'écrit dans le journal.
     Teleporter(Joueur:agent):void =
         Destination := Claim.Arrivee.GetTransform()
         if (Perso := Joueur.GetFortCharacter[]):
-            if (Perso.TeleportTo[Destination.Translation, Destination.Rotation]) {}
+            var Reussi:logic = false
+            for (Hauteur : array{0.0, 50.0, 100.0, 150.0}, not Reussi?):
+                Position := Destination.Translation + vector3{X := 0.0, Y := 0.0, Z := Hauteur}
+                if (Perso.TeleportTo[Position, Destination.Rotation]):
+                    set Reussi = true
+                    Print("Avion : téléporté (+{Hauteur} cm)")
+            if (not Reussi?):
+                Print("Avion : téléportation IMPOSSIBLE, l'arrivée est bloquée par une collision")
 
     # Après le claim, la plaque de la passerelle ramène le proprio dans son avion.
     BoucleRetourAvion()<suspends>:void =

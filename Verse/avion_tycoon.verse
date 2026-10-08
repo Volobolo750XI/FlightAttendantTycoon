@@ -7,50 +7,48 @@ using { /Verse.org/Assets }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 using { /UnrealEngine.com/Temporary/UI }
 
-# Flight Attendant Tycoon - un avion = une parcelle.
-# Pose ce device une fois par avion et remplis ses props dans l'éditeur.
-# (Il remplace passerelle_embarquement : il fait la passerelle ET les achats.)
+# Flight Attendant Tycoon - un avion (une parcelle).
+# Pose ce device une fois par avion et remplis ses sous-parties dans l'éditeur.
 #
 # 1. CLAIM   : dans la passerelle, on marche sur la plaque -> l'avion est à nous
-#              et on est téléporté dedans. Ensuite, la plaque ne téléporte plus
-#              que le propriétaire.
-# 2. ACHATS  : dans l'avion, les plaques d'achat apparaissent une par une, dans
-#              l'ordre de la liste. On marche dessus -> les objets (sièges...)
-#              apparaissent.
-# 3. INTERFACE : au premier achat, les 3 cadres à gauche apparaissent
-#              (argent, argent/seconde, rebirths). Importe tes 3 images dans un
-#              dossier "Interface" du Tiroir à contenu, nommées
-#              FondArgent, FondRevenu, FondRebirth.
+#              et on est téléporté dedans. Ensuite la plaque re-téléporte le proprio.
+# 2. RANGEES : dans l'avion, on marche sur la plaque d'une rangée -> ses sièges
+#              apparaissent. Les rangées se débloquent dans l'ordre de la liste.
+#              Au 1er achat, les 3 cadres de gauche apparaissent (argent, /sec, rebirths).
+# 3. INTERFACE : importe tes 3 images dans un dossier "Interface" du Tiroir à contenu
+#              et nomme-les FondArgent, FondRevenu, FondRebirth.
+#
+# L'argent n'est pas encore branché : on démarre à 0 $, donc mets Prix = 0
+# sur la 1re rangée (panneau "FREE").
 
 Msg<localizes>(Texte:string):message = "{Texte}"
 
 # Les joueurs qui ont déjà un avion (pour qu'on ne puisse pas en prendre deux).
 var JoueursAvecAvion:weak_map(session, []agent) = map{}
 
-# ---------- UN ACHAT (ex : une rangée de sièges) ----------
-reglages_achat := class<concrete>:
-    @editable Prix:int = 0
-    # Argent/seconde ajouté par cet achat (on s'en servira pour l'argent).
-    @editable ArgentParSeconde:int = 0
-    # Le prop de la plaque où on marche pour acheter.
+# ---------- 1. CLAIM ----------
+reglages_claim := class<concrete>:
+    # Le prop de la plaque dans la passerelle.
     @editable Plaque:creative_prop = creative_prop{}
-    # Le prop du panneau au-dessus (nom en haut, prix en dessous).
+    # Le prop du panneau CLAIM au-dessus (il suit le joueur le plus proche).
     @editable Panneau:creative_prop = creative_prop{}
-    # Les objets qui apparaissent à l'achat : les sièges de la rangée, etc.
-    # Clique sur + puis prends-les à la pipette.
-    @editable Objets:[]creative_prop = array{}
-
-avion_tycoon := class(creative_device):
-    # ---------- Passerelle ----------
-    @editable PlaqueClaim:creative_prop = creative_prop{}
-    @editable PanneauClaim:creative_prop = creative_prop{}
-    # Petit prop repère dans l'avion (caché en jeu) : position + direction d'arrivée.
+    # Un petit prop repère dans l'avion (caché en jeu) :
+    # sa position = où on arrive, sa rotation = où on regarde en arrivant.
     @editable Arrivee:creative_prop = creative_prop{}
 
-    # ---------- Achats, dans l'ordre ----------
-    @editable Achats:[]reglages_achat = array{}
+# ---------- 2. UNE RANGEE DE SIEGES ----------
+reglages_rangee := class<concrete>:
+    # Prix de la rangée (0 = gratuit, panneau "FREE").
+    @editable Prix:int = 0
+    # Le prop de la plaque où on marche pour acheter.
+    @editable Plaque:creative_prop = creative_prop{}
+    # Le prop du panneau au-dessus (ex : "SEAT ROW / FREE"), il suit le joueur.
+    @editable Panneau:creative_prop = creative_prop{}
+    # Les sièges de la rangée (et tout ce qui doit apparaître avec : PNJ, écrans...).
+    @editable Sieges:[]creative_prop = array{}
 
-    # ---------- Réglages ----------
+# ---------- 3. REGLAGES ----------
+reglages_generaux := class<concrete>:
     # Distance (cm) autour du centre d'une plaque pour compter qu'on est dessus.
     @editable RayonPlaque:float = 150.0
     # Distance (cm) jusqu'à laquelle les panneaux suivent un joueur.
@@ -59,88 +57,94 @@ avion_tycoon := class(creative_device):
     @editable DecalageAngle:float = 0.0
     # Douceur de la rotation : 0.05 = très doux, 0.3 = rapide, 1.0 = instantané.
     @editable Lissage:float = 0.12
-    # Flottement des panneaux : hauteur (cm) et allers-retours par seconde.
+    # Flottement des panneaux : hauteur (cm) et allers-retours par seconde (0 = aucun).
     @editable Flottement:float = 8.0
     @editable VitesseFlottement:float = 0.5
+
+avion_tycoon := class(creative_device):
+    @editable Claim:reglages_claim = reglages_claim{}
+    @editable Rangees:[]reglages_rangee = array{}
+    @editable Reglages:reglages_generaux = reglages_generaux{}
 
     var Proprio:?agent = false
     var Argent:int = 0
     var RevenuParSeconde:int = 0
     var Rebirths:int = 0
-    var UICreee:logic = false
+    var UICree:logic = false
     TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White}
     TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White}
     TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White}
 
     OnBegin<override>()<suspends>:void =
-        Arrivee.Hide()
-        for (A : Achats):
-            A.Plaque.Hide()
-            A.Panneau.Hide()
-            for (O : A.Objets) { O.Hide() }
+        # Tout est caché au départ, sauf le claim.
+        Claim.Arrivee.Hide()
+        for (R : Rangees):
+            R.Plaque.Hide()
+            R.Panneau.Hide()
+            for (S : R.Sieges) { S.Hide() }
 
-        # Le panneau de la passerelle suit les joueurs pendant toute la partie.
-        spawn{SuivreRegard(PanneauClaim)}
+        # 1. Claim
+        race:
+            block:
+                Joueur := AttendreSurPlaque(Claim.Plaque, false)
+                set Proprio = option{Joueur}
+            SuivreRegard(Claim.Panneau)
+        Claim.Panneau.Hide()
+        if (Joueur := Proprio?):
+            Teleporter(Joueur)
+        spawn{BoucleRetourAvion()}
 
-        # 1. Claim : le premier joueur sans avion qui marche sur la plaque.
-        Joueur := AttendreSurPlaque(PlaqueClaim, false)
-        set Proprio = option{Joueur}
-        Teleporter(Joueur)
-        # Ensuite la plaque sert d'entrée pour le propriétaire seulement.
-        spawn{BoucleEntree()}
+        # 2. Rangées, dans l'ordre
+        for (R : Rangees):
+            AcheterRangee(R)
 
-        # 2. Achats, un par un
-        for (A : Achats):
-            Acheter(A)
-
-    # ---------- Téléportation dans l'avion ----------
+    # ---------- Téléportation ----------
     Teleporter(Joueur:agent):void =
-        Destination := Arrivee.GetTransform()
+        Destination := Claim.Arrivee.GetTransform()
         if (Perso := Joueur.GetFortCharacter[]):
             if (Perso.TeleportTo[Destination.Translation, Destination.Rotation]) {}
 
-    BoucleEntree()<suspends>:void =
+    # Après le claim, la plaque de la passerelle ramène le proprio dans son avion.
+    BoucleRetourAvion()<suspends>:void =
         loop:
-            Joueur := AttendreSurPlaque(PlaqueClaim, Proprio)
+            Joueur := AttendreSurPlaque(Claim.Plaque, Proprio)
             Teleporter(Joueur)
             Sleep(1.0)
 
-    # ---------- Un achat ----------
-    Acheter(A:reglages_achat)<suspends>:void =
-        A.Plaque.Show()
-        A.Panneau.Show()
+    # ---------- Achat d'une rangée ----------
+    AcheterRangee(R:reglages_rangee)<suspends>:void =
+        R.Plaque.Show()
+        R.Panneau.Show()
         race:
-            AttendrePaiement(A)
-            SuivreRegard(A.Panneau)
-        A.Plaque.Hide()
-        A.Panneau.Hide()
-        for (O : A.Objets) { O.Show() }
-        set RevenuParSeconde += A.ArgentParSeconde
-        # Au tout premier achat, l'interface apparaît.
-        if (not UICreee?):
-            set UICreee = true
+            AttendrePaiement(R)
+            SuivreRegard(R.Panneau)
+        R.Plaque.Hide()
+        R.Panneau.Hide()
+        for (S : R.Sieges) { S.Show() }
+        if (not UICree?):
+            set UICree = true
             CreerUI()
         MettreAJourUI()
 
-    AttendrePaiement(A:reglages_achat)<suspends>:void =
+    AttendrePaiement(R:reglages_rangee)<suspends>:void =
         loop:
-            AttendreSurPlaque(A.Plaque, Proprio)
-            if (Argent >= A.Prix):
-                set Argent -= A.Prix
+            AttendreSurPlaque(R.Plaque, Proprio)
+            if (Argent >= R.Prix):
+                set Argent -= R.Prix
                 break
             # Pas assez d'argent : on réessaie dans 1 seconde.
             Sleep(1.0)
 
     # ---------- Plaques ----------
     # Attend qu'un joueur soit sur la plaque. Si Seul est rempli, seul ce joueur compte.
-    # Sinon (claim), un joueur qui a déjà un avion ne compte pas.
+    # Pour le claim, un joueur qui a déjà un avion ne compte pas.
     AttendreSurPlaque(Plaque:creative_prop, Seul:?agent)<suspends>:agent =
         Centre := Plaque.GetTransform().Translation
         loop:
             Sleep(0.1)
             var Trouve:?agent = false
             for (Joueur : GetPlayspace().GetPlayers(), Perso := Joueur.GetFortCharacter[]):
-                if (Distance(Perso.GetTransform().Translation, Centre) < RayonPlaque):
+                if (Distance(Perso.GetTransform().Translation, Centre) < Reglages.RayonPlaque):
                     if (S := Seul?):
                         if (S = Joueur) { set Trouve = option{Joueur} }
                     else if (not ADejaUnAvion[Joueur]):
@@ -157,7 +161,9 @@ avion_tycoon := class(creative_device):
         Liste := JoueursAvecAvion[GetSession()] or array{}
         if (set JoueursAvecAvion[GetSession()] = Liste + array{Joueur}) {}
 
-    # ---------- Panneaux qui suivent le regard, sans à-coups ----------
+    # ---------- Panneaux qui suivent le joueur, sans à-coups ----------
+    # À chaque frame : on vise le joueur le plus proche, on tourne d'un petit
+    # pourcentage vers lui (lissage) et on fait flotter le panneau.
     SuivreRegard(Panneau:creative_prop)<suspends>:void =
         Depart := Panneau.GetTransform()
         Position := Depart.Translation
@@ -165,14 +171,14 @@ avion_tycoon := class(creative_device):
         loop:
             Sleep(0.0)
             if (Cible := JoueurLePlusProche[Position]):
-                YawCible := ArcTan(Cible.Y - Position.Y, Cible.X - Position.X) * 180.0 / PiFloat + DecalageAngle
-                set Yaw += AngleLePlusCourt(YawCible - Yaw) * Lissage
-            Hauteur := Sin(GetSimulationElapsedTime() * VitesseFlottement * 2.0 * PiFloat) * Flottement
+                YawCible := ArcTan(Cible.Y - Position.Y, Cible.X - Position.X) * 180.0 / PiFloat + Reglages.DecalageAngle
+                set Yaw += AngleLePlusCourt(YawCible - Yaw) * Reglages.Lissage
+            Hauteur := Sin(GetSimulationElapsedTime() * Reglages.VitesseFlottement * 2.0 * PiFloat) * Reglages.Flottement
             NouvellePosition := Position + vector3{X := 0.0, Y := 0.0, Z := Hauteur}
             if (Panneau.TeleportTo[NouvellePosition, MakeRotationFromYawPitchRollDegrees(Yaw, 0.0, 0.0)]) {}
 
     JoueurLePlusProche(Position:vector3)<decides><transacts>:vector3 =
-        var PlusProche:float = DistanceSuivi
+        var PlusProche:float = Reglages.DistanceSuivi
         var Cible:?vector3 = false
         for (Joueur : GetPlayspace().GetPlayers(), Perso := Joueur.GetFortCharacter[]):
             PosJoueur := Perso.GetTransform().Translation
@@ -182,6 +188,7 @@ avion_tycoon := class(creative_device):
                 set Cible = option{PosJoueur}
         Cible?
 
+    # Ramène un écart d'angle entre -180 et 180 (tourner par le chemin le plus court).
     AngleLePlusCourt(Angle:float):float =
         var A:float = Angle
         loop:

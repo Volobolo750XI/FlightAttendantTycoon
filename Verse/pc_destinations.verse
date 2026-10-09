@@ -39,10 +39,11 @@ destination := class:
     MultiTexte:string
     VraiVol:string
     DureeMinutes:float
-    Lat1:float
-    Lon1:float
-    Lat2:float
-    Lon2:float
+    # Position des 2 villes dans l'image CarteMonde (0..1), calée au pixel près.
+    U1:float
+    V1:float
+    U2:float
+    V2:float
     Carte:texture
 
 # Un bouton de la liste : il retient quelle destination il représente.
@@ -66,51 +67,53 @@ pc_destinations := class(creative_device):
     @editable CarteDroite:float = 0.974
     @editable CarteHaut:float = 0.254
     @editable CarteBas:float = 0.746
-    # Latitudes du haut et du bas de la carte (longitudes : -180 à 180).
-    @editable LatHaut:float = 80.0
-    @editable LatBas:float = -58.0
     # Où est le panneau de la liste dans l'image.
     @editable ListeGauche:float = 0.036
     @editable ListeDroite:float = 0.270
     @editable ListeHaut:float = 0.270
     @editable ListeBas:float = 0.730
+    # Haut et bas du cadre de la liste (les flèches se mettent entre le cadre et les cartes).
+    @editable ListeCadreHaut:float = 0.260
+    @editable ListeCadreBas:float = 0.7425
+    # Boutons cachés derrière les cartes (invisibles). Si les clics ne marchent pas, décoche.
+    @editable BoutonsDerriere:logic = true
 
     ListeDestinations:[]destination = array:
-        destination{Ville1 := "TIRANA", Ville2 := "MINSK", Prix := 0, Multiplicateur := 1.0, MultiTexte := "x1", VraiVol := "2h30", DureeMinutes := 11.0, Lat1 := 41.33, Lon1 := 19.82, Lat2 := 53.9, Lon2 := 27.57, Carte := Destinations.Dest01}
-        destination{Ville1 := "LAGOS", Ville2 := "DAKAR", Prix := 150, Multiplicateur := 1.3, MultiTexte := "x1.3", VraiVol := "3h30", DureeMinutes := 12.5, Lat1 := 6.52, Lon1 := 3.38, Lat2 := 14.72, Lon2 := -17.47, Carte := Destinations.Dest02}
-        destination{Ville1 := "LIMA", Ville2 := "ASUNCION", Prix := 400, Multiplicateur := 1.6, MultiTexte := "x1.6", VraiVol := "3h00", DureeMinutes := 12.0, Lat1 := -12.05, Lon1 := -77.04, Lat2 := -25.26, Lon2 := -57.58, Carte := Destinations.Dest03}
-        destination{Ville1 := "DHAKA", Ville2 := "KATHMANDU", Prix := 900, Multiplicateur := 2.0, MultiTexte := "x2", VraiVol := "1h15", DureeMinutes := 10.0, Lat1 := 23.81, Lon1 := 90.41, Lat2 := 27.72, Lon2 := 85.32, Carte := Destinations.Dest04}
-        destination{Ville1 := "ALMATY", Ville2 := "BAKU", Prix := 1800, Multiplicateur := 2.5, MultiTexte := "x2.5", VraiVol := "3h00", DureeMinutes := 12.0, Lat1 := 43.24, Lon1 := 76.89, Lat2 := 40.41, Lon2 := 49.87, Carte := Destinations.Dest05}
-        destination{Ville1 := "MANILA", Ville2 := "HANOI", Prix := 4000, Multiplicateur := 3.0, MultiTexte := "x3", VraiVol := "2h50", DureeMinutes := 11.5, Lat1 := 14.6, Lon1 := 120.98, Lat2 := 21.03, Lon2 := 105.85, Carte := Destinations.Dest06}
-        destination{Ville1 := "NAIROBI", Ville2 := "JOHANNESBURG", Prix := 8000, Multiplicateur := 4.0, MultiTexte := "x4", VraiVol := "4h00", DureeMinutes := 13.5, Lat1 := -1.29, Lon1 := 36.82, Lat2 := -26.2, Lon2 := 28.05, Carte := Destinations.Dest07}
-        destination{Ville1 := "BUCHAREST", Ville2 := "DUBLIN", Prix := 15000, Multiplicateur := 5.0, MultiTexte := "x5", VraiVol := "3h40", DureeMinutes := 13.0, Lat1 := 44.43, Lon1 := 26.1, Lat2 := 53.35, Lon2 := -6.26, Carte := Destinations.Dest08}
-        destination{Ville1 := "PANAMA CITY", Ville2 := "HAVANA", Prix := 25000, Multiplicateur := 6.0, MultiTexte := "x6", VraiVol := "2h45", DureeMinutes := 11.5, Lat1 := 8.98, Lon1 := -79.52, Lat2 := 23.11, Lon2 := -82.37, Carte := Destinations.Dest09}
-        destination{Ville1 := "CASABLANCA", Ville2 := "ISTANBUL", Prix := 50000, Multiplicateur := 8.0, MultiTexte := "x8", VraiVol := "4h00", DureeMinutes := 13.5, Lat1 := 33.57, Lon1 := -7.59, Lat2 := 41.01, Lon2 := 28.98, Carte := Destinations.Dest10}
-        destination{Ville1 := "DELHI", Ville2 := "BANGKOK", Prix := 90000, Multiplicateur := 10.0, MultiTexte := "x10", VraiVol := "4h15", DureeMinutes := 14.0, Lat1 := 28.61, Lon1 := 77.21, Lat2 := 13.76, Lon2 := 100.5, Carte := Destinations.Dest11}
-        destination{Ville1 := "CAIRO", Ville2 := "ROME", Prix := 160000, Multiplicateur := 13.0, MultiTexte := "x13", VraiVol := "3h30", DureeMinutes := 12.5, Lat1 := 30.04, Lon1 := 31.24, Lat2 := 41.9, Lon2 := 12.5, Carte := Destinations.Dest12}
-        destination{Ville1 := "MONTREAL", Ville2 := "CANCUN", Prix := 280000, Multiplicateur := 16.0, MultiTexte := "x16", VraiVol := "4h45", DureeMinutes := 14.5, Lat1 := 45.5, Lon1 := -73.57, Lat2 := 21.16, Lon2 := -86.85, Carte := Destinations.Dest13}
-        destination{Ville1 := "BUENOS AIRES", Ville2 := "LIMA", Prix := 480000, Multiplicateur := 20.0, MultiTexte := "x20", VraiVol := "4h00", DureeMinutes := 13.5, Lat1 := -34.6, Lon1 := -58.38, Lat2 := -12.05, Lon2 := -77.04, Carte := Destinations.Dest14}
-        destination{Ville1 := "SEOUL", Ville2 := "BALI", Prix := 800000, Multiplicateur := 25.0, MultiTexte := "x25", VraiVol := "7h00", DureeMinutes := 18.0, Lat1 := 37.57, Lon1 := 126.98, Lat2 := -8.34, Lon2 := 115.09, Carte := Destinations.Dest15}
-        destination{Ville1 := "LONDON", Ville2 := "NEW YORK", Prix := 1400000, Multiplicateur := 32.0, MultiTexte := "x32", VraiVol := "8h00", DureeMinutes := 19.5, Lat1 := 51.51, Lon1 := -0.13, Lat2 := 40.71, Lon2 := -74.01, Carte := Destinations.Dest16}
-        destination{Ville1 := "LISBON", Ville2 := "RIO DE JANEIRO", Prix := 2400000, Multiplicateur := 40.0, MultiTexte := "x40", VraiVol := "9h45", DureeMinutes := 22.0, Lat1 := 38.72, Lon1 := -9.14, Lat2 := -22.91, Lon2 := -43.17, Carte := Destinations.Dest17}
-        destination{Ville1 := "JOHANNESBURG", Ville2 := "SYDNEY", Prix := 4000000, Multiplicateur := 50.0, MultiTexte := "x50", VraiVol := "11h00", DureeMinutes := 24.0, Lat1 := -26.2, Lon1 := 28.05, Lat2 := -33.87, Lon2 := 151.21, Carte := Destinations.Dest18}
-        destination{Ville1 := "MADRID", Ville2 := "MEXICO CITY", Prix := 7000000, Multiplicateur := 65.0, MultiTexte := "x65", VraiVol := "12h00", DureeMinutes := 25.5, Lat1 := 40.42, Lon1 := -3.7, Lat2 := 19.43, Lon2 := -99.13, Carte := Destinations.Dest19}
-        destination{Ville1 := "ISTANBUL", Ville2 := "BANGKOK", Prix := 12000000, Multiplicateur := 80.0, MultiTexte := "x80", VraiVol := "9h45", DureeMinutes := 22.0, Lat1 := 41.01, Lon1 := 28.98, Lat2 := 13.76, Lon2 := 100.5, Carte := Destinations.Dest20}
-        destination{Ville1 := "ROME", Ville2 := "LOS ANGELES", Prix := 20000000, Multiplicateur := 100.0, MultiTexte := "x100", VraiVol := "13h00", DureeMinutes := 27.0, Lat1 := 41.9, Lon1 := 12.5, Lat2 := 34.05, Lon2 := -118.24, Carte := Destinations.Dest21}
-        destination{Ville1 := "ZURICH", Ville2 := "SINGAPORE", Prix := 35000000, Multiplicateur := 130.0, MultiTexte := "x130", VraiVol := "12h30", DureeMinutes := 26.0, Lat1 := 47.38, Lon1 := 8.54, Lat2 := 1.35, Lon2 := 103.82, Carte := Destinations.Dest22}
-        destination{Ville1 := "VANCOUVER", Ville2 := "HONG KONG", Prix := 60000000, Multiplicateur := 160.0, MultiTexte := "x160", VraiVol := "13h00", DureeMinutes := 27.0, Lat1 := 49.28, Lon1 := -123.12, Lat2 := 22.32, Lon2 := 114.17, Carte := Destinations.Dest23}
-        destination{Ville1 := "MILAN", Ville2 := "TOKYO", Prix := 100000000, Multiplicateur := 200.0, MultiTexte := "x200", VraiVol := "13h30", DureeMinutes := 27.5, Lat1 := 45.46, Lon1 := 9.19, Lat2 := 35.68, Lon2 := 139.69, Carte := Destinations.Dest24}
-        destination{Ville1 := "NEW YORK", Ville2 := "SYDNEY", Prix := 170000000, Multiplicateur := 250.0, MultiTexte := "x250", VraiVol := "21h00", DureeMinutes := 39.0, Lat1 := 40.71, Lon1 := -74.01, Lat2 := -33.87, Lon2 := 151.21, Carte := Destinations.Dest25}
-        destination{Ville1 := "PARIS", Ville2 := "DUBAI", Prix := 300000000, Multiplicateur := 320.0, MultiTexte := "x320", VraiVol := "6h45", DureeMinutes := 17.5, Lat1 := 48.86, Lon1 := 2.35, Lat2 := 25.2, Lon2 := 55.27, Carte := Destinations.Dest26}
-        destination{Ville1 := "DOHA", Ville2 := "MALE", Prix := 500000000, Multiplicateur := 400.0, MultiTexte := "x400", VraiVol := "4h30", DureeMinutes := 14.0, Lat1 := 25.29, Lon1 := 51.53, Lat2 := 4.18, Lon2 := 73.51, Carte := Destinations.Dest27}
-        destination{Ville1 := "GENEVA", Ville2 := "MAHE", Prix := 850000000, Multiplicateur := 500.0, MultiTexte := "x500", VraiVol := "10h00", DureeMinutes := 22.5, Lat1 := 46.2, Lon1 := 6.14, Lat2 := -4.68, Lon2 := 55.49, Carte := Destinations.Dest28}
-        destination{Ville1 := "LOS ANGELES", Ville2 := "BORA BORA", Prix := 1400000000, Multiplicateur := 650.0, MultiTexte := "x650", VraiVol := "8h30", DureeMinutes := 20.0, Lat1 := 34.05, Lon1 := -118.24, Lat2 := -16.5, Lon2 := -151.74, Carte := Destinations.Dest29}
-        destination{Ville1 := "MONACO", Ville2 := "TAHITI", Prix := 2500000000, Multiplicateur := 800.0, MultiTexte := "x800", VraiVol := "22h00", DureeMinutes := 40.0, Lat1 := 43.74, Lon1 := 7.42, Lat2 := -17.65, Lon2 := -149.43, Carte := Destinations.Dest30}
+        destination{Ville1 := "TIRANA", Ville2 := "MINSK", Prix := 0, Multiplicateur := 1.0, MultiTexte := "x1", VraiVol := "2h30", DureeMinutes := 11.0, U1 := 0.6496, V1 := 0.4427, U2 := 0.6654, V2 := 0.4078, Carte := Destinations.Dest01}
+        destination{Ville1 := "LAGOS", Ville2 := "DAKAR", Prix := 150, Multiplicateur := 1.3, MultiTexte := "x1.3", VraiVol := "3h30", DureeMinutes := 12.5, U1 := 0.6161, V1 := 0.5240, U2 := 0.5737, V2 := 0.5059, Carte := Destinations.Dest02}
+        destination{Ville1 := "LIMA", Ville2 := "ASUNCION", Prix := 400, Multiplicateur := 1.6, MultiTexte := "x1.6", VraiVol := "3h00", DureeMinutes := 12.0, U1 := 0.4524, V1 := 0.5646, U2 := 0.4920, V2 := 0.5945, Carte := Destinations.Dest03}
+        destination{Ville1 := "DHAKA", Ville2 := "KATHMANDU", Prix := 900, Multiplicateur := 2.0, MultiTexte := "x2", VraiVol := "1h15", DureeMinutes := 10.0, U1 := 0.7934, V1 := 0.4854, U2 := 0.7830, V2 := 0.4763, Carte := Destinations.Dest04}
+        destination{Ville1 := "ALMATY", Ville2 := "BAKU", Prix := 1800, Multiplicateur := 2.5, MultiTexte := "x2.5", VraiVol := "3h00", DureeMinutes := 12.0, U1 := 0.7659, V1 := 0.4377, U2 := 0.7108, V2 := 0.4451, Carte := Destinations.Dest05}
+        destination{Ville1 := "MANILA", Ville2 := "HANOI", Prix := 4000, Multiplicateur := 3.0, MultiTexte := "x3", VraiVol := "2h50", DureeMinutes := 11.5, U1 := 0.8557, V1 := 0.5062, U2 := 0.8249, V2 := 0.4917, Carte := Destinations.Dest06}
+        destination{Ville1 := "NAIROBI", Ville2 := "JOHANNESBURG", Prix := 8000, Multiplicateur := 4.0, MultiTexte := "x4", VraiVol := "4h00", DureeMinutes := 13.5, U1 := 0.6843, V1 := 0.5411, U2 := 0.6664, V2 := 0.5967, Carte := Destinations.Dest07}
+        destination{Ville1 := "BUCHAREST", Ville2 := "DUBLIN", Prix := 15000, Multiplicateur := 5.0, MultiTexte := "x5", VraiVol := "3h40", DureeMinutes := 13.0, U1 := 0.6624, V1 := 0.4345, U2 := 0.5965, V2 := 0.4094, Carte := Destinations.Dest08}
+        destination{Ville1 := "PANAMA CITY", Ville2 := "HAVANA", Prix := 25000, Multiplicateur := 6.0, MultiTexte := "x6", VraiVol := "2h45", DureeMinutes := 11.5, U1 := 0.4473, V1 := 0.5186, U2 := 0.4415, V2 := 0.4870, Carte := Destinations.Dest09}
+        destination{Ville1 := "CASABLANCA", Ville2 := "ISTANBUL", Prix := 50000, Multiplicateur := 8.0, MultiTexte := "x8", VraiVol := "4h00", DureeMinutes := 13.5, U1 := 0.5938, V1 := 0.4622, U2 := 0.6683, V2 := 0.4435, Carte := Destinations.Dest10}
+        destination{Ville1 := "DELHI", Ville2 := "BANGKOK", Prix := 90000, Multiplicateur := 10.0, MultiTexte := "x10", VraiVol := "4h15", DureeMinutes := 14.0, U1 := 0.7665, V1 := 0.4742, U2 := 0.8140, V2 := 0.5081, Carte := Destinations.Dest11}
+        destination{Ville1 := "CAIRO", Ville2 := "ROME", Prix := 160000, Multiplicateur := 13.0, MultiTexte := "x13", VraiVol := "3h30", DureeMinutes := 12.5, U1 := 0.6729, V1 := 0.4708, U2 := 0.6347, V2 := 0.4412, Carte := Destinations.Dest12}
+        destination{Ville1 := "MONTREAL", Ville2 := "CANCUN", Prix := 280000, Multiplicateur := 16.0, MultiTexte := "x16", VraiVol := "4h45", DureeMinutes := 14.5, U1 := 0.4594, V1 := 0.4316, U2 := 0.4324, V2 := 0.4914, Carte := Destinations.Dest13}
+        destination{Ville1 := "BUENOS AIRES", Ville2 := "LIMA", Prix := 480000, Multiplicateur := 20.0, MultiTexte := "x20", VraiVol := "4h00", DureeMinutes := 13.5, U1 := 0.4904, V1 := 0.6168, U2 := 0.4524, V2 := 0.5646, Carte := Destinations.Dest14}
+        destination{Ville1 := "SEOUL", Ville2 := "BALI", Prix := 800000, Multiplicateur := 25.0, MultiTexte := "x25", VraiVol := "7h00", DureeMinutes := 18.0, U1 := 0.8679, V1 := 0.4523, U2 := 0.8437, V2 := 0.5565, Carte := Destinations.Dest15}
+        destination{Ville1 := "LONDON", Ville2 := "NEW YORK", Prix := 1400000, Multiplicateur := 32.0, MultiTexte := "x32", VraiVol := "8h00", DureeMinutes := 19.5, U1 := 0.6090, V1 := 0.4148, U2 := 0.4585, V2 := 0.4443, Carte := Destinations.Dest16}
+        destination{Ville1 := "LISBON", Ville2 := "RIO DE JANEIRO", Prix := 2400000, Multiplicateur := 40.0, MultiTexte := "x40", VraiVol := "9h45", DureeMinutes := 22.0, U1 := 0.5906, V1 := 0.4494, U2 := 0.5213, V2 := 0.5891, Carte := Destinations.Dest17}
+        destination{Ville1 := "JOHANNESBURG", Ville2 := "SYDNEY", Prix := 4000000, Multiplicateur := 50.0, MultiTexte := "x50", VraiVol := "11h00", DureeMinutes := 24.0, U1 := 0.6664, V1 := 0.5967, U2 := 0.9172, V2 := 0.6150, Carte := Destinations.Dest18}
+        destination{Ville1 := "MADRID", Ville2 := "MEXICO CITY", Prix := 7000000, Multiplicateur := 65.0, MultiTexte := "x65", VraiVol := "12h00", DureeMinutes := 25.5, U1 := 0.6017, V1 := 0.4451, U2 := 0.4074, V2 := 0.4954, Carte := Destinations.Dest19}
+        destination{Ville1 := "ISTANBUL", Ville2 := "BANGKOK", Prix := 12000000, Multiplicateur := 80.0, MultiTexte := "x80", VraiVol := "9h45", DureeMinutes := 22.0, U1 := 0.6683, V1 := 0.4435, U2 := 0.8140, V2 := 0.5081, Carte := Destinations.Dest20}
+        destination{Ville1 := "ROME", Ville2 := "LOS ANGELES", Prix := 20000000, Multiplicateur := 100.0, MultiTexte := "x100", VraiVol := "13h00", DureeMinutes := 27.0, U1 := 0.6347, V1 := 0.4412, U2 := 0.3684, V2 := 0.4611, Carte := Destinations.Dest21}
+        destination{Ville1 := "ZURICH", Ville2 := "SINGAPORE", Prix := 35000000, Multiplicateur := 130.0, MultiTexte := "x130", VraiVol := "12h30", DureeMinutes := 26.0, U1 := 0.6267, V1 := 0.4265, U2 := 0.8207, V2 := 0.5353, Carte := Destinations.Dest22}
+        destination{Ville1 := "VANCOUVER", Ville2 := "HONG KONG", Prix := 60000000, Multiplicateur := 160.0, MultiTexte := "x160", VraiVol := "13h00", DureeMinutes := 27.0, U1 := 0.3585, V1 := 0.4212, U2 := 0.8418, V2 := 0.4888, Carte := Destinations.Dest23}
+        destination{Ville1 := "MILAN", Ville2 := "TOKYO", Prix := 100000000, Multiplicateur := 200.0, MultiTexte := "x200", VraiVol := "13h30", DureeMinutes := 27.5, U1 := 0.6280, V1 := 0.4318, U2 := 0.8938, V2 := 0.4570, Carte := Destinations.Dest24}
+        destination{Ville1 := "NEW YORK", Ville2 := "SYDNEY", Prix := 170000000, Multiplicateur := 250.0, MultiTexte := "x250", VraiVol := "21h00", DureeMinutes := 39.0, U1 := 0.4585, V1 := 0.4443, U2 := 0.9172, V2 := 0.6150, Carte := Destinations.Dest25}
+        destination{Ville1 := "PARIS", Ville2 := "DUBAI", Prix := 300000000, Multiplicateur := 320.0, MultiTexte := "x320", VraiVol := "6h45", DureeMinutes := 17.5, U1 := 0.6141, V1 := 0.4224, U2 := 0.7218, V2 := 0.4822, Carte := Destinations.Dest26}
+        destination{Ville1 := "DOHA", Ville2 := "MALE", Prix := 500000000, Multiplicateur := 400.0, MultiTexte := "x400", VraiVol := "4h30", DureeMinutes := 14.0, U1 := 0.7142, V1 := 0.4819, U2 := 0.7590, V2 := 0.5291, Carte := Destinations.Dest27}
+        destination{Ville1 := "GENEVA", Ville2 := "MAHE", Prix := 850000000, Multiplicateur := 500.0, MultiTexte := "x500", VraiVol := "10h00", DureeMinutes := 22.5, U1 := 0.6218, V1 := 0.4297, U2 := 0.7223, V2 := 0.5485, Carte := Destinations.Dest28}
+        destination{Ville1 := "LOS ANGELES", Ville2 := "BORA BORA", Prix := 1400000000, Multiplicateur := 650.0, MultiTexte := "x650", VraiVol := "8h30", DureeMinutes := 20.0, U1 := 0.3684, V1 := 0.4611, U2 := 0.3002, V2 := 0.5745, Carte := Destinations.Dest29}
+        destination{Ville1 := "MONACO", Ville2 := "TAHITI", Prix := 2500000000, Multiplicateur := 800.0, MultiTexte := "x800", VraiVol := "22h00", DureeMinutes := 40.0, U1 := 0.6244, V1 := 0.4364, U2 := 0.3049, V2 := 0.5771, Carte := Destinations.Dest30}
 
     NbVisibles:int = 5
     # Partie visible d'une carte dans son image 2048 x 2048 (le reste est transparent).
-    CarteLargeurVisible:float = 0.9716
-    CarteHauteurVisible:float = 0.2744
+    CarteLargeurVisible:float = 0.9502
+    CarteHauteurVisible:float = 0.254
 
     var Achetees:[]logic = array{}
     var Active:int = 0
@@ -259,19 +262,15 @@ pc_destinations := class(creative_device):
             Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.5}, Maximum := vector2{X := 0.5, Y := 0.5}}
             Alignment := vector2{X := 0.5, Y := 0.5}
             Offsets := margin{Left := (U - CentreU()) * TailleCarte, Top := (V - CentreV()) * TailleCarte, Right := Largeur, Bottom := Hauteur}
+            SizeToContent := false
             Widget := W
 
     PleinEcran(W:widget):canvas_slot =
         canvas_slot:
             Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
             Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
+            SizeToContent := false
             Widget := W
-
-    # Latitude / longitude -> position dans l'image.
-    PointCarte(Lat:float, Lon:float):vector2 =
-        vector2:
-            X := CarteGauche + (Lon + 180.0) / 360.0 * (CarteDroite - CarteGauche)
-            Y := CarteHaut + (LatHaut - Lat) / (LatHaut - LatBas) * (CarteBas - CarteHaut)
 
     # Point de la courbe (Bézier) entre A et B, bombée vers le haut comme une route aérienne.
     Courbe(A:vector2, B:vector2, T:float):vector2 =
@@ -282,12 +281,17 @@ pc_destinations := class(creative_device):
             X := U * U * A.X + 2.0 * U * T * C.X + T * T * B.X
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
-    # Petite flèche (chevron) dessinée avec des carrés bleus : aucune image à importer.
-    Chevron(U:float, V:float, VersLeHaut:logic):[]canvas_slot =
-        for (K := -4..4):
+    # Flèche (chevron) dessinée avec des carrés bleus, avec son bouton caché derrière.
+    Fleche(U:float, V:float, VersLeHaut:logic, Action:type{_(:widget_message):void}):[]canvas_slot =
+        BoutonFleche := button_quiet{DefaultText := Msg("")}
+        BoutonFleche.OnClick().Subscribe(Action)
+        SlotBouton := Place(BoutonFleche, U, V, 90.0, 40.0)
+        Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 90.0, 40.0)
+        Dessin := for (K := -6..6):
             Decalage := if (K < 0) then -K else K
-            DY := if (VersLeHaut?) then Decalage * 2.5 - 5.0 else 5.0 - Decalage * 2.5
-            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, U + (K * 2.5) / TailleCarte, V + DY / TailleCarte, 4.0, 4.0)
+            DY := if (VersLeHaut?) then Decalage * 2.0 - 6.0 else 6.0 - Decalage * 2.0
+            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + (K * 3.0) / TailleCarte, V + DY / TailleCarte, 5.0, 5.0)
+        if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin else Dessin + array{SlotBouton}
 
     Vignette(T:texture, Taille:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := Taille, Y := Taille}}
@@ -310,38 +314,29 @@ pc_destinations := class(creative_device):
             UListe := (ListeGauche + ListeDroite) / 2.0
             for (Ligne := 0..NbVisibles - 1, Index := Debut + Ligne, D := ListeDestinations[Index]):
                 V := ListeHaut + Pas * (Ligne * 1.0 + 0.5)
-                set Slots += array{Place(Vignette(D.Carte, TailleImageCarte), UListe, V, TailleImageCarte, TailleImageCarte)}
-                if (not Achetees[Index]?):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.55}, UListe, V, LargeurVisible, HauteurVisible)}
-                if (Index = Active):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, UListe - LargeurVisible / TailleCarte / 2.0 - 0.004, V, 5.0, HauteurVisible * 0.8)}
-                # bouton invisible, exactement de la taille de la carte
+                # bouton exactement de la taille de la carte, caché derrière elle
                 BoutonCarte := button_quiet{DefaultText := Msg("")}
                 Gestion := bouton_destination{Index := Index, Ordinateur := Self}
                 BoutonCarte.OnClick().Subscribe(Gestion.Clique)
-                set Slots += array{Place(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible)}
+                SlotBouton := Place(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible)
+                if (BoutonsDerriere?) { set Slots += array{SlotBouton} }
+                set Slots += array{Place(Vignette(D.Carte, TailleImageCarte), UListe, V, TailleImageCarte, TailleImageCarte)}
+                if (not Achetees[Index]?):
+                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.5}, UListe, V, LargeurVisible, HauteurVisible)}
+                if (Index = Active):
+                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, UListe - LargeurVisible / TailleCarte / 2.0 + 6.0 / TailleCarte, V, 4.0, HauteurVisible * 0.7)}
+                if (not BoutonsDerriere?) { set Slots += array{SlotBouton} }
 
-            # défilement : une fine barre à droite de la liste, avec une flèche en haut et en bas
-            UFleches := (UListe + LargeurVisible / TailleCarte / 2.0 + CarteGauche) / 2.0
-            VHaut := ListeHaut + Pas * 0.5 - HauteurVisible / TailleCarte / 2.0
-            VBas := ListeBas - Pas * 0.5 + HauteurVisible / TailleCarte / 2.0
-            Rail := (VBas - VHaut) - 0.03
-            set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.15}, UFleches, (VHaut + VBas) / 2.0, 2.0, Rail * TailleCarte)}
+            # défilement : une flèche centrée dans l'espace au-dessus de la 1re carte,
+            # une autre dans l'espace sous la dernière carte
+            DemiCarte := HauteurVisible / TailleCarte / 2.0
+            VHaut := (ListeCadreHaut + ListeHaut + Pas * 0.5 - DemiCarte) / 2.0
+            VBas := (ListeCadreBas + ListeBas - Pas * 0.5 + DemiCarte) / 2.0
             DernierDebut := ListeDestinations.Length - NbVisibles
-            if (DernierDebut > 0):
-                HauteurCurseur := Rail * (NbVisibles * 1.0) / (ListeDestinations.Length * 1.0)
-                VCurseur := VHaut + 0.015 + HauteurCurseur / 2.0 + (Rail - HauteurCurseur) * (Debut * 1.0) / (DernierDebut * 1.0)
-                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.6}, UFleches, VCurseur, 3.0, HauteurCurseur * TailleCarte)}
             if (Debut > 0):
-                set Slots += Chevron(UFleches, VHaut, true)
-                Haut := button_quiet{DefaultText := Msg("")}
-                Haut.OnClick().Subscribe(Monter)
-                set Slots += array{Place(Haut, UFleches, VHaut, 34.0, 34.0)}
+                set Slots += Fleche(UListe, VHaut, true, Monter)
             if (Debut < DernierDebut):
-                set Slots += Chevron(UFleches, VBas, false)
-                Bas := button_quiet{DefaultText := Msg("")}
-                Bas.OnClick().Subscribe(Descendre)
-                set Slots += array{Place(Bas, UFleches, VBas, 34.0, 34.0)}
+                set Slots += Fleche(UListe, VBas, false, Descendre)
 
             # fermeture
             Croix := button_quiet{DefaultText := Msg("X")}
@@ -353,8 +348,8 @@ pc_destinations := class(creative_device):
             var Depart:vector2 = vector2{}
             var Arrivee:vector2 = vector2{}
             if (D := ListeDestinations[Active]):
-                A := PointCarte(D.Lat1, D.Lon1)
-                B := PointCarte(D.Lat2, D.Lon2)
+                A := vector2{X := D.U1, Y := D.V1}
+                B := vector2{X := D.U2, Y := D.V2}
                 set Depart = if (Retour?) then B else A
                 set Arrivee = if (Retour?) then A else B
                 for (I := 0..39):

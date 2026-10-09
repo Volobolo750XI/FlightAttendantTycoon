@@ -313,9 +313,11 @@ pc_destinations := class(creative_device):
     IconeCliquable(U:float, V:float, Forme:int, BoutonIcone:button_quiet):[]canvas_slot =
         SlotBouton := Place(BoutonIcone, U, V, 50.0, 44.0)
         Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0)
-        Dessin := for (K := -7..7, Point := PointIcone(Forme, K)):
+        Dessin := for (K := -7..7):
+            Point := PointIcone(Forme, K)
             Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
-        Dessin2 := for (K := -7..7, Forme = 2, Point := PointIcone(3, K)):
+        Dessin2 := for (K := -7..7, Forme = 2):
+            Point := PointIcone(3, K)
             Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
         if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin + Dessin2 else Dessin + Dessin2 + array{SlotBouton}
 

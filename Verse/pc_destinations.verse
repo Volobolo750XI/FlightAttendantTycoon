@@ -361,9 +361,9 @@ pc_destinations := class(creative_device):
                     set Slots += array{Place(color_block{DefaultColor := NamedColors.Red, DefaultOpacity := 0.35}, Ville.X, Ville.Y, 26.0, 26.0)}
                     set Slots += array{Place(color_block{DefaultColor := NamedColors.Red}, Ville.X, Ville.Y, 12.0, 12.0)}
                 Icone := if (Arrivee.X >= Depart.X) then Destinations.AvionDroite else Destinations.AvionGauche
-                ImageAvion := Vignette(Icone, 34.0)
+                ImageAvion := Vignette(Icone, 44.0)
                 PosAvion := Courbe(Depart, Arrivee, Progression())
-                set Slots += array{Place(ImageAvion, PosAvion.X, PosAvion.Y, 34.0, 34.0)}
+                set Slots += array{Place(ImageAvion, PosAvion.X, PosAvion.Y, 44.0, 44.0)}
                 set IconeVol = option{ImageAvion}
             if (MessageErreur <> ""):
                 Erreur := text_block{DefaultText := Msg(MessageErreur), DefaultTextColor := NamedColors.Red, DefaultJustification := text_justification.Center}
@@ -382,4 +382,4 @@ pc_destinations := class(creative_device):
             if (Numero <> NumeroAnimation or not EnVol[]) { break }
             Pt := Courbe(Depart, Arrivee, Progression())
             Toile.RemoveWidget(Img)
-            Toile.AddWidget(Place(Img, Pt.X, Pt.Y, 34.0, 34.0))
+            Toile.AddWidget(Place(Img, Pt.X, Pt.Y, 44.0, 44.0))

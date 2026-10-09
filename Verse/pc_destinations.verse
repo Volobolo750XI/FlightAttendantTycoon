@@ -320,7 +320,7 @@ pc_destinations := class(creative_device):
         if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin + Dessin2 else Dessin + Dessin2 + array{SlotBouton}
 
     # Position (pixels) du K-ième carré de la forme.
-    PointIcone(Forme:int, K:int):vector2 =
+    PointIcone(Forme:int, K:int)<transacts>:vector2 =
         Decalage := if (K < 0) then -K else K
         if (Forme = 0) then vector2{X := K * 2.5, Y := Decalage * 1.8 - 6.0}
         else if (Forme = 1) then vector2{X := K * 2.5, Y := 6.0 - Decalage * 1.8}

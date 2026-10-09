@@ -122,6 +122,10 @@ pc_destinations := class(creative_device):
     var MessageErreur:string = ""
     var NumeroMessage:int = 0
     var Ecran:?canvas = false
+    # Ce qui change sur l'écran (on le remplace sans refermer l'écran : pas de saut de souris).
+    var Dynamiques:[]widget = array{}
+    # Destination en attente de confirmation d'achat (-1 = aucune).
+    var Confirmation:int = -1
     var EcranJoueur:?player = false
     var NumeroAnimation:int = 0
 
@@ -200,6 +204,8 @@ pc_destinations := class(creative_device):
         if (P := EcranJoueur?, UI := GetPlayerUI[P], C := Ecran?):
             UI.RemoveWidget(C)
         set Ecran = false
+        set Dynamiques = array{}
+        set Confirmation = -1
 
     FermerClique(Clic:widget_message):void =
         Fermer()
@@ -217,8 +223,11 @@ pc_destinations := class(creative_device):
     ChoisirDestination(Index:int):void =
         if (D := ListeDestinations[Index]):
             if (Achetees[Index]?):
+                set Confirmation = -1
                 # (si c'est déjà le trajet actif, rien à faire)
-                if (Index <> Active):
+                if (Index = Active):
+                    Afficher()
+                else:
                     if (EnVol[]):
                         AfficherErreur("WAIT FOR LANDING")
                     else:
@@ -226,7 +235,17 @@ pc_destinations := class(creative_device):
                         set Retour = false
                         set MessageErreur = ""
                         Afficher()
-            else if (AvionTycoon.Argent >= D.Prix):
+            else:
+                # pas encore achetée : on demande confirmation
+                set Confirmation = Index
+                set MessageErreur = ""
+                Afficher()
+
+    ConfirmerAchat(Clic:widget_message):void =
+        Index := Confirmation
+        set Confirmation = -1
+        if (D := ListeDestinations[Index]):
+            if (AvionTycoon.Argent >= D.Prix):
                 set AvionTycoon.Argent -= D.Prix
                 AvionTycoon.MettreAJourUI()
                 if (set Achetees[Index] = true) {}
@@ -238,6 +257,10 @@ pc_destinations := class(creative_device):
                 Afficher()
             else:
                 AfficherErreur("NOT ENOUGH MONEY")
+
+    AnnulerAchat(Clic:widget_message):void =
+        set Confirmation = -1
+        Afficher()
 
     # Message rouge sur la carte, qui disparaît tout seul après 2 secondes.
     AfficherErreur(Texte:string):void =
@@ -309,13 +332,21 @@ pc_destinations := class(creative_device):
 
     Afficher():void =
         if (P := EcranJoueur?, UI := GetPlayerUI[P]):
+            # l'écran (fond sombre + carte du monde) n'est créé qu'une fois à l'ouverture
+            var Toile:canvas = canvas{}
             if (C := Ecran?):
-                UI.RemoveWidget(C)
+                set Toile = C
+            else:
+                Fond := PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})
+                Monde := Place(Vignette(Destinations.CarteMonde, TailleCarte), 0.5, 0.5, TailleCarte, TailleCarte)
+                Base := canvas{Slots := array{Fond, Monde}}
+                UI.AddWidget(Base, player_ui_slot{InputMode := ui_input_mode.All})
+                set Ecran = option{Base}
+                set Toile = Base
+            # on enlève seulement ce qui change
+            for (W : Dynamiques) { Toile.RemoveWidget(W) }
             set NumeroAnimation += 1
             var Slots:[]canvas_slot = array{}
-            # fond sombre + carte du monde
-            set Slots += array{PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})}
-            set Slots += array{Place(Vignette(Destinations.CarteMonde, TailleCarte), 0.5, 0.5, TailleCarte, TailleCarte)}
 
             # liste des destinations (5 visibles)
             TailleImageCarte := (ListeDroite - ListeGauche) * TailleCarte
@@ -382,11 +413,30 @@ pc_destinations := class(creative_device):
                 Erreur := text_block{DefaultText := Msg(MessageErreur), DefaultTextColor := NamedColors.Red, DefaultJustification := text_justification.Center}
                 set Slots += array{Place(Erreur, (CarteGauche + CarteDroite) / 2.0, CarteHaut + 0.03, 700.0, 40.0)}
 
-            Nouveau := canvas{Slots := Slots}
-            UI.AddWidget(Nouveau, player_ui_slot{InputMode := ui_input_mode.All})
-            set Ecran = option{Nouveau}
+            # fenêtre de confirmation d'achat, au milieu de la carte
+            if (D := ListeDestinations[Confirmation]):
+                UC := (CarteGauche + CarteDroite) / 2.0
+                VC := (CarteHaut + CarteBas) / 2.0
+                PrixTexte := if (D.Prix = 0) then "FREE" else "{AvionTycoon.Abreger(D.Prix)} $"
+                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, UC, VC, 624.0, 254.0)}
+                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC, VC, 620.0, 250.0)}
+                Titre := text_block{DefaultText := Msg("BUY THIS ROUTE?"), DefaultTextColor := MakeColorFromHex("5ADCFF"), DefaultJustification := text_justification.Center}
+                Trajet := text_block{DefaultText := Msg("{D.Ville1}  <->  {D.Ville2}"), DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center}
+                TextePrix := text_block{DefaultText := Msg("{PrixTexte}     INCOME {D.MultiTexte}"), DefaultTextColor := NamedColors.Lime, DefaultJustification := text_justification.Center}
+                set Slots += array{Place(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0)}
+                set Slots += array{Place(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0)}
+                set Slots += array{Place(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0)}
+                Oui := button_loud{DefaultText := Msg("BUY")}
+                Oui.OnClick().Subscribe(ConfirmerAchat)
+                Non := button_quiet{DefaultText := Msg("CANCEL")}
+                Non.OnClick().Subscribe(AnnulerAchat)
+                set Slots += array{Place(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0)}
+                set Slots += array{Place(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0)}
+
+            for (S : Slots) { Toile.AddWidget(S) }
+            set Dynamiques = for (S : Slots) { S.Widget }
             if (EnVol[], ImageAvion := IconeVol?):
-                spawn{AnimerAvion(NumeroAnimation, Nouveau, ImageAvion, Depart, Arrivee)}
+                spawn{AnimerAvion(NumeroAnimation, Toile, ImageAvion, Depart, Arrivee)}
 
     # Pendant le vol, l'avion est replacé 10 fois par seconde à sa vraie position.
     AnimerAvion(Numero:int, Toile:canvas, Img:texture_block, Depart:vector2, Arrivee:vector2)<suspends>:void =

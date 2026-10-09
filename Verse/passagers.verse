@@ -43,7 +43,7 @@ modele_passager := class<concrete>:
     @editable MainCote:float = 28.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
-    @editable DosHauteur:float = 150.0
+    @editable DosHauteur:float = 158.0
     @editable DosAvant:float = -12.0
 
 bagage := class<concrete>:
@@ -86,8 +86,8 @@ passagers := class(creative_device):
     @editable Espacement:float = 110.0
     # Les passagers arrivent au hasard entre ArriveeMin et ArriveeMax secondes ;
     # parfois deux arrivent presque ensemble (un couple, des amis).
-    @editable ArriveeMin:float = 1.5
-    @editable ArriveeMax:float = 6.0
+    @editable ArriveeMin:float = 3.0
+    @editable ArriveeMax:float = 9.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
     @editable DureeAssis:float = 3.0
@@ -103,10 +103,12 @@ passagers := class(creative_device):
     # Assis : rotation en plus (degrés) et décalage (cm) pour bien les coller au siège.
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
-    @editable HauteurAssis:float = -45.0
+    @editable HauteurAssis:float = -60.0
     @editable AvanceAssis:float = -25.0
+    # CoteAssis : décalage sur le côté (cm). Négatif = vers la gauche du passager assis.
+    @editable CoteAssis:float = -20.0
     @editable RotationValise:float = 0.0
-    @editable RotationSac:float = 90.0
+    @editable RotationSac:float = -90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
     @editable EchelleValise:float = 1.5
@@ -150,7 +152,12 @@ passagers := class(creative_device):
                 if (set Occupees[I] = true) {}
                 spawn{UnPassager(P)}
             # arrivée au hasard : parfois presque ensemble, sinon un écart aléatoire
-            if (GetRandomInt(1, 4) = 1) then Sleep(GetRandomFloat(0.6, 1.2)) else Sleep(GetRandomFloat(ArriveeMin, ArriveeMax))
+            # rythme "naturel" : surtout des arrivées espacées au hasard, parfois un petit groupe
+            # (couple, amis) qui arrive collé, parfois un creux où personne n'arrive
+            Tirage := GetRandomInt(1, 10)
+            if (Tirage <= 2) then Sleep(GetRandomFloat(0.7, 1.4))
+            else if (Tirage = 3) then Sleep(GetRandomFloat(ArriveeMax + 2.0, ArriveeMax * 2.0))
+            else Sleep(GetRandomFloat(ArriveeMin, ArriveeMax))
         set Embarquement = false
 
     UnPassager(Place:place_passager)<suspends>:void =
@@ -204,7 +211,10 @@ passagers := class(creative_device):
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
             Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
-            if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
+            if (not P.Valise?):
+                # sac à dos : c'est exactement le même sac qui va dans le coffre (même orientation)
+                if (B.TeleportTo[transform{Translation := T.Translation, Rotation := B.GetTransform().Rotation, Scale := EchelleBagage(P)}]) {}
+            else if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
                 set P.Bagage = option{Rangee}
                 B.Dispose()
             else:
@@ -253,7 +263,7 @@ passagers := class(creative_device):
         set P.DansAllee = false
         T := Place.Siege.GetTransform()
         Rot := T.Rotation.RotateBy(MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, DegreesToRadians(RotationAssis)))
-        Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
+        Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + Rot.GetLocalRight() * -CoteAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
         # il s'assoit d'un coup : le blueprint assis apparaît directement sur le siège
         if (C := P.Corps?):
             if (Nouveau := SpawnProp(P.Modele.Assis, transform{Translation := Pos, Rotation := Rot, Scale := EchellePerso()})(0)?):

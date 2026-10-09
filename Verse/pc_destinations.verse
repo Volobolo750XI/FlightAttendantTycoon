@@ -26,7 +26,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
 #   AvionTycoon     : le device avion_tycoon de cet avion (pour le proprio et l'argent).
 #   BoutonDecollage : un Appareil Bouton dans le cockpit (texte "Take off").
-#   Portes          : les portes passagers (devices porte_avion) qui doivent être fermées
+#   Portes          : les portes passagers (devices porte_passager) qui doivent être fermées
 #                     pour décoller. Elles restent verrouillées pendant le vol.
 #   MessageHUD      : (facultatif) un Appareil Message HUD pour "CLOSE ALL DOORS".
 #   Les réglages Carte... servent à caler les points sur l'image de la carte.
@@ -55,7 +55,7 @@ pc_destinations := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     @editable BoutonDecollage:button_device = button_device{}
-    @editable Portes:[]porte_avion = array{}
+    @editable Portes:[]porte_passager = array{}
     @editable MessageHUD:hud_message_device = hud_message_device{}
 
     # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
@@ -342,7 +342,7 @@ pc_destinations := class(creative_device):
             set Slots += array{Place(Croix, CarteDroite - 0.015, CarteHaut + 0.02, 40.0, 40.0)}
 
             # trajet actif : points rouges, courbe, avion
-            var Avion:?texture_block = false
+            var IconeVol:?texture_block = false
             var Depart:vector2 = vector2{}
             var Arrivee:vector2 = vector2{}
             if (D := ListeDestinations[Active]):
@@ -360,7 +360,7 @@ pc_destinations := class(creative_device):
                 ImageAvion := Vignette(Icone, 34.0)
                 PosAvion := Courbe(Depart, Arrivee, Progression())
                 set Slots += array{Place(ImageAvion, PosAvion.X, PosAvion.Y, 34.0, 34.0)}
-                set Avion = option{ImageAvion}
+                set IconeVol = option{ImageAvion}
             if (MessageErreur <> ""):
                 Erreur := text_block{DefaultText := Msg(MessageErreur), DefaultTextColor := NamedColors.Red, DefaultJustification := text_justification.Center}
                 set Slots += array{Place(Erreur, (CarteGauche + CarteDroite) / 2.0, CarteHaut + 0.03, 700.0, 40.0)}
@@ -368,7 +368,7 @@ pc_destinations := class(creative_device):
             Nouveau := canvas{Slots := Slots}
             UI.AddWidget(Nouveau, player_ui_slot{InputMode := ui_input_mode.All})
             set Ecran = option{Nouveau}
-            if (EnVol[], ImageAvion := Avion?):
+            if (EnVol[], ImageAvion := IconeVol?):
                 spawn{AnimerAvion(NumeroAnimation, Nouveau, ImageAvion, Depart, Arrivee)}
 
     # Pendant le vol, l'avion est replacé 10 fois par seconde à sa vraie position.

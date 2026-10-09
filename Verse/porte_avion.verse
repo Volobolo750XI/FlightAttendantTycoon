@@ -35,11 +35,6 @@ porte_avion := class(creative_device):
     @editable FermetureAuto:float = 0.0
 
     var Ouverte:logic = false
-    # Verrouillée (pendant un vol) : on ne peut plus l'ouvrir.
-    var Verrouillee:logic = false
-
-    Verrouiller(Etat:logic):void =
-        set Verrouillee = Etat
 
     OnBegin<override>()<suspends>:void =
         FermeeBattant := Battant.GetTransform()
@@ -48,9 +43,6 @@ porte_avion := class(creative_device):
             Joueur := Bouton.InteractedWithEvent.Await()
             if (Ouverte?):
                 Fermer(FermeeBattant, FermeePoignee)
-            else if (Verrouillee?):
-                # porte verrouillée pendant le vol : la poignée bouge mais rien ne s'ouvre
-                TournerPoignee(FermeePoignee)
             else:
                 Ouvrir(FermeeBattant, FermeePoignee, Joueur)
                 if (FermetureAuto > 0.0):

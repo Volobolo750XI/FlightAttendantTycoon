@@ -434,24 +434,24 @@ pc_destinations := class(creative_device):
                 VC := (CarteHaut + CarteBas) / 2.0
                 PrixTexte := if (D.Prix = 0) then "FREE" else "{AvionTycoon.Abreger(D.Prix)} $"
                 set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, UC, VC, 624.0, 254.0, 8)}
-                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC, VC, 620.0, 250.0, 8)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC, VC, 620.0, 250.0, 9)}
                 Titre := text_block{DefaultText := Msg("BUY THIS ROUTE?"), DefaultTextColor := MakeColorFromHex("5ADCFF"), DefaultJustification := text_justification.Center}
                 Trajet := text_block{DefaultText := Msg("{D.Ville1}  <->  {D.Ville2}"), DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center}
                 TextePrix := text_block{DefaultText := Msg("{PrixTexte}     INCOME {D.MultiTexte}"), DefaultTextColor := NamedColors.Lime, DefaultJustification := text_justification.Center}
-                set Slots += array{PlaceC(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0, 9)}
-                set Slots += array{PlaceC(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0, 9)}
-                set Slots += array{PlaceC(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0, 9)}
+                set Slots += array{PlaceC(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0, 12)}
+                set Slots += array{PlaceC(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0, 12)}
+                set Slots += array{PlaceC(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0, 12)}
                 Oui := button_quiet{DefaultText := Msg("BUY")}
                 Oui.OnClick().Subscribe(ConfirmerAchat)
                 Non := button_quiet{DefaultText := Msg("CANCEL")}
                 Non.OnClick().Subscribe(AnnulerAchat)
                 # cadres holo sous les 2 boutons (vert pour acheter, bleu pour annuler)
-                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("39FF88"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 8)}
-                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 8)}
-                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 8)}
-                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 8)}
-                set Slots += array{PlaceC(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
-                set Slots += array{PlaceC(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("39FF88"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 10)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 11)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 10)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 11)}
+                set Slots += array{PlaceC(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 12)}
+                set Slots += array{PlaceC(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 12)}
 
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }

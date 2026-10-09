@@ -20,7 +20,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir à contenu, dossier "Destinations" :
 #   Dest01 ... Dest30 (les cartes), CarteMonde (la carte du monde),
-#   AvionDroite, AvionGauche, FlecheHaut, FlecheBas.
+#   AvionDroite et AvionGauche (l'icône d'avion).
 #
 # Dans l'éditeur :
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
@@ -282,6 +282,13 @@ pc_destinations := class(creative_device):
             X := U * U * A.X + 2.0 * U * T * C.X + T * T * B.X
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
+    # Petite flèche (chevron) dessinée avec des carrés bleus : aucune image à importer.
+    Chevron(U:float, V:float, VersLeHaut:logic):[]canvas_slot =
+        for (K := -4..4):
+            Decalage := if (K < 0) then -K else K
+            DY := if (VersLeHaut?) then Decalage * 2.5 - 5.0 else 5.0 - Decalage * 2.5
+            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, U + (K * 2.5) / TailleCarte, V + DY / TailleCarte, 4.0, 4.0)
+
     Vignette(T:texture, Taille:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := Taille, Y := Taille}}
 
@@ -326,12 +333,12 @@ pc_destinations := class(creative_device):
                 VCurseur := VHaut + 0.015 + HauteurCurseur / 2.0 + (Rail - HauteurCurseur) * (Debut * 1.0) / (DernierDebut * 1.0)
                 set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.6}, UFleches, VCurseur, 3.0, HauteurCurseur * TailleCarte)}
             if (Debut > 0):
-                set Slots += array{Place(Vignette(Destinations.FlecheHaut, 26.0), UFleches, VHaut, 26.0, 26.0)}
+                set Slots += Chevron(UFleches, VHaut, true)
                 Haut := button_quiet{DefaultText := Msg("")}
                 Haut.OnClick().Subscribe(Monter)
                 set Slots += array{Place(Haut, UFleches, VHaut, 34.0, 34.0)}
             if (Debut < DernierDebut):
-                set Slots += array{Place(Vignette(Destinations.FlecheBas, 26.0), UFleches, VBas, 26.0, 26.0)}
+                set Slots += Chevron(UFleches, VBas, false)
                 Bas := button_quiet{DefaultText := Msg("")}
                 Bas.OnClick().Subscribe(Descendre)
                 set Slots += array{Place(Bas, UFleches, VBas, 34.0, 34.0)}

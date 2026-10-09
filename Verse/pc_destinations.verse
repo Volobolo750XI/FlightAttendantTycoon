@@ -8,21 +8,27 @@ using { /UnrealEngine.com/Temporary/UI }
 
 # Flight Attendant Tycoon - le PC des destinations.
 #
-# Le proprio interagit avec le PC -> l'écran holographique s'ouvre :
-#   - à gauche, la liste des destinations (5 visibles, flèches UP / DOWN pour défiler) ;
-#   - on clique une destination : si elle est achetée, elle devient le trajet actif,
+# Le proprio interagit avec le PC -> l'écran holographique s'ouvre en plein écran :
+#   - à gauche, la liste des destinations (5 visibles) ; on défile avec les deux
+#     petites flèches discrètes à droite de la liste ;
+#   - on clique sur une carte : si elle est achetée, elle devient le trajet actif,
 #     sinon on l'achète (si on a assez d'argent) ;
 #   - sur la carte : un point rouge sur chaque ville, un trajet courbé entre les deux,
-#     et un petit avion qui suit le trajet en boucle ;
-#   - en bas : le trajet actif, son multiplicateur et sa durée (vraie vie / en jeu).
+#     et l'avion. Tant qu'on n'a pas décollé, l'avion attend sur la ville de départ.
+#     Dès le décollage, il avance le long du trajet à la vitesse exacte du vol
+#     (il arrive pile quand le vol en jeu se termine). Le vol suivant repart dans l'autre sens.
 #
 # Dans le Tiroir à contenu, dossier "Destinations" :
 #   Dest01 ... Dest30 (les cartes), CarteMonde (la carte du monde),
-#   AvionDroite et AvionGauche (l'icône d'avion).
+#   AvionDroite, AvionGauche, FlecheHaut, FlecheBas.
 #
 # Dans l'éditeur :
-#   Bouton : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
-#   AvionTycoon  : le device avion_tycoon de cet avion (pour le proprio et l'argent).
+#   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
+#   AvionTycoon     : le device avion_tycoon de cet avion (pour le proprio et l'argent).
+#   BoutonDecollage : un Appareil Bouton dans le cockpit (texte "Take off").
+#   Portes          : les portes passagers (devices porte_avion) qui doivent être fermées
+#                     pour décoller. Elles restent verrouillées pendant le vol.
+#   MessageHUD      : (facultatif) un Appareil Message HUD pour "CLOSE ALL DOORS".
 #   Les réglages Carte... servent à caler les points sur l'image de la carte.
 
 destination := class:
@@ -48,9 +54,13 @@ bouton_destination := class:
 pc_destinations := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
+    @editable BoutonDecollage:button_device = button_device{}
+    @editable Portes:[]porte_avion = array{}
+    @editable MessageHUD:hud_message_device = hud_message_device{}
 
-    # Taille (pixels) de l'image de la carte à l'écran.
-    @editable TailleCarte:float = 1000.0
+    # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
+    # avec 1960, la liste + la carte prennent toute la largeur.
+    @editable TailleCarte:float = 1960.0
     # Où est le cadre de la carte du monde dans l'image (0 = bord gauche/haut, 1 = droite/bas).
     @editable CarteGauche:float = 0.283
     @editable CarteDroite:float = 0.974
@@ -98,21 +108,79 @@ pc_destinations := class(creative_device):
         destination{Ville1 := "MONACO", Ville2 := "TAHITI", Prix := 2500000000, Multiplicateur := 800.0, MultiTexte := "x800", VraiVol := "22h00", DureeMinutes := 40.0, Lat1 := 43.74, Lon1 := 7.42, Lat2 := -17.65, Lon2 := -149.43, Carte := Destinations.Dest30}
 
     NbVisibles:int = 5
+    # Partie visible d'une carte dans son image 2048 x 2048 (le reste est transparent).
+    CarteLargeurVisible:float = 0.9716
+    CarteHauteurVisible:float = 0.2744
+
     var Achetees:[]logic = array{}
     var Active:int = 0
     var Debut:int = 0
     var MessageErreur:string = ""
+    var NumeroMessage:int = 0
     var Ecran:?canvas = false
     var EcranJoueur:?player = false
     var NumeroAnimation:int = 0
 
+    # Vol : DebutVol < 0 = l'avion est au sol.
+    var DebutVol:float = -1.0
+    var DureeVol:float = 600.0
+    # false = Ville1 -> Ville2, true = retour Ville2 -> Ville1.
+    var Retour:logic = false
+
     OnBegin<override>()<suspends>:void =
         # la première destination (FREE) est déjà à nous
         set Achetees = for (I := 0..ListeDestinations.Length - 1) { if (I = 0) then true else false }
+        spawn{AttendreDecollage()}
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
-            if (Proprio := AvionTycoon.Proprio?, Proprio = Joueur, P := player[Joueur]):
+            if (EstProprio[Joueur], P := player[Joueur]):
                 Ouvrir(P)
+
+    EstProprio(Joueur:agent)<transacts><decides>:void =
+        Proprio := AvionTycoon.Proprio?
+        Proprio = Joueur
+
+    # ---------- Vol ----------
+    EnVol()<transacts><decides>:void = DebutVol >= 0.0
+
+    AttendreDecollage()<suspends>:void =
+        loop:
+            Joueur := BoutonDecollage.InteractedWithEvent.Await()
+            if (EstProprio[Joueur]):
+                Decoller(Joueur)
+
+    Decoller(Joueur:agent):void =
+        PortesOuvertes := for (Porte : Portes, Porte.Ouverte?) { Porte }
+        if (EnVol[]):
+            MessageHUD.SetText(Msg("ALREADY FLYING"))
+            MessageHUD.Show(Joueur)
+        else if (PortesOuvertes.Length > 0):
+            MessageHUD.SetText(Msg("CLOSE ALL DOORS BEFORE TAKE OFF"))
+            MessageHUD.Show(Joueur)
+        else:
+            for (Porte : Portes) { Porte.Verrouiller(true) }
+            Decollage()
+
+    Decollage():void =
+        set DureeVol = DureeVolActive()
+        set DebutVol = GetSimulationElapsedTime()
+        spawn{Voler()}
+        Afficher()
+
+    Voler()<suspends>:void =
+        Sleep(DureeVol)
+        set DebutVol = -1.0
+        # l'avion est arrivé : le prochain vol repart dans l'autre sens
+        set Retour = if (Retour?) then false else true
+        for (Porte : Portes) { Porte.Verrouiller(false) }
+        Afficher()
+
+    # Avancement du vol entre 0 (départ) et 1 (arrivée).
+    Progression():float =
+        if (EnVol[], DureeVol > 0.0):
+            Max(0.0, Min(1.0, (GetSimulationElapsedTime() - DebutVol) / DureeVol))
+        else:
+            0.0
 
     # ---------- Ouverture / fermeture ----------
     Ouvrir(P:player):void =
@@ -142,31 +210,55 @@ pc_destinations := class(creative_device):
     ChoisirDestination(Index:int):void =
         if (D := ListeDestinations[Index]):
             if (Achetees[Index]?):
-                set Active = Index
-                set MessageErreur = ""
+                # (si c'est déjà le trajet actif, rien à faire)
+                if (Index <> Active):
+                    if (EnVol[]):
+                        AfficherErreur("WAIT FOR LANDING")
+                    else:
+                        set Active = Index
+                        set Retour = false
+                        set MessageErreur = ""
+                        Afficher()
             else if (AvionTycoon.Argent >= D.Prix):
                 set AvionTycoon.Argent -= D.Prix
                 AvionTycoon.MettreAJourUI()
                 if (set Achetees[Index] = true) {}
-                set Active = Index
+                # pendant un vol, on achète mais le trajet change seulement à l'atterrissage
+                if (not EnVol[]):
+                    set Active = Index
+                    set Retour = false
                 set MessageErreur = ""
+                Afficher()
             else:
-                set MessageErreur = "NOT ENOUGH MONEY  ({AvionTycoon.Abreger(D.Prix)} $)"
+                AfficherErreur("NOT ENOUGH MONEY")
+
+    # Message rouge sur la carte, qui disparaît tout seul après 2 secondes.
+    AfficherErreur(Texte:string):void =
+        set MessageErreur = Texte
+        set NumeroMessage += 1
         Afficher()
+        spawn{EffacerErreur(NumeroMessage)}
+
+    EffacerErreur(Numero:int)<suspends>:void =
+        Sleep(2.0)
+        if (Numero = NumeroMessage):
+            set MessageErreur = ""
+            Afficher()
 
     # Multiplicateur et durée du trajet actif (pour la suite : revenu et vol).
     MultiplicateurActif():float = if (D := ListeDestinations[Active]) then D.Multiplicateur else 1.0
     DureeVolActive():float = if (D := ListeDestinations[Active]) then D.DureeMinutes * 60.0 else 600.0
 
     # ---------- Construction de l'écran ----------
-    # Position à l'écran (pixels depuis le centre) d'un point de l'image (0..1).
-    Ecart(U:float):float = (U - 0.5) * TailleCarte
+    # L'image est centrée sur le cadre (liste + carte), pas sur le milieu de l'image.
+    CentreU():float = (ListeGauche + CarteDroite) / 2.0
+    CentreV():float = (CarteHaut + CarteBas) / 2.0
 
     Place(W:widget, U:float, V:float, Largeur:float, Hauteur:float):canvas_slot =
         canvas_slot:
             Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.5}, Maximum := vector2{X := 0.5, Y := 0.5}}
             Alignment := vector2{X := 0.5, Y := 0.5}
-            Offsets := margin{Left := Ecart(U), Top := Ecart(V), Right := Largeur, Bottom := Hauteur}
+            Offsets := margin{Left := (U - CentreU()) * TailleCarte, Top := (V - CentreV()) * TailleCarte, Right := Largeur, Bottom := Hauteur}
             Widget := W
 
     PleinEcran(W:widget):canvas_slot =
@@ -190,8 +282,8 @@ pc_destinations := class(creative_device):
             X := U * U * A.X + 2.0 * U * T * C.X + T * T * B.X
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
-    Texte(Contenu:string, Couleur:color):text_block =
-        text_block{DefaultText := Msg(Contenu), DefaultTextColor := Couleur, DefaultJustification := text_justification.Center}
+    Vignette(T:texture, Taille:float):texture_block =
+        texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := Taille, Y := Taille}}
 
     Afficher():void =
         if (P := EcranJoueur?, UI := GetPlayerUI[P]):
@@ -200,73 +292,90 @@ pc_destinations := class(creative_device):
             set NumeroAnimation += 1
             var Slots:[]canvas_slot = array{}
             # fond sombre + carte du monde
-            set Slots += array{PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.6})}
-            set Slots += array{Place(texture_block{DefaultImage := Destinations.CarteMonde, DefaultDesiredSize := vector2{X := TailleCarte, Y := TailleCarte}}, 0.5, 0.5, TailleCarte, TailleCarte)}
+            set Slots += array{PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})}
+            set Slots += array{Place(Vignette(Destinations.CarteMonde, TailleCarte), 0.5, 0.5, TailleCarte, TailleCarte)}
 
             # liste des destinations (5 visibles)
-            LargeurCarte := (ListeDroite - ListeGauche) * TailleCarte
+            TailleImageCarte := (ListeDroite - ListeGauche) * TailleCarte
+            LargeurVisible := TailleImageCarte * CarteLargeurVisible
+            HauteurVisible := TailleImageCarte * CarteHauteurVisible
             Pas := (ListeBas - ListeHaut) / (NbVisibles * 1.0)
             UListe := (ListeGauche + ListeDroite) / 2.0
             for (Ligne := 0..NbVisibles - 1, Index := Debut + Ligne, D := ListeDestinations[Index]):
                 V := ListeHaut + Pas * (Ligne * 1.0 + 0.5)
-                HauteurVisible := LargeurCarte * 0.32
-                set Slots += array{Place(texture_block{DefaultImage := D.Carte, DefaultDesiredSize := vector2{X := LargeurCarte, Y := LargeurCarte}}, UListe, V, LargeurCarte, LargeurCarte)}
+                set Slots += array{Place(Vignette(D.Carte, TailleImageCarte), UListe, V, TailleImageCarte, TailleImageCarte)}
                 if (not Achetees[Index]?):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.55}, UListe, V, LargeurCarte * 0.96, HauteurVisible * 0.9)}
+                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.55}, UListe, V, LargeurVisible, HauteurVisible)}
                 if (Index = Active):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, ListeGauche - 0.006, V, 6.0, HauteurVisible * 0.8)}
+                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, UListe - LargeurVisible / TailleCarte / 2.0 - 0.004, V, 5.0, HauteurVisible * 0.8)}
+                # bouton invisible, exactement de la taille de la carte
                 BoutonCarte := button_quiet{DefaultText := Msg("")}
                 Gestion := bouton_destination{Index := Index, Ordinateur := Self}
                 BoutonCarte.OnClick().Subscribe(Gestion.Clique)
-                set Slots += array{Place(BoutonCarte, UListe, V, LargeurCarte, HauteurVisible)}
+                set Slots += array{Place(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible)}
 
-            # défilement + fermeture
-            Haut := button_quiet{DefaultText := Msg("UP")}
-            Haut.OnClick().Subscribe(Monter)
-            Bas := button_quiet{DefaultText := Msg("DOWN")}
-            Bas.OnClick().Subscribe(Descendre)
-            Croix := button_quiet{DefaultText := Msg("CLOSE")}
+            # défilement : une fine barre à droite de la liste, avec une flèche en haut et en bas
+            UFleches := (UListe + LargeurVisible / TailleCarte / 2.0 + CarteGauche) / 2.0
+            VHaut := ListeHaut + Pas * 0.5 - HauteurVisible / TailleCarte / 2.0
+            VBas := ListeBas - Pas * 0.5 + HauteurVisible / TailleCarte / 2.0
+            Rail := (VBas - VHaut) - 0.03
+            set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.15}, UFleches, (VHaut + VBas) / 2.0, 2.0, Rail * TailleCarte)}
+            DernierDebut := ListeDestinations.Length - NbVisibles
+            if (DernierDebut > 0):
+                HauteurCurseur := Rail * (NbVisibles * 1.0) / (ListeDestinations.Length * 1.0)
+                VCurseur := VHaut + 0.015 + HauteurCurseur / 2.0 + (Rail - HauteurCurseur) * (Debut * 1.0) / (DernierDebut * 1.0)
+                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.6}, UFleches, VCurseur, 3.0, HauteurCurseur * TailleCarte)}
+            if (Debut > 0):
+                set Slots += array{Place(Vignette(Destinations.FlecheHaut, 26.0), UFleches, VHaut, 26.0, 26.0)}
+                Haut := button_quiet{DefaultText := Msg("")}
+                Haut.OnClick().Subscribe(Monter)
+                set Slots += array{Place(Haut, UFleches, VHaut, 34.0, 34.0)}
+            if (Debut < DernierDebut):
+                set Slots += array{Place(Vignette(Destinations.FlecheBas, 26.0), UFleches, VBas, 26.0, 26.0)}
+                Bas := button_quiet{DefaultText := Msg("")}
+                Bas.OnClick().Subscribe(Descendre)
+                set Slots += array{Place(Bas, UFleches, VBas, 34.0, 34.0)}
+
+            # fermeture
+            Croix := button_quiet{DefaultText := Msg("X")}
             Croix.OnClick().Subscribe(FermerClique)
-            set Slots += array{Place(Haut, UListe, ListeHaut - 0.02, 120.0, 36.0)}
-            set Slots += array{Place(Bas, UListe, ListeBas + 0.02, 120.0, 36.0)}
-            set Slots += array{Place(Croix, CarteDroite - 0.03, CarteHaut - 0.03, 120.0, 36.0)}
+            set Slots += array{Place(Croix, CarteDroite - 0.015, CarteHaut + 0.02, 40.0, 40.0)}
 
             # trajet actif : points rouges, courbe, avion
-            var Avions:[]widget = array{}
+            var Avion:?texture_block = false
+            var Depart:vector2 = vector2{}
+            var Arrivee:vector2 = vector2{}
             if (D := ListeDestinations[Active]):
                 A := PointCarte(D.Lat1, D.Lon1)
                 B := PointCarte(D.Lat2, D.Lon2)
+                set Depart = if (Retour?) then B else A
+                set Arrivee = if (Retour?) then A else B
                 for (I := 0..39):
                     Pt := Courbe(A, B, (I * 1.0 + 0.5) / 40.0)
                     set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.85}, Pt.X, Pt.Y, 4.0, 4.0)}
                 for (Ville : array{A, B}):
                     set Slots += array{Place(color_block{DefaultColor := NamedColors.Red, DefaultOpacity := 0.35}, Ville.X, Ville.Y, 26.0, 26.0)}
                     set Slots += array{Place(color_block{DefaultColor := NamedColors.Red}, Ville.X, Ville.Y, 12.0, 12.0)}
-                Icone := if (B.X >= A.X) then Destinations.AvionDroite else Destinations.AvionGauche
-                for (I := 0..59):
-                    Pt := Courbe(A, B, I * 1.0 / 59.0)
-                    Image := texture_block{DefaultImage := Icone, DefaultDesiredSize := vector2{X := 34.0, Y := 34.0}}
-                    if (I > 0) { Image.SetVisibility(widget_visibility.Hidden) }
-                    set Avions += array{Image}
-                    set Slots += array{Place(Image, Pt.X, Pt.Y, 34.0, 34.0)}
-                Minutes := if (M := Round[D.DureeMinutes]) then M else 0
-                Info := "{D.Ville1}  <->  {D.Ville2}     {D.MultiTexte}     {D.VraiVol} real  /  {Minutes} min in game"
-                set Slots += array{Place(Texte(Info, NamedColors.White), (CarteGauche + CarteDroite) / 2.0, CarteBas + 0.03, 900.0, 40.0)}
+                Icone := if (Arrivee.X >= Depart.X) then Destinations.AvionDroite else Destinations.AvionGauche
+                ImageAvion := Vignette(Icone, 34.0)
+                PosAvion := Courbe(Depart, Arrivee, Progression())
+                set Slots += array{Place(ImageAvion, PosAvion.X, PosAvion.Y, 34.0, 34.0)}
+                set Avion = option{ImageAvion}
             if (MessageErreur <> ""):
-                set Slots += array{Place(Texte(MessageErreur, NamedColors.Red), (CarteGauche + CarteDroite) / 2.0, CarteBas + 0.065, 900.0, 40.0)}
+                Erreur := text_block{DefaultText := Msg(MessageErreur), DefaultTextColor := NamedColors.Red, DefaultJustification := text_justification.Center}
+                set Slots += array{Place(Erreur, (CarteGauche + CarteDroite) / 2.0, CarteHaut + 0.03, 700.0, 40.0)}
 
             Nouveau := canvas{Slots := Slots}
             UI.AddWidget(Nouveau, player_ui_slot{InputMode := ui_input_mode.All})
             set Ecran = option{Nouveau}
-            spawn{AnimerAvion(NumeroAnimation, Avions)}
+            if (EnVol[], ImageAvion := Avion?):
+                spawn{AnimerAvion(NumeroAnimation, Nouveau, ImageAvion, Depart, Arrivee)}
 
-    # L'avion avance le long du trajet en boucle (une image visible à la fois).
-    AnimerAvion(Numero:int, Avions:[]widget)<suspends>:void =
-        var I:int = 0
+    # Pendant le vol, l'avion est replacé 10 fois par seconde à sa vraie position.
+    AnimerAvion(Numero:int, Toile:canvas, Img:texture_block, Depart:vector2, Arrivee:vector2)<suspends>:void =
         loop:
-            if (Numero <> NumeroAnimation) { break }
-            Sleep(0.07)
-            if (Numero <> NumeroAnimation) { break }
-            if (Avant := Avions[I]) { Avant.SetVisibility(widget_visibility.Hidden) }
-            set I = if (I + 1 >= Avions.Length) then 0 else I + 1
-            if (Apres := Avions[I]) { Apres.SetVisibility(widget_visibility.Visible) }
+            Sleep(0.1)
+            if (Numero <> NumeroAnimation or not EnVol[]) { break }
+            Pt := Courbe(Depart, Arrivee, Progression())
+            Toile.RemoveWidget(Img)
+            Toile.AddWidget(Place(Img, Pt.X, Pt.Y, 34.0, 34.0))

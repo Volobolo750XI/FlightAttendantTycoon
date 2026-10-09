@@ -55,9 +55,6 @@ place_passager := class<concrete>:
     @editable Siege:creative_prop = creative_prop{}
     @editable Allee:creative_prop = creative_prop{}
     @editable Coffre:creative_prop = creative_prop{}
-    # Numéro de la rangée de ce siège (1 = première rangée achetée). Personne ne s'y assoit
-    # tant que cette rangée n'est pas achetée.
-    @editable Rangee:int = 1
 
 # Un passager en cours d'embarquement.
 passager := class:
@@ -109,11 +106,11 @@ passagers := class(creative_device):
     @editable HauteurAssis:float = -20.0
     @editable AvanceAssis:float = 0.0
     @editable RotationValise:float = 0.0
-    @editable RotationSac:float = 0.0
+    @editable RotationSac:float = 90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
     @editable EchelleValise:float = 1.5
-    @editable EchelleSac:float = 1.8
+    @editable EchelleSac:float = 1.6
     @editable InclinaisonValise:float = 35.0
     @editable RoulisValise:float = 0.0
 
@@ -146,7 +143,8 @@ passagers := class(creative_device):
         set Embarquement = true
         loop:
             # places libres dont la rangée est achetée
-            Libres := for (I -> P : Places, not Occupees[I]?, P.Rangee <= DeviceAvion.RangeesAchetees) { I }
+            Achetes := for (P : Places) { SiegeAchete(P) }
+            Libres := for (I -> P : Places, not Occupees[I]?, Achetes[I]?) { I }
             if (Libres.Length = 0 or Modeles.Length = 0) { break }
             if (I := Libres[GetRandomInt(0, Libres.Length - 1)], P := Places[I]):
                 if (set Occupees[I] = true) {}
@@ -282,6 +280,19 @@ passagers := class(creative_device):
                 B.MoveTo(TB, Duree)
         else if (C := P.Corps?):
             C.MoveTo(transform{Translation := Pos, Rotation := RotCorps, Scale := EchellePerso()}, Duree)
+
+    # Un siège est acheté si le siège le plus proche de son repère (dans DeviceAvion)
+    # appartient à une rangée déjà achetée. Rien à numéroter à la main.
+    SiegeAchete(Place:place_passager):logic =
+        Pos := Place.Siege.GetTransform().Translation
+        var Meilleur:float = 1000000.0
+        var Achete:logic = false
+        for (K -> R : DeviceAvion.Rangees, S : R.Sieges):
+            D := Distance(S.GetTransform().Translation, Pos)
+            if (D < Meilleur):
+                set Meilleur = D
+                set Achete = if (K < DeviceAvion.RangeesAchetees) then true else false
+        Achete
 
     EchellePerso()<transacts>:vector3 =
         vector3{X := EchellePersoX, Y := EchellePersoY, Z := EchellePersoZ}

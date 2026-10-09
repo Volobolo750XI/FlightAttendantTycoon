@@ -282,9 +282,7 @@ pc_destinations := class(creative_device):
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
     # Flèche (chevron) dessinée avec des carrés bleus, avec son bouton caché derrière.
-    Fleche(U:float, V:float, VersLeHaut:logic, Action:type{_(:widget_message):void}):[]canvas_slot =
-        BoutonFleche := button_quiet{DefaultText := Msg("")}
-        BoutonFleche.OnClick().Subscribe(Action)
+    Fleche(U:float, V:float, VersLeHaut:logic, BoutonFleche:button_quiet):[]canvas_slot =
         SlotBouton := Place(BoutonFleche, U, V, 90.0, 40.0)
         Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 90.0, 40.0)
         Dessin := for (K := -6..6):
@@ -334,9 +332,13 @@ pc_destinations := class(creative_device):
             VBas := (ListeCadreBas + ListeBas - Pas * 0.5 + DemiCarte) / 2.0
             DernierDebut := ListeDestinations.Length - NbVisibles
             if (Debut > 0):
-                set Slots += Fleche(UListe, VHaut, true, Monter)
+                Haut := button_quiet{DefaultText := Msg("")}
+                Haut.OnClick().Subscribe(Monter)
+                set Slots += Fleche(UListe, VHaut, true, Haut)
             if (Debut < DernierDebut):
-                set Slots += Fleche(UListe, VBas, false, Descendre)
+                Bas := button_quiet{DefaultText := Msg("")}
+                Bas.OnClick().Subscribe(Descendre)
+                set Slots += Fleche(UListe, VBas, false, Bas)
 
             # fermeture
             Croix := button_quiet{DefaultText := Msg("X")}

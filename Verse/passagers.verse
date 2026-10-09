@@ -10,7 +10,8 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   1. ils marchent sur la passerelle jusqu'à la porte puis dans l'allée, avec leur bagage
 #      (valise à la main droite ou sac sur le dos) ;
 #   2. s'il y a quelqu'un devant, ils s'arrêtent et attendent (queue dans l'allée) ;
-#   3. arrivés à leur rangée, ils ouvrent le coffre au-dessus, y rangent le bagage ;
+#   3. arrivés à leur rangée, ils rangent le bagage dans le coffre (ouvert dès le départ,
+#      c'est au joueur de refermer les coffres) ;
 #   4. puis ils s'assoient (3 secondes).
 #
 # Animations : chaque état est un blueprint (classe parente Creative Prop) qui contient le
@@ -26,8 +27,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #                        la porte de l'avion, et le dernier DANS l'allée, au niveau de la porte.
 #                        La queue marche sur tout le chemin : passerelle, porte et allée.
 #   Places             : un élément par siège : repère du siège (position assis), repère dans
-#                        l'allée face à la rangée, repère dans le coffre, numéro du coffre.
-#   PortesCoffres      : les portes des coffres (props Coffre_D1, Coffre_G1...).
+#                        l'allée face à la rangée, repère dans le coffre.
+#   PortesCoffres      : les portes des coffres (props Coffre_D1, Coffre_G1...). Elles sont
+#                        ouvertes dès le départ.
+#   BoutonsCoffres     : un bouton par porte (même ordre) pour que le joueur les referme.
 #   Les repères sont cachés automatiquement au lancement de la partie.
 
 modele_passager := class<concrete>:
@@ -52,8 +55,6 @@ place_passager := class<concrete>:
     @editable Siege:creative_prop = creative_prop{}
     @editable Allee:creative_prop = creative_prop{}
     @editable Coffre:creative_prop = creative_prop{}
-    # Index de la porte du coffre dans PortesCoffres (0 = la première). -1 = pas de porte.
-    @editable NumeroCoffre:int = 0
 
 # Un passager en cours d'embarquement.
 passager := class:
@@ -74,6 +75,8 @@ passagers := class(creative_device):
     @editable Chemin:[]creative_prop = array{}
     @editable Places:[]place_passager = array{}
     @editable PortesCoffres:[]creative_prop = array{}
+    # Un Appareil Bouton par porte (même ordre que PortesCoffres) : on interagit pour fermer / rouvrir.
+    @editable BoutonsCoffres:[]button_device = array{}
 
     # Vitesse de marche (cm/s), écart entre deux passagers dans la queue (cm),
     # temps entre deux arrivées (s), durée pour s'asseoir (s).
@@ -104,6 +107,9 @@ passagers := class(creative_device):
         set Occupees = for (P : Places) { false }
         set CoffresOuverts = for (P : PortesCoffres) { false }
         set FermesCoffres = for (P : PortesCoffres) { P.GetTransform() }
+        # les coffres sont ouverts dès le départ ; c'est au joueur de les refermer
+        for (I -> Porte : PortesCoffres) { spawn{OuvrirCoffre(I)} }
+        for (I -> Bouton : BoutonsCoffres) { spawn{GererBoutonCoffre(I, Bouton)} }
         loop:
             BoutonEmbarquement.InteractedWithEvent.Await()
             if (not Embarquement?):
@@ -138,10 +144,6 @@ passagers := class(creative_device):
             RangerBagage(P, Place)
             Asseoir(P, Place)
             set NbEnRoute -= 1
-            # le dernier assis referme les coffres
-            if (NbEnRoute = 0, not Embarquement?):
-                Sleep(DureeAssis)
-                FermerCoffres()
 
     # ---------- marche + queue ----------
     Marcher(P:passager, Route:[]vector3)<suspends>:void =
@@ -167,7 +169,6 @@ passagers := class(creative_device):
     # ---------- coffre ----------
     RangerBagage(P:passager, Place:place_passager)<suspends>:void =
         Changer(P, 1, P.Modele.Attente)
-        OuvrirCoffre(Place)
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
             B.MoveTo(T.Translation, T.Rotation, 1.0)
@@ -178,21 +179,26 @@ passagers := class(creative_device):
         Sleep(0.3)
 
     # La porte tourne autour de l'axe de l'allée ; le sens dépend du côté (gauche / droite).
-    OuvrirCoffre(Place:place_passager)<suspends>:void =
-        Numero := Place.NumeroCoffre
+    OuvrirCoffre(Numero:int)<suspends>:void =
         if (Porte := PortesCoffres[Numero], not CoffresOuverts[Numero]?, T := FermesCoffres[Numero]):
             if (set CoffresOuverts[Numero] = true) {}
             Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
             Axe := AxeAllee()
-            PosAllee := Place.Allee.GetTransform().Translation
-            Cote := if (DotProduct(CrossProduct(Axe, Haut), T.Translation - PosAllee) > 0.0) then 1.0 else -1.0
+            var Milieu:vector3 = vector3{}
+            if (Fin := Chemin[Chemin.Length - 1]) { set Milieu = Fin.GetTransform().Translation }
+            Cote := if (DotProduct(CrossProduct(Axe, Haut), T.Translation - Milieu) > 0.0) then 1.0 else -1.0
             Ouverture := MakeRotation(Axe, DegreesToRadians(AngleCoffre * Cote))
             Porte.MoveTo(T.Translation, T.Rotation.RotateBy(Ouverture), 0.6)
 
-    FermerCoffres()<suspends>:void =
-        for (I -> Porte : PortesCoffres, CoffresOuverts[I]?, T := FermesCoffres[I]):
-            if (set CoffresOuverts[I] = false) {}
-            spawn{Porte.MoveTo(T.Translation, T.Rotation, 0.6)}
+    FermerCoffre(Numero:int)<suspends>:void =
+        if (Porte := PortesCoffres[Numero], CoffresOuverts[Numero]?, T := FermesCoffres[Numero]):
+            if (set CoffresOuverts[Numero] = false) {}
+            Porte.MoveTo(T.Translation, T.Rotation, 0.6)
+
+    GererBoutonCoffre(Numero:int, Bouton:button_device)<suspends>:void =
+        loop:
+            Bouton.InteractedWithEvent.Await()
+            if (CoffresOuverts[Numero]?) then FermerCoffre(Numero) else OuvrirCoffre(Numero)
 
     # Direction de l'allée : du dernier repère du chemin vers la place la plus éloignée.
     AxeAllee():vector3 =

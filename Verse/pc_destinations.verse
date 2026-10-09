@@ -20,7 +20,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir à contenu, dossier "Destinations" :
 #   Dest01 ... Dest30 (les cartes), CarteMonde (la carte du monde),
-#   AvionDroite, AvionGauche, FlecheHaut, FlecheBas, IconeFermer.
+#   AvionDroite et AvionGauche (l'icône d'avion).
 #
 # Dans l'éditeur :
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
@@ -285,11 +285,24 @@ pc_destinations := class(creative_device):
             X := U * U * A.X + 2.0 * U * T * C.X + T * T * B.X
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
-    # Icône cliquable (flèche ou croix) : l'image, avec son bouton caché derrière.
-    IconeCliquable(U:float, V:float, ImageIcone:texture, Taille:float, BoutonIcone:button_quiet):[]canvas_slot =
-        SlotBouton := Place(BoutonIcone, U, V, Taille, Taille)
-        SlotImage := Place(Vignette(ImageIcone, Taille), U, V, Taille, Taille)
-        if (BoutonsDerriere?) then array{SlotBouton, SlotImage} else array{SlotImage, SlotBouton}
+    # Icône cliquable dessinée avec des petits carrés bleus (aucune image à importer),
+    # avec son bouton caché derrière. Forme : 0 = flèche haut, 1 = flèche bas, 2 = croix.
+    IconeCliquable(U:float, V:float, Forme:int, BoutonIcone:button_quiet):[]canvas_slot =
+        SlotBouton := Place(BoutonIcone, U, V, 50.0, 44.0)
+        Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0)
+        Dessin := for (K := -7..7, Point := PointIcone[Forme, K]):
+            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
+        Dessin2 := for (K := -7..7, Forme = 2, Point := PointIcone[3, K]):
+            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
+        if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin + Dessin2 else Dessin + Dessin2 + array{SlotBouton}
+
+    # Position (pixels) du K-ième carré de la forme.
+    PointIcone(Forme:int, K:int)<transacts><decides>:vector2 =
+        Decalage := if (K < 0) then -K else K
+        if (Forme = 0) then vector2{X := K * 2.5, Y := Decalage * 1.8 - 6.0}
+        else if (Forme = 1) then vector2{X := K * 2.5, Y := 6.0 - Decalage * 1.8}
+        else if (Forme = 2) then vector2{X := K * 1.6, Y := K * 1.6}
+        else vector2{X := K * 1.6, Y := -K * 1.6}
 
     Vignette(T:texture, Taille:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := Taille, Y := Taille}}
@@ -334,16 +347,16 @@ pc_destinations := class(creative_device):
             if (Debut > 0):
                 Haut := button_quiet{DefaultText := Msg("")}
                 Haut.OnClick().Subscribe(Monter)
-                set Slots += IconeCliquable(UListe, VHaut, Destinations.FlecheHaut, 44.0, Haut)
+                set Slots += IconeCliquable(UListe, VHaut, 0, Haut)
             if (Debut < DernierDebut):
                 Bas := button_quiet{DefaultText := Msg("")}
                 Bas.OnClick().Subscribe(Descendre)
-                set Slots += IconeCliquable(UListe, VBas, Destinations.FlecheBas, 44.0, Bas)
+                set Slots += IconeCliquable(UListe, VBas, 1, Bas)
 
             # fermeture
             Croix := button_quiet{DefaultText := Msg("")}
             Croix.OnClick().Subscribe(FermerClique)
-            set Slots += IconeCliquable(CarteDroite - 0.02, CarteHaut + 0.025, Destinations.IconeFermer, 44.0, Croix)
+            set Slots += IconeCliquable(CarteDroite - 0.02, CarteHaut + 0.025, 2, Croix)
 
             # trajet actif : points rouges, courbe, avion
             var IconeVol:?texture_block = false

@@ -72,8 +72,8 @@ passager := class:
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
-    # Ton device avion_tycoon : sert à savoir combien de rangées sont achetées.
-    @editable Avion:avion_tycoon = avion_tycoon{}
+    # DeviceAvion : ton device avion_tycoon : sert à savoir combien de rangées sont achetées.
+    @editable DeviceAvion:avion_tycoon = avion_tycoon{}
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
     @editable Sacs:[]bagage = array{}
@@ -146,7 +146,7 @@ passagers := class(creative_device):
         set Embarquement = true
         loop:
             # places libres dont la rangée est achetée
-            Libres := for (I -> P : Places, not Occupees[I]?, P.Rangee <= Avion.RangeesAchetees) { I }
+            Libres := for (I -> P : Places, not Occupees[I]?, P.Rangee <= DeviceAvion.RangeesAchetees) { I }
             if (Libres.Length = 0 or Modeles.Length = 0) { break }
             if (I := Libres[GetRandomInt(0, Libres.Length - 1)], P := Places[I]):
                 if (set Occupees[I] = true) {}

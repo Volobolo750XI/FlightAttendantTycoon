@@ -217,10 +217,10 @@ passagers := class(creative_device):
             C.MoveTo(T.Translation, T.Rotation, DureeAssis)
 
     # ---------- outils ----------
-    Marche(P:passager):creative_prop_asset =
+    Marche(P:passager)<transacts>:creative_prop_asset =
         if (P.Valise?) then P.Modele.MarcheValise else P.Modele.MarcheSac
 
-    RotationBagage(P:passager):float =
+    RotationBagage(P:passager)<transacts>:float =
         if (P.Valise?) then RotationModele + RotationValise else RotationModele + RotationSac
 
     # Remplace le prop du personnage par un autre blueprint (autre animation), au même endroit.
@@ -244,7 +244,7 @@ passagers := class(creative_device):
             C.MoveTo(Pos, RotCorps, Duree)
 
     # Position du bagage : main droite (valise) ou dos (sac), dans le repère du personnage.
-    PositionBagage(P:passager, Pieds:vector3, Dir:vector3):vector3 =
+    PositionBagage(P:passager, Pieds:vector3, Dir:vector3)<transacts>:vector3 =
         Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
         Avant := Normaliser(vector3{X := Dir.X, Y := Dir.Y, Z := 0.0})
         Droite := CrossProduct(Haut, Avant)
@@ -254,11 +254,11 @@ passagers := class(creative_device):
         else:
             Pieds + Avant * M.DosAvant + Haut * M.DosHauteur
 
-    Orientation(Dir:vector3, Decalage:float):rotation =
+    Orientation(Dir:vector3, Decalage:float)<transacts>:rotation =
         Lacet := RadiansToDegrees(ArcTan(Dir.Y, Dir.X)) + Decalage
         MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
 
-    Normaliser(V:vector3):vector3 =
+    Normaliser(V:vector3)<transacts>:vector3 =
         L := Distance(V, vector3{})
         if (L > 0.001) then V / L else vector3{X := 1.0, Y := 0.0, Z := 0.0}
 

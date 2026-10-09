@@ -49,7 +49,7 @@ def texture_capuchon():
     halo = halo.filter(ImageFilter.GaussianBlur(14))
     img.paste((255, 170, 160), mask=halo.point(lambda a: a * 0.7))
     d.text(((W - w) / 2, Hh / 2 - 66), txt, font=f, fill=(255, 250, 245))
-    return img.transpose(Image.FLIP_TOP_BOTTOM)
+    return img
 
 
 def anneau_danger():
@@ -84,7 +84,7 @@ def build():
         sc.add_geometry(m, node_name=nom, geom_name=nom)
     out = os.path.join(SORTIE, "Bouton_StartBoarding.glb")
     sc.export(out)
-    tex.transpose(Image.FLIP_TOP_BOTTOM).save(os.path.join(SORTIE, "texture_start_boarding.png"))
+    tex.save(os.path.join(SORTIE, "texture_start_boarding.png"))
     print(out)
 
 

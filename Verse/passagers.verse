@@ -90,6 +90,12 @@ passagers := class(creative_device):
     @editable RotationModele:float = 0.0
     @editable RotationValise:float = 0.0
     @editable RotationSac:float = 0.0
+    # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
+    # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
+    @editable EchelleValise:float = 1.5
+    @editable EchelleSac:float = 2.0
+    @editable InclinaisonValise:float = 35.0
+    @editable RoulisValise:float = 0.0
 
     var EnCours:[]passager = array{}
     var Occupees:[]logic = array{}
@@ -136,7 +142,7 @@ passagers := class(creative_device):
                 if (Corps := SpawnProp(Marche(P), Depart, Rot)(0)?):
                     set P.Corps = option{Corps}
                     set P.Etat = 0
-                if (B := SpawnProp(Sac.EnMain, PositionBagage(P, Depart, Suivant - Depart), Orientation(Suivant - Depart, RotationBagage(P)))(0)?):
+                if (B := SpawnProp(Sac.EnMain, TransformBagage(P, Depart, Suivant - Depart))(0)?):
                     set P.Bagage = option{B}
             set EnCours += array{P}
             set NbEnRoute += 1
@@ -171,9 +177,10 @@ passagers := class(creative_device):
         Changer(P, 1, P.Modele.Attente)
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
-            B.MoveTo(T.Translation, T.Rotation, 1.0)
+            Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
+            B.MoveTo(Range, 1.0)
             # on remplace par la version "rangée" (valise couchée, poignée rentrée)
-            if (Rangee := SpawnProp(P.Sac.Rangee, T.Translation, T.Rotation)(0)?):
+            if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
                 B.Dispose()
                 set P.Bagage = option{Rangee}
         Sleep(0.3)
@@ -240,14 +247,23 @@ passagers := class(creative_device):
 
     DeplacerAvecBagage(P:passager, Pos:vector3, Dir:vector3, Duree:float)<suspends>:void =
         RotCorps := Orientation(Dir, RotationModele)
-        RotBagage := Orientation(Dir, RotationBagage(P))
-        PosBagage := PositionBagage(P, Pos, Dir)
+        TB := TransformBagage(P, Pos, Dir)
         if (C := P.Corps?, B := P.Bagage?):
             sync:
                 C.MoveTo(Pos, RotCorps, Duree)
-                B.MoveTo(PosBagage, RotBagage, Duree)
+                B.MoveTo(TB, Duree)
         else if (C := P.Corps?):
             C.MoveTo(Pos, RotCorps, Duree)
+
+    EchelleBagage(P:passager)<transacts>:vector3 =
+        E := if (P.Valise?) then EchelleValise else EchelleSac
+        vector3{X := E, Y := E, Z := E}
+
+    # Transform complet du bagage : position, orientation (valise penchée) et taille.
+    TransformBagage(P:passager, Pieds:vector3, Dir:vector3)<transacts>:transform =
+        Lacet := RadiansToDegrees(ArcTan(Dir.Y, Dir.X)) + RotationBagage(P)
+        Rot := if (P.Valise?) then MakeRotationFromYawPitchRollDegrees(Lacet, InclinaisonValise, RoulisValise) else MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
+        transform{Translation := PositionBagage(P, Pieds, Dir), Rotation := Rot, Scale := EchelleBagage(P)}
 
     # Position du bagage : main droite (valise) ou dos (sac), dans le repère du personnage.
     PositionBagage(P:passager, Pieds:vector3, Dir:vector3)<transacts>:vector3 =

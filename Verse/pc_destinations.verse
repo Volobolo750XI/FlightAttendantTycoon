@@ -136,8 +136,8 @@ pc_destinations := class(creative_device):
     var Retour:logic = false
 
     OnBegin<override>()<suspends>:void =
-        # la première destination (FREE) est déjà à nous
-        set Achetees = for (I := 0..ListeDestinations.Length - 1) { if (I = 0) then true else false }
+        # aucune destination achetée au départ (même la FREE doit être confirmée)
+        set Achetees = for (I := 0..ListeDestinations.Length - 1) { false }
         spawn{AttendreDecollage()}
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
@@ -284,12 +284,19 @@ pc_destinations := class(creative_device):
     CentreU():float = (ListeGauche + CarteDroite) / 2.0
     CentreV():float = (CarteHaut + CarteBas) / 2.0
 
+    # Couche d'affichage (ZOrder) : plus le nombre est grand, plus c'est au-dessus.
+    # 0 fond, 1 carte du monde, 2 boutons cachés, 3 images des cartes, 4 voiles,
+    # 5 dessins (flèches, croix, trajet), 6 villes, 7 avion, 8-9 fenêtre d'achat.
     Place(W:widget, U:float, V:float, Largeur:float, Hauteur:float):canvas_slot =
+        PlaceC(W, U, V, Largeur, Hauteur, 5)
+
+    PlaceC(W:widget, U:float, V:float, Largeur:float, Hauteur:float, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
         canvas_slot:
             Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.5}, Maximum := vector2{X := 0.5, Y := 0.5}}
             Alignment := vector2{X := 0.5, Y := 0.5}
             Offsets := margin{Left := (U - CentreU()) * TailleCarte, Top := (V - CentreV()) * TailleCarte, Right := Largeur, Bottom := Hauteur}
             SizeToContent := false
+            ZOrder := Couche
             Widget := W
 
     PleinEcran(W:widget):canvas_slot =
@@ -311,8 +318,8 @@ pc_destinations := class(creative_device):
     # Icône cliquable dessinée avec des petits carrés bleus (aucune image à importer),
     # avec son bouton caché derrière. Forme : 0 = flèche haut, 1 = flèche bas, 2 = croix.
     IconeCliquable(U:float, V:float, Forme:int, BoutonIcone:button_quiet):[]canvas_slot =
-        SlotBouton := Place(BoutonIcone, U, V, 50.0, 44.0)
-        Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0)
+        SlotBouton := if (BoutonsDerriere?) then PlaceC(BoutonIcone, U, V, 50.0, 44.0, 2) else PlaceC(BoutonIcone, U, V, 50.0, 44.0, 9)
+        Cache := PlaceC(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0, 4)
         Dessin := for (K := -7..7):
             Point := PointIcone(Forme, K)
             Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
@@ -340,7 +347,7 @@ pc_destinations := class(creative_device):
                 set Toile = C
             else:
                 Fond := PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})
-                Monde := Place(Vignette(Destinations.CarteMonde, TailleCarte), 0.5, 0.5, TailleCarte, TailleCarte)
+                Monde := PlaceC(Vignette(Destinations.CarteMonde, TailleCarte), 0.5, 0.5, TailleCarte, TailleCarte, 1)
                 Base := canvas{Slots := array{Fond, Monde}}
                 UI.AddWidget(Base, player_ui_slot{InputMode := ui_input_mode.All})
                 set Ecran = option{Base}
@@ -362,13 +369,13 @@ pc_destinations := class(creative_device):
                 BoutonCarte := button_quiet{DefaultText := Msg("")}
                 Gestion := bouton_destination{Index := Index, Ordinateur := Self}
                 BoutonCarte.OnClick().Subscribe(Gestion.Clique)
-                SlotBouton := Place(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible)
+                SlotBouton := if (BoutonsDerriere?) then PlaceC(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible, 2) else PlaceC(BoutonCarte, UListe, V, LargeurVisible, HauteurVisible, 9)
                 if (BoutonsDerriere?) { set Slots += array{SlotBouton} }
-                set Slots += array{Place(Vignette(D.Carte, TailleImageCarte), UListe, V, TailleImageCarte, TailleImageCarte)}
+                set Slots += array{PlaceC(Vignette(D.Carte, TailleImageCarte), UListe, V, TailleImageCarte, TailleImageCarte, 3)}
                 if (not Achetees[Index]?):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.5}, UListe, V, LargeurVisible, HauteurVisible)}
+                    set Slots += array{PlaceC(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.5}, UListe, V, LargeurVisible, HauteurVisible, 4)}
                 if (Index = Active):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, UListe - LargeurVisible / TailleCarte / 2.0 + 6.0 / TailleCarte, V, 4.0, HauteurVisible * 0.7)}
+                    set Slots += array{PlaceC(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, UListe - LargeurVisible / TailleCarte / 2.0 + 6.0 / TailleCarte, V, 4.0, HauteurVisible * 0.7, 4)}
                 if (not BoutonsDerriere?) { set Slots += array{SlotBouton} }
 
             # défilement : une flèche centrée dans l'espace au-dessus de la 1re carte,
@@ -404,36 +411,36 @@ pc_destinations := class(creative_device):
                     Pt := Courbe(A, B, (I * 1.0 + 0.5) / 40.0)
                     set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.85}, Pt.X, Pt.Y, 4.0, 4.0)}
                 for (Ville : array{A, B}):
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Red, DefaultOpacity := 0.35}, Ville.X, Ville.Y, 26.0, 26.0)}
-                    set Slots += array{Place(color_block{DefaultColor := NamedColors.Red}, Ville.X, Ville.Y, 12.0, 12.0)}
+                    set Slots += array{PlaceC(color_block{DefaultColor := NamedColors.Red, DefaultOpacity := 0.35}, Ville.X, Ville.Y, 26.0, 26.0, 6)}
+                    set Slots += array{PlaceC(color_block{DefaultColor := NamedColors.Red}, Ville.X, Ville.Y, 12.0, 12.0, 6)}
                 Icone := if (Arrivee.X >= Depart.X) then Destinations.AvionDroite else Destinations.AvionGauche
                 ImageAvion := Vignette(Icone, 44.0)
                 PosAvion := Courbe(Depart, Arrivee, Progression())
-                set Slots += array{Place(ImageAvion, PosAvion.X, PosAvion.Y, 44.0, 44.0)}
+                set Slots += array{PlaceC(ImageAvion, PosAvion.X, PosAvion.Y, 44.0, 44.0, 7)}
                 set IconeVol = option{ImageAvion}
             if (MessageErreur <> ""):
                 Erreur := text_block{DefaultText := Msg(MessageErreur), DefaultTextColor := NamedColors.Red, DefaultJustification := text_justification.Center}
-                set Slots += array{Place(Erreur, (CarteGauche + CarteDroite) / 2.0, CarteHaut + 0.03, 700.0, 40.0)}
+                set Slots += array{PlaceC(Erreur, (CarteGauche + CarteDroite) / 2.0, CarteHaut + 0.03, 700.0, 40.0, 9)}
 
             # fenêtre de confirmation d'achat, au milieu de la carte
             if (D := ListeDestinations[Confirmation]):
                 UC := (CarteGauche + CarteDroite) / 2.0
                 VC := (CarteHaut + CarteBas) / 2.0
                 PrixTexte := if (D.Prix = 0) then "FREE" else "{AvionTycoon.Abreger(D.Prix)} $"
-                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, UC, VC, 624.0, 254.0)}
-                set Slots += array{Place(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC, VC, 620.0, 250.0)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 0.9}, UC, VC, 624.0, 254.0, 8)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC, VC, 620.0, 250.0, 8)}
                 Titre := text_block{DefaultText := Msg("BUY THIS ROUTE?"), DefaultTextColor := MakeColorFromHex("5ADCFF"), DefaultJustification := text_justification.Center}
                 Trajet := text_block{DefaultText := Msg("{D.Ville1}  <->  {D.Ville2}"), DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center}
                 TextePrix := text_block{DefaultText := Msg("{PrixTexte}     INCOME {D.MultiTexte}"), DefaultTextColor := NamedColors.Lime, DefaultJustification := text_justification.Center}
-                set Slots += array{Place(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0)}
-                set Slots += array{Place(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0)}
-                set Slots += array{Place(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0)}
+                set Slots += array{PlaceC(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0, 9)}
+                set Slots += array{PlaceC(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0, 9)}
+                set Slots += array{PlaceC(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0, 9)}
                 Oui := button_loud{DefaultText := Msg("BUY")}
                 Oui.OnClick().Subscribe(ConfirmerAchat)
                 Non := button_quiet{DefaultText := Msg("CANCEL")}
                 Non.OnClick().Subscribe(AnnulerAchat)
-                set Slots += array{Place(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0)}
-                set Slots += array{Place(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0)}
+                set Slots += array{PlaceC(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
+                set Slots += array{PlaceC(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
 
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
@@ -447,4 +454,4 @@ pc_destinations := class(creative_device):
             if (Numero <> NumeroAnimation or not EnVol[]) { break }
             Pt := Courbe(Depart, Arrivee, Progression())
             Toile.RemoveWidget(Img)
-            Toile.AddWidget(Place(Img, Pt.X, Pt.Y, 44.0, 44.0))
+            Toile.AddWidget(PlaceC(Img, Pt.X, Pt.Y, 44.0, 44.0, 7))

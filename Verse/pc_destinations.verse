@@ -290,14 +290,14 @@ pc_destinations := class(creative_device):
     IconeCliquable(U:float, V:float, Forme:int, BoutonIcone:button_quiet):[]canvas_slot =
         SlotBouton := Place(BoutonIcone, U, V, 50.0, 44.0)
         Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0)
-        Dessin := for (K := -7..7, Point := PointIcone[Forme, K]):
+        Dessin := for (K := -7..7, Point := PointIcone(Forme, K)):
             Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
-        Dessin2 := for (K := -7..7, Forme = 2, Point := PointIcone[3, K]):
+        Dessin2 := for (K := -7..7, Forme = 2, Point := PointIcone(3, K)):
             Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
         if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin + Dessin2 else Dessin + Dessin2 + array{SlotBouton}
 
     # Position (pixels) du K-ième carré de la forme.
-    PointIcone(Forme:int, K:int)<transacts><decides>:vector2 =
+    PointIcone(Forme:int, K:int):vector2 =
         Decalage := if (K < 0) then -K else K
         if (Forme = 0) then vector2{X := K * 2.5, Y := Decalage * 1.8 - 6.0}
         else if (Forme = 1) then vector2{X := K * 2.5, Y := 6.0 - Decalage * 1.8}

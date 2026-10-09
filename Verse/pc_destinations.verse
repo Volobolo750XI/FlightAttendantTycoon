@@ -441,10 +441,15 @@ pc_destinations := class(creative_device):
                 set Slots += array{PlaceC(Titre, UC, VC - 85.0 / TailleCarte, 600.0, 40.0, 9)}
                 set Slots += array{PlaceC(Trajet, UC, VC - 35.0 / TailleCarte, 600.0, 40.0, 9)}
                 set Slots += array{PlaceC(TextePrix, UC, VC + 10.0 / TailleCarte, 600.0, 40.0, 9)}
-                Oui := button_loud{DefaultText := Msg("BUY")}
+                Oui := button_quiet{DefaultText := Msg("BUY")}
                 Oui.OnClick().Subscribe(ConfirmerAchat)
                 Non := button_quiet{DefaultText := Msg("CANCEL")}
                 Non.OnClick().Subscribe(AnnulerAchat)
+                # cadres holo sous les 2 boutons (vert pour acheter, bleu pour annuler)
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("39FF88"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 8)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 8)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 194.0, 60.0, 8)}
+                set Slots += array{PlaceC(color_block{DefaultColor := MakeColorFromHex("0B1620"), DefaultOpacity := 1.0}, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 188.0, 54.0, 8)}
                 set Slots += array{PlaceC(Oui, UC - 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
                 set Slots += array{PlaceC(Non, UC + 110.0 / TailleCarte, VC + 80.0 / TailleCarte, 190.0, 56.0, 9)}
 

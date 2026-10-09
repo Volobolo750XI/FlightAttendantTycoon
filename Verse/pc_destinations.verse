@@ -22,7 +22,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans l'éditeur :
 #   Bouton : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
-#   Avion  : le device avion_tycoon de cet avion (pour le proprio et l'argent).
+#   AvionTycoon  : le device avion_tycoon de cet avion (pour le proprio et l'argent).
 #   Les réglages Carte... servent à caler les points sur l'image de la carte.
 
 destination := class:
@@ -42,12 +42,12 @@ destination := class:
 # Un bouton de la liste : il retient quelle destination il représente.
 bouton_destination := class:
     Index:int
-    PC:pc_destinations
-    Clique(Clic:widget_message):void = PC.ChoisirDestination(Index)
+    Ordinateur:pc_destinations
+    Clique(Clic:widget_message):void = Ordinateur.ChoisirDestination(Index)
 
 pc_destinations := class(creative_device):
     @editable Bouton:button_device = button_device{}
-    @editable Avion:avion_tycoon = avion_tycoon{}
+    @editable AvionTycoon:avion_tycoon = avion_tycoon{}
 
     # Taille (pixels) de l'image de la carte à l'écran.
     @editable TailleCarte:float = 1000.0
@@ -104,14 +104,14 @@ pc_destinations := class(creative_device):
     var MessageErreur:string = ""
     var Ecran:?canvas = false
     var EcranJoueur:?player = false
-    var Animation:int = 0
+    var NumeroAnimation:int = 0
 
     OnBegin<override>()<suspends>:void =
         # la première destination (FREE) est déjà à nous
         set Achetees = for (I := 0..ListeDestinations.Length - 1) { if (I = 0) then true else false }
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
-            if (Proprio := Avion.Proprio?, Proprio = Joueur, P := player[Joueur]):
+            if (Proprio := AvionTycoon.Proprio?, Proprio = Joueur, P := player[Joueur]):
                 Ouvrir(P)
 
     # ---------- Ouverture / fermeture ----------
@@ -121,7 +121,7 @@ pc_destinations := class(creative_device):
         Afficher()
 
     Fermer():void =
-        set Animation += 1
+        set NumeroAnimation += 1
         if (P := EcranJoueur?, UI := GetPlayerUI[P], C := Ecran?):
             UI.RemoveWidget(C)
         set Ecran = false
@@ -144,14 +144,14 @@ pc_destinations := class(creative_device):
             if (Achetees[Index]?):
                 set Active = Index
                 set MessageErreur = ""
-            else if (Avion.Argent >= D.Prix):
-                set Avion.Argent -= D.Prix
-                Avion.MettreAJourUI()
+            else if (AvionTycoon.Argent >= D.Prix):
+                set AvionTycoon.Argent -= D.Prix
+                AvionTycoon.MettreAJourUI()
                 if (set Achetees[Index] = true) {}
                 set Active = Index
                 set MessageErreur = ""
             else:
-                set MessageErreur = "NOT ENOUGH MONEY  ({Avion.Abreger(D.Prix)} $)"
+                set MessageErreur = "NOT ENOUGH MONEY  ({AvionTycoon.Abreger(D.Prix)} $)"
         Afficher()
 
     # Multiplicateur et durée du trajet actif (pour la suite : revenu et vol).
@@ -197,7 +197,7 @@ pc_destinations := class(creative_device):
         if (P := EcranJoueur?, UI := GetPlayerUI[P]):
             if (C := Ecran?):
                 UI.RemoveWidget(C)
-            set Animation += 1
+            set NumeroAnimation += 1
             var Slots:[]canvas_slot = array{}
             # fond sombre + carte du monde
             set Slots += array{PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.6})}
@@ -216,7 +216,7 @@ pc_destinations := class(creative_device):
                 if (Index = Active):
                     set Slots += array{Place(color_block{DefaultColor := NamedColors.Lime, DefaultOpacity := 0.9}, ListeGauche - 0.006, V, 6.0, HauteurVisible * 0.8)}
                 BoutonCarte := button_quiet{DefaultText := Msg("")}
-                Gestion := bouton_destination{Index := Index, PC := Self}
+                Gestion := bouton_destination{Index := Index, Ordinateur := Self}
                 BoutonCarte.OnClick().Subscribe(Gestion.Clique)
                 set Slots += array{Place(BoutonCarte, UListe, V, LargeurCarte, HauteurVisible)}
 
@@ -258,15 +258,15 @@ pc_destinations := class(creative_device):
             Nouveau := canvas{Slots := Slots}
             UI.AddWidget(Nouveau, player_ui_slot{InputMode := ui_input_mode.All})
             set Ecran = option{Nouveau}
-            spawn{AnimerAvion(Animation, Avions)}
+            spawn{AnimerAvion(NumeroAnimation, Avions)}
 
     # L'avion avance le long du trajet en boucle (une image visible à la fois).
     AnimerAvion(Numero:int, Avions:[]widget)<suspends>:void =
         var I:int = 0
         loop:
-            if (Numero <> Animation) { break }
+            if (Numero <> NumeroAnimation) { break }
             Sleep(0.07)
-            if (Numero <> Animation) { break }
+            if (Numero <> NumeroAnimation) { break }
             if (Avant := Avions[I]) { Avant.SetVisibility(widget_visibility.Hidden) }
             set I = if (I + 1 >= Avions.Length) then 0 else I + 1
             if (Apres := Avions[I]) { Apres.SetVisibility(widget_visibility.Visible) }

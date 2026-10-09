@@ -68,6 +68,8 @@ avion_tycoon := class(creative_device):
 
     var Proprio:?agent = false
     var Argent:int = 0
+    # Nombre de rangées achetées (utilisé par le device passagers).
+    var RangeesAchetees:int = 0
     var RevenuParSeconde:int = 0
     var Rebirths:int = 0
     var UICree:logic = false
@@ -132,6 +134,7 @@ avion_tycoon := class(creative_device):
         R.Plaque.Hide()
         R.Panneau.Hide()
         for (S : R.Sieges) { S.Show() }
+        set RangeesAchetees += 1
         if (not UICree?):
             set UICree = true
             CreerUI()

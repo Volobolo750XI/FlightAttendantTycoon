@@ -43,7 +43,7 @@ modele_passager := class<concrete>:
     @editable MainCote:float = 28.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
-    @editable DosHauteur:float = 145.0
+    @editable DosHauteur:float = 150.0
     @editable DosAvant:float = -12.0
 
 bagage := class<concrete>:
@@ -55,6 +55,9 @@ place_passager := class<concrete>:
     @editable Siege:creative_prop = creative_prop{}
     @editable Allee:creative_prop = creative_prop{}
     @editable Coffre:creative_prop = creative_prop{}
+    # Numéro de la rangée de ce siège (1 = première rangée achetée). Personne ne s'y assoit
+    # tant que cette rangée n'est pas achetée.
+    @editable Rangee:int = 1
 
 # Un passager en cours d'embarquement.
 passager := class:
@@ -69,6 +72,8 @@ passager := class:
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
+    # Ton device avion_tycoon : sert à savoir combien de rangées sont achetées.
+    @editable Avion:avion_tycoon = avion_tycoon{}
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
     @editable Sacs:[]bagage = array{}
@@ -82,18 +87,33 @@ passagers := class(creative_device):
     # temps entre deux arrivées (s), durée pour s'asseoir (s).
     @editable VitesseMarche:float = 130.0
     @editable Espacement:float = 110.0
-    @editable IntervalleArrivee:float = 2.0
+    # Les passagers arrivent au hasard entre ArriveeMin et ArriveeMax secondes ;
+    # parfois deux arrivent presque ensemble (un couple, des amis).
+    @editable ArriveeMin:float = 1.5
+    @editable ArriveeMax:float = 6.0
+    # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
+    @editable DureeRangement:float = 2.5
     @editable DureeAssis:float = 3.0
     # Angle d'ouverture des portes de coffre (degrés). Si elles s'ouvrent vers le bas, mets -100.
-    @editable AngleCoffre:float = 100.0
+    @editable AngleCoffre:float = 80.0
+    # Taille des personnages (X, Y, Z).
+    @editable EchellePersoX:float = 1.25
+    @editable EchellePersoY:float = 1.2
+    @editable EchellePersoZ:float = 1.25
     # Si tes personnages ne regardent pas dans le sens de la marche, tourne-les ici (degrés).
-    @editable RotationModele:float = 0.0
+    # -90 = un quart de tour vers la gauche. S'ils marchent à reculons ou de l'autre côté, mets 90.
+    @editable RotationModele:float = -90.0
+    # Assis : rotation en plus (degrés) et décalage (cm) pour bien les coller au siège.
+    # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
+    @editable RotationAssis:float = 180.0
+    @editable HauteurAssis:float = -20.0
+    @editable AvanceAssis:float = 0.0
     @editable RotationValise:float = 0.0
     @editable RotationSac:float = 0.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
     @editable EchelleValise:float = 1.5
-    @editable EchelleSac:float = 2.0
+    @editable EchelleSac:float = 1.8
     @editable InclinaisonValise:float = 35.0
     @editable RoulisValise:float = 0.0
 
@@ -124,10 +144,15 @@ passagers := class(creative_device):
     # ---------- l'embarquement complet ----------
     Embarquer()<suspends>:void =
         set Embarquement = true
-        for (I -> P : Places, not Occupees[I]?, Modeles.Length > 0):
-            if (set Occupees[I] = true) {}
-            spawn{UnPassager(P)}
-            Sleep(IntervalleArrivee)
+        loop:
+            # places libres dont la rangée est achetée
+            Libres := for (I -> P : Places, not Occupees[I]?, P.Rangee <= Avion.RangeesAchetees) { I }
+            if (Libres.Length = 0 or Modeles.Length = 0) { break }
+            if (I := Libres[GetRandomInt(0, Libres.Length - 1)], P := Places[I]):
+                if (set Occupees[I] = true) {}
+                spawn{UnPassager(P)}
+            # arrivée au hasard : parfois presque ensemble, sinon un écart aléatoire
+            if (GetRandomInt(1, 4) = 1) then Sleep(GetRandomFloat(0.6, 1.2)) else Sleep(GetRandomFloat(ArriveeMin, ArriveeMax))
         set Embarquement = false
 
     UnPassager(Place:place_passager)<suspends>:void =
@@ -139,7 +164,7 @@ passagers := class(creative_device):
             Route := Debut + array{Place.Allee.GetTransform().Translation}
             if (Depart := Route[0], Suivant := Route[1]):
                 Rot := Orientation(Suivant - Depart, RotationModele)
-                if (Corps := SpawnProp(Marche(P), Depart, Rot)(0)?):
+                if (Corps := SpawnProp(Marche(P), transform{Translation := Depart, Rotation := Rot, Scale := EchellePerso()})(0)?):
                     set P.Corps = option{Corps}
                     set P.Etat = 0
                 if (B := SpawnProp(Sac.EnMain, TransformBagage(P, Depart, Suivant - Depart))(0)?):
@@ -175,14 +200,15 @@ passagers := class(creative_device):
     # ---------- coffre ----------
     RangerBagage(P:passager, Place:place_passager)<suspends>:void =
         Changer(P, 1, P.Modele.Attente)
+        # il range son bagage : rien ne bouge pendant DureeRangement...
+        Sleep(DureeRangement)
+        # ...puis le bagage apparaît d'un coup dans le coffre (version rangée)
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
             Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
-            B.MoveTo(Range, 1.0)
-            # on remplace par la version "rangée" (valise couchée, poignée rentrée)
             if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
-                B.Dispose()
                 set P.Bagage = option{Rangee}
+            B.Dispose()
         Sleep(0.3)
 
     # La porte tourne autour de l'axe de l'allée ; le sens dépend du côté (gauche / droite).
@@ -226,21 +252,23 @@ passagers := class(creative_device):
         set P.DansAllee = false
         T := Place.Siege.GetTransform()
         Changer(P, 2, P.Modele.Assis)
+        Rot := T.Rotation.RotateBy(MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, DegreesToRadians(RotationAssis)))
+        Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
         if (C := P.Corps?):
-            C.MoveTo(T.Translation, T.Rotation, DureeAssis)
+            C.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := EchellePerso()}, DureeAssis)
 
     # ---------- outils ----------
     Marche(P:passager)<transacts>:creative_prop_asset =
         if (P.Valise?) then P.Modele.MarcheValise else P.Modele.MarcheSac
 
     RotationBagage(P:passager)<transacts>:float =
-        if (P.Valise?) then RotationModele + RotationValise else RotationModele + RotationSac
+        if (P.Valise?) then RotationValise else RotationSac
 
     # Remplace le prop du personnage par un autre blueprint (autre animation), au même endroit.
     Changer(P:passager, Etat:int, Asset:creative_prop_asset):void =
         if (P.Etat <> Etat, C := P.Corps?):
             T := C.GetTransform()
-            if (Nouveau := SpawnProp(Asset, T.Translation, T.Rotation)(0)?):
+            if (Nouveau := SpawnProp(Asset, transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchellePerso()})(0)?):
                 C.Dispose()
                 set P.Corps = option{Nouveau}
                 set P.Etat = Etat
@@ -250,10 +278,13 @@ passagers := class(creative_device):
         TB := TransformBagage(P, Pos, Dir)
         if (C := P.Corps?, B := P.Bagage?):
             sync:
-                C.MoveTo(Pos, RotCorps, Duree)
+                C.MoveTo(transform{Translation := Pos, Rotation := RotCorps, Scale := EchellePerso()}, Duree)
                 B.MoveTo(TB, Duree)
         else if (C := P.Corps?):
-            C.MoveTo(Pos, RotCorps, Duree)
+            C.MoveTo(transform{Translation := Pos, Rotation := RotCorps, Scale := EchellePerso()}, Duree)
+
+    EchellePerso()<transacts>:vector3 =
+        vector3{X := EchellePersoX, Y := EchellePersoY, Z := EchellePersoZ}
 
     EchelleBagage(P:passager)<transacts>:vector3 =
         E := if (P.Valise?) then EchelleValise else EchelleSac

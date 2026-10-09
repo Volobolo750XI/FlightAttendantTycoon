@@ -103,8 +103,8 @@ passagers := class(creative_device):
     # Assis : rotation en plus (degrés) et décalage (cm) pour bien les coller au siège.
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
-    @editable HauteurAssis:float = -20.0
-    @editable AvanceAssis:float = 0.0
+    @editable HauteurAssis:float = -45.0
+    @editable AvanceAssis:float = -25.0
     @editable RotationValise:float = 0.0
     @editable RotationSac:float = 90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
@@ -206,7 +206,10 @@ passagers := class(creative_device):
             Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
             if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
                 set P.Bagage = option{Rangee}
-            B.Dispose()
+                B.Dispose()
+            else:
+                # pas de version "rangée" choisie : on pose directement le bagage porté
+                if (B.TeleportTo[Range]) {}
         Sleep(0.3)
 
     # La porte tourne autour de l'axe de l'allée ; le sens dépend du côté (gauche / droite).
@@ -249,11 +252,14 @@ passagers := class(creative_device):
     Asseoir(P:passager, Place:place_passager)<suspends>:void =
         set P.DansAllee = false
         T := Place.Siege.GetTransform()
-        Changer(P, 2, P.Modele.Assis)
         Rot := T.Rotation.RotateBy(MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, DegreesToRadians(RotationAssis)))
         Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
+        # il s'assoit d'un coup : le blueprint assis apparaît directement sur le siège
         if (C := P.Corps?):
-            C.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := EchellePerso()}, DureeAssis)
+            if (Nouveau := SpawnProp(P.Modele.Assis, transform{Translation := Pos, Rotation := Rot, Scale := EchellePerso()})(0)?):
+                C.Dispose()
+                set P.Corps = option{Nouveau}
+                set P.Etat = 2
 
     # ---------- outils ----------
     Marche(P:passager)<transacts>:creative_prop_asset =

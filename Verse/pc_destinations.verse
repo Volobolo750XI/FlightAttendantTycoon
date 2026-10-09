@@ -75,8 +75,9 @@ pc_destinations := class(creative_device):
     # Haut et bas du cadre de la liste (les flèches se mettent entre le cadre et les cartes).
     @editable ListeCadreHaut:float = 0.260
     @editable ListeCadreBas:float = 0.7425
-    # Boutons cachés derrière les cartes (invisibles). Si les clics ne marchent pas, décoche.
-    @editable BoutonsDerriere:logic = true
+    # Boutons cachés derrière les cartes. Fortnite bloque alors les clics (testé) :
+    # laisse décoché, les boutons sont au-dessus (légèrement grisés) et fonctionnent.
+    @editable BoutonsDerriere:logic = false
 
     ListeDestinations:[]destination = array:
         destination{Ville1 := "TIRANA", Ville2 := "MINSK", Prix := 0, Multiplicateur := 1.0, MultiTexte := "x1", VraiVol := "2h30", DureeMinutes := 11.0, U1 := 0.6496, V1 := 0.4427, U2 := 0.6654, V2 := 0.4078, Carte := Destinations.Dest01}
@@ -322,11 +323,16 @@ pc_destinations := class(creative_device):
         Cache := PlaceC(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 50.0, 44.0, 4)
         Dessin := for (K := -7..7):
             Point := PointIcone(Forme, K)
-            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
+            PlaceDessin(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
         Dessin2 := for (K := -7..7, Forme = 2):
             Point := PointIcone(3, K)
-            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
+            PlaceDessin(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + Point.X / TailleCarte, V + Point.Y / TailleCarte, 5.0, 5.0)
         if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin + Dessin2 else Dessin + Dessin2 + array{SlotBouton}
+
+    # Les petits carrés des flèches / de la croix passent au-dessus du bouton
+    # (ils sont minuscules, le clic passe à côté).
+    PlaceDessin(W:widget, U:float, V:float, Largeur:float, Hauteur:float):canvas_slot =
+        PlaceC(W, U, V, Largeur, Hauteur, 10)
 
     # Position (pixels) du K-ième carré de la forme.
     PointIcone(Forme:int, K:int)<transacts>:vector2 =

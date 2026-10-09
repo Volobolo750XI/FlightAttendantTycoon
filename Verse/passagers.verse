@@ -5,8 +5,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 
 # Flight Attendant Tycoon - l'embarquement des passagers.
 #
-# Quand on appuie sur le bouton d'embarquement, les passagers arrivent un par un par la porte :
-#   1. ils marchent le long du chemin avec leur bagage (valise à la main droite ou sac sur le dos) ;
+# Quand on appuie sur le bouton d'embarquement, les passagers apparaissent un par un au bout
+# de la passerelle :
+#   1. ils marchent sur la passerelle jusqu'à la porte puis dans l'allée, avec leur bagage
+#      (valise à la main droite ou sac sur le dos) ;
 #   2. s'il y a quelqu'un devant, ils s'arrêtent et attendent (queue dans l'allée) ;
 #   3. arrivés à leur rangée, ils ouvrent le coffre au-dessus, y rangent le bagage ;
 #   4. puis ils s'assoient (3 secondes).
@@ -19,8 +21,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   BoutonEmbarquement : ton bouton (Appareil Bouton).
 #   Modeles            : un élément par personnage (ses 4 blueprints + où il tient ses bagages).
 #   Valises / Sacs     : les bagages (un élément par couleur).
-#   Chemin             : des repères (petits props) de la porte jusqu'au début de l'allée.
-#                        Le dernier repère doit être DANS l'allée, au niveau de la porte.
+#   Chemin             : des repères (petits props) dans l'ordre : le 1er au bout de la
+#                        passerelle (les passagers y apparaissent), puis le long de la passerelle,
+#                        la porte de l'avion, et le dernier DANS l'allée, au niveau de la porte.
+#                        La queue marche sur tout le chemin : passerelle, porte et allée.
 #   Places             : un élément par siège : repère du siège (position assis), repère dans
 #                        l'allée face à la rangée, repère dans le coffre, numéro du coffre.
 #   PortesCoffres      : les portes des coffres (props Coffre_D1, Coffre_G1...).

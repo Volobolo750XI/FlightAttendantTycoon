@@ -20,7 +20,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir à contenu, dossier "Destinations" :
 #   Dest01 ... Dest30 (les cartes), CarteMonde (la carte du monde),
-#   AvionDroite et AvionGauche (l'icône d'avion).
+#   AvionDroite, AvionGauche, FlecheHaut, FlecheBas, IconeFermer.
 #
 # Dans l'éditeur :
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
@@ -116,7 +116,8 @@ pc_destinations := class(creative_device):
     CarteHauteurVisible:float = 0.254
 
     var Achetees:[]logic = array{}
-    var Active:int = 0
+    # -1 = aucun trajet choisi : rien sur la carte tant qu'on n'a pas choisi une destination.
+    var Active:int = -1
     var Debut:int = 0
     var MessageErreur:string = ""
     var NumeroMessage:int = 0
@@ -154,7 +155,10 @@ pc_destinations := class(creative_device):
 
     Decoller(Joueur:agent):void =
         PortesOuvertes := for (Porte : Portes, Porte.Ouverte?) { Porte }
-        if (EnVol[]):
+        if (not ListeDestinations[Active]):
+            MessageHUD.SetText(Msg("CHOOSE A DESTINATION ON THE PC FIRST"))
+            MessageHUD.Show(Joueur)
+        else if (EnVol[]):
             MessageHUD.SetText(Msg("ALREADY FLYING"))
             MessageHUD.Show(Joueur)
         else if (PortesOuvertes.Length > 0):
@@ -281,15 +285,11 @@ pc_destinations := class(creative_device):
             X := U * U * A.X + 2.0 * U * T * C.X + T * T * B.X
             Y := U * U * A.Y + 2.0 * U * T * C.Y + T * T * B.Y
 
-    # Flèche (chevron) dessinée avec des carrés bleus, avec son bouton caché derrière.
-    Fleche(U:float, V:float, VersLeHaut:logic, BoutonFleche:button_quiet):[]canvas_slot =
-        SlotBouton := Place(BoutonFleche, U, V, 90.0, 40.0)
-        Cache := Place(color_block{DefaultColor := MakeColorFromHex("1E313C"), DefaultOpacity := 1.0}, U, V, 90.0, 40.0)
-        Dessin := for (K := -6..6):
-            Decalage := if (K < 0) then -K else K
-            DY := if (VersLeHaut?) then Decalage * 2.0 - 6.0 else 6.0 - Decalage * 2.0
-            Place(color_block{DefaultColor := MakeColorFromHex("5ADCFF"), DefaultOpacity := 1.0}, U + (K * 3.0) / TailleCarte, V + DY / TailleCarte, 5.0, 5.0)
-        if (BoutonsDerriere?) then array{SlotBouton, Cache} + Dessin else Dessin + array{SlotBouton}
+    # Icône cliquable (flèche ou croix) : l'image, avec son bouton caché derrière.
+    IconeCliquable(U:float, V:float, ImageIcone:texture, Taille:float, BoutonIcone:button_quiet):[]canvas_slot =
+        SlotBouton := Place(BoutonIcone, U, V, Taille, Taille)
+        SlotImage := Place(Vignette(ImageIcone, Taille), U, V, Taille, Taille)
+        if (BoutonsDerriere?) then array{SlotBouton, SlotImage} else array{SlotImage, SlotBouton}
 
     Vignette(T:texture, Taille:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := Taille, Y := Taille}}
@@ -334,16 +334,16 @@ pc_destinations := class(creative_device):
             if (Debut > 0):
                 Haut := button_quiet{DefaultText := Msg("")}
                 Haut.OnClick().Subscribe(Monter)
-                set Slots += Fleche(UListe, VHaut, true, Haut)
+                set Slots += IconeCliquable(UListe, VHaut, Destinations.FlecheHaut, 44.0, Haut)
             if (Debut < DernierDebut):
                 Bas := button_quiet{DefaultText := Msg("")}
                 Bas.OnClick().Subscribe(Descendre)
-                set Slots += Fleche(UListe, VBas, false, Bas)
+                set Slots += IconeCliquable(UListe, VBas, Destinations.FlecheBas, 44.0, Bas)
 
             # fermeture
-            Croix := button_quiet{DefaultText := Msg("X")}
+            Croix := button_quiet{DefaultText := Msg("")}
             Croix.OnClick().Subscribe(FermerClique)
-            set Slots += array{Place(Croix, CarteDroite - 0.015, CarteHaut + 0.02, 40.0, 40.0)}
+            set Slots += IconeCliquable(CarteDroite - 0.02, CarteHaut + 0.025, Destinations.IconeFermer, 44.0, Croix)
 
             # trajet actif : points rouges, courbe, avion
             var IconeVol:?texture_block = false

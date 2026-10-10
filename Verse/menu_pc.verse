@@ -14,7 +14,7 @@ using { /UnrealEngine.com/Temporary/UI }
 # Dans le Tiroir a contenu :
 #   dossier MenuPC   : Fond_Menu, Carte_Destinations, Carte_Marchandises,
 #                      Carte_Ameliorations_Verrou, Icone_Panier
-#   dossier Produits : Produit_01_Eau ... Produit_09_Caviar
+#   dossier Produits : Produit_01_Eau ... Produit_09_Caviar (sans le 07)
 #
 # Dans l'editeur : pose ce device, remplis AvionTycoon, puis dans le device
 # pc_destinations mets ce device dans le champ "Menu".
@@ -49,7 +49,6 @@ menu_pc := class(creative_device):
         produit{Nom := "SANDWICH", Lot := 10, PrixLot := 8000, PrixDeblocage := 50000, Appareil := "", Image := Produits.Produit_04_Sandwich}
         produit{Nom := "COFFEE", Lot := 10, PrixLot := 60000, PrixDeblocage := 750000, Appareil := "COFFEE MACHINE", Image := Produits.Produit_05_Cafe}
         produit{Nom := "BURGER", Lot := 5, PrixLot := 250000, PrixDeblocage := 8000000, Appareil := "OVEN", Image := Produits.Produit_06_Burger}
-        produit{Nom := "CHAMPAGNE", Lot := 5, PrixLot := 2500000, PrixDeblocage := 90000000, Appareil := "WINE CELLAR", Image := Produits.Produit_07_Champagne}
         produit{Nom := "LOBSTER", Lot := 2, PrixLot := 10000000, PrixDeblocage := 1000000000, Appareil := "LOBSTER TANK", Image := Produits.Produit_08_Homard}
         produit{Nom := "CAVIAR", Lot := 1, PrixLot := 60000000, PrixDeblocage := 15000000000, Appareil := "SAFE", Image := Produits.Produit_09_Caviar}
 

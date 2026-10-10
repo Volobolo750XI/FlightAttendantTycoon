@@ -266,7 +266,7 @@ passagers := class(creative_device):
         if (C := CapuchonStop?) { if (Etat = 1) then C.Show() else C.Hide() }
         if (C := CapuchonDecollage?) { if (Etat >= 2) then C.Show() else C.Hide() }
 
-    CapuchonActif():?creative_prop =
+    CapuchonActif()<transacts>:?creative_prop =
         if (EtatBouton = 0, C := CapuchonStart?) then option{C}
         else if (EtatBouton = 1, C := CapuchonStop?) then option{C}
         else if (EtatBouton >= 2, C := CapuchonDecollage?) then option{C}

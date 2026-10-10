@@ -22,6 +22,8 @@ cinematique_decollage := class(creative_device):
     @editable Bouton:?button_device = false
     @editable Son:?audio_player_device = false
     @editable ArriveeEnVol:?teleporter_device = false
+    # Le device vol : a la fin des images, le ciel et les nuages apparaissent autour de l'avion.
+    @editable Vol:?vol_device = false
     # (facultatif) Appareil Controleur de HUD regle pour TOUT cacher (vie, carte, inventaire...) :
     # il est active pendant la cinematique puis desactive.
     @editable CacherHUD:?hud_controller_device = false
@@ -226,6 +228,7 @@ cinematique_decollage := class(creative_device):
             if (Fin := Images[Images.Length - 1]) { Ecran.SetImage(Fin) }
             # on teleporte pendant que la derniere image est encore affichee
             if (T := ArriveeEnVol?) { T.Teleport(Joueur) }
+            if (V := Vol?) { V.Decoller() }
             Sleep(0.3)
             UI.RemoveWidget(Fond)
             if (H := CacherHUD?) { H.Disable() }

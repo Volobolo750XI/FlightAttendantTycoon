@@ -15,6 +15,11 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 vol_device := class(creative_device):
     @editable Ciel:creative_prop = creative_prop{}
     @editable Nuages:[]creative_prop = array{}
+    # Le grand disque de nuages (SolNuages.glb), pose JUSTE SOUS le ventre de l'avion : il cache le sol.
+    @editable SolNuages:?creative_prop = false
+    # Tout ce qui depasse au-dessus du disque et se voit des hublots (passerelle, terminal, panneaux...) :
+    # cache pendant le vol.
+    @editable ACacher:[]creative_prop = array{}
     @editable Nez:creative_prop = creative_prop{}
     @editable Queue:creative_prop = creative_prop{}
     # Vitesse des nuages (cm/s) et longueur de la boucle (cm) : ils partent loin devant et
@@ -28,6 +33,7 @@ vol_device := class(creative_device):
     OnBegin<override>()<suspends>:void =
         set Departs = for (N : Nuages) { N.GetTransform() }
         Ciel.Hide()
+        if (S := SolNuages?) { S.Hide() }
         Nez.Hide()
         Queue.Hide()
         for (N : Nuages) { N.Hide() }
@@ -36,11 +42,15 @@ vol_device := class(creative_device):
         if (not EnVol?):
             set EnVol = true
             Ciel.Show()
+            if (S := SolNuages?) { S.Show() }
+            for (X : ACacher) { X.Hide() }
             for (I -> N : Nuages) { spawn{FaireDefiler(I, N)} }
 
     Atterrir():void =
         set EnVol = false
         Ciel.Hide()
+        if (S := SolNuages?) { S.Hide() }
+        for (X : ACacher) { X.Show() }
         for (I -> N : Nuages, T := Departs[I]):
             N.Hide()
             if (N.TeleportTo[T]) {}

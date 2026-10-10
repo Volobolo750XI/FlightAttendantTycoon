@@ -89,9 +89,34 @@ def nuage(n, graine):
     m.export(os.path.join(SORTIE, f"Nuage_{n}.glb"))
 
 
+def sol_nuages(R=290.0, graine=7):
+    """Grand disque plat de nuages, à poser juste SOUS le ventre de l'avion : il cache le sol."""
+    rng = np.random.default_rng(graine)
+    W = 2048
+    im = Image.new("RGB", (W, W), (236, 242, 250))
+    nu = Image.new("L", (W, W), 0); d = ImageDraw.Draw(nu)
+    for _ in range(900):
+        x, y, r = rng.uniform(0, W), rng.uniform(0, W), rng.uniform(25, 90)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=int(rng.uniform(150, 255)))
+    nu = nu.filter(ImageFilter.GaussianBlur(10))
+    im.paste((255, 255, 255), mask=nu)
+    ombre = Image.eval(nu, lambda a: 255 - a).filter(ImageFilter.GaussianBlur(18))
+    im.paste((205, 216, 232), mask=ombre.point(lambda a: a * 0.45))
+    disque = trimesh.creation.cylinder(radius=R, height=0.05, sections=128)
+    v = disque.vertices
+    uv = np.c_[(v[:, 0] / R + 1) / 2 * 6, (v[:, 1] / R + 1) / 2 * 6]   # texture répétée 6 fois
+    mat = trimesh.visual.material.PBRMaterial("SolNuages", baseColorTexture=im, emissiveTexture=im,
+                                              emissiveFactor=[1.0, 1.0, 1.0], roughnessFactor=1.0, metallicFactor=0.0)
+    disque.visual = trimesh.visual.TextureVisuals(uv=uv, material=mat)
+    disque.apply_translation([0, 0, -0.025])                # dessus du disque = pivot
+    disque.apply_transform(ROT)
+    disque.export(os.path.join(SORTIE, "SolNuages.glb"))
+
+
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     ciel()
+    sol_nuages()
     for n in range(1, 5):
         nuage(n, 10 + n)
     print("ok")

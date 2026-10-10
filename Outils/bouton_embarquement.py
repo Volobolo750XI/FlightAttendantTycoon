@@ -34,20 +34,23 @@ def couche(poly, z0, z1, mat, uv=None):
     return m
 
 
-def texture_capuchon():
+def texture_capuchon(txt="START BOARDING", coul=(235, 25, 28)):
     W, Hh = 1024, int(1024 * H / L)
     img = Image.new("RGB", (W, Hh))
     d = ImageDraw.Draw(img)
     for y in range(Hh):          # dégradé : plus clair au centre (bombé lumineux)
         t = abs(y / Hh - 0.42) * 2
-        d.line([(0, y), (W, y)], fill=(int(235 - 70 * t), int(25 - 10 * t), int(28 - 10 * t)))
-    f = ImageFont.truetype(POLICE, 112)
-    txt = "START BOARDING"
+        d.line([(0, y), (W, y)], fill=tuple(max(0, int(c * (1 - 0.3 * t))) for c in coul))
+    taille = 112
+    f = ImageFont.truetype(POLICE, taille)
+    while d.textlength(txt, font=f) > W * 0.86:
+        taille -= 4
+        f = ImageFont.truetype(POLICE, taille)
     w = d.textlength(txt, font=f)
     halo = Image.new("L", img.size)
     ImageDraw.Draw(halo).text(((W - w) / 2, Hh / 2 - 66), txt, font=f, fill=255)
     halo = halo.filter(ImageFilter.GaussianBlur(14))
-    img.paste((255, 170, 160), mask=halo.point(lambda a: a * 0.7))
+    img.paste(tuple(min(255, c + 120) for c in coul), mask=halo.point(lambda a: a * 0.7))
     d.text(((W - w) / 2, Hh / 2 - 66), txt, font=f, fill=(255, 250, 245))
     return img
 
@@ -92,6 +95,24 @@ def build():
                 part.add_geometry(m, node_name=nom, geom_name=nom)
         part.export(os.path.join(SORTIE, nom_f))
     tex.save(os.path.join(SORTIE, "texture_start_boarding.png"))
+    # les 3 capuchons des 3 états du bouton (même pivot que le socle) :
+    # START BOARDING vert -> STOP BOARDING rouge -> TAKE OFF vert
+    for nom_f, txt, coul in (("Capuchon_StartBoarding", "START BOARDING", (40, 205, 70)),
+                             ("Capuchon_StopBoarding", "STOP BOARDING", (235, 25, 28)),
+                             ("Capuchon_TakeOff", "TAKE OFF", (40, 205, 70))):
+        t = texture_capuchon(txt, coul)
+        m_cap = trimesh.visual.material.PBRMaterial(nom_f, baseColorTexture=t, emissiveTexture=t,
+                                                    emissiveFactor=[1.0, 1.0, 1.0], roughnessFactor=0.25, metallicFactor=0.0)
+        m_lis = trimesh.visual.material.PBRMaterial("Liseret" + nom_f, baseColorFactor=list(coul) + [255],
+                                                    emissiveFactor=[c / 255 for c in coul], roughnessFactor=0.3)
+        part = trimesh.Scene()
+        for nom, z0, z1, poly, mat, uv in (("Liseret", 0.05, 0.058, stade(L, H, 0.008), m_lis, None),
+                                           ("Capuchon", 0.05, 0.10, stade(L, H), m_cap, (L, H)),
+                                           ("Dome", 0.10, 0.108, stade(L - 0.02, H - 0.02), m_cap, (L, H))):
+            m = couche(poly, z0, z1, mat, uv)
+            m.apply_transform(rot)
+            part.add_geometry(m, node_name=nom, geom_name=nom)
+        part.export(os.path.join(SORTIE, nom_f + ".glb"))
     print(out)
 
 

@@ -91,6 +91,9 @@ passager := class:
     var Etat:int = -1
     var Avancee:float = 0.0
     var DansAllee:logic = true
+    # longueur du chemin jusqu'à la porte (au-delà, le passager est dans l'avion)
+    var LongDehors:float = 0.0
+    var Annule:logic = false
     var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
 
 passagers := class(creative_device):
@@ -100,6 +103,15 @@ passagers := class(creative_device):
     # Le bouton rouge START BOARDING (le prop) : il s'enfonce quand on appuie. Les morceaux en plus
     # (si ton bouton est en plusieurs props, mets seulement le capuchon rouge ici).
     @editable BoutonVisuel:?creative_prop = false
+    # Les 3 capuchons du bouton, posés EXACTEMENT au même endroit (un seul est visible à la fois) :
+    #   START BOARDING (vert) -> STOP BOARDING (rouge) -> TAKE OFF (vert).
+    @editable CapuchonStart:?creative_prop = false
+    @editable CapuchonStop:?creative_prop = false
+    @editable CapuchonDecollage:?creative_prop = false
+    # La porte des passagers : ouverte (et bloquée) pendant l'embarquement, fermée au STOP.
+    @editable PortePassagers:?porte_passager = false
+    # Le device cinématique : lancé quand on appuie sur TAKE OFF.
+    @editable DeviceCinematique:?cinematique_decollage = false
     # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
     @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
@@ -166,6 +178,9 @@ passagers := class(creative_device):
     var RelValise:?relatif = false
     var BoutonRepos:?transform = false
     var BoutonEnCours:logic = false
+    # 0 = START BOARDING, 1 = embarquement en cours (STOP), 2 = prêt (TAKE OFF), 3 = parti
+    var EtatBouton:int = 0
+    var Arret:logic = false
     var RelSac:?relatif = false
     var RelAssis:?relatif = false
     var RelValiseRangee:?relatif = false
@@ -174,6 +189,8 @@ passagers := class(creative_device):
     OnBegin<override>()<suspends>:void =
         MesurerExemples()
         if (B := BoutonVisuel?) { set BoutonRepos = option{B.GetTransform()} }
+        if (B := CapuchonStart?) { set BoutonRepos = option{B.GetTransform()} }
+        AfficherCapuchon(0)
         for (R : Chemin) { R.Hide() }
         for (P : Places):
             P.Siege.Hide()
@@ -189,8 +206,21 @@ passagers := class(creative_device):
             Joueur := BoutonEmbarquement.InteractedWithEvent.Await()
             if (Son := SonBouton?) { Son.Play() }
             spawn{AnimerBouton(Joueur)}
-            if (not Embarquement?):
-                spawn{Embarquer()}
+            if (EtatBouton = 0):
+                # START BOARDING : la porte s'ouvre (et reste ouverte), les passagers arrivent
+                set EtatBouton = 1
+                set Arret = false
+                AfficherCapuchon(1)
+                if (Porte := PortePassagers?) { spawn{Porte.OuvrirPourEmbarquement()} }
+                if (not Embarquement?) { spawn{Embarquer()} }
+            else if (EtatBouton = 1):
+                # STOP BOARDING : plus personne n'arrive, ceux qui sont dehors repartent
+                set Arret = true
+                spawn{FinEmbarquement()}
+            else if (EtatBouton = 2):
+                # TAKE OFF : écran noir en fondu puis la cinématique
+                set EtatBouton = 3
+                if (C := DeviceCinematique?) { spawn{C.Jouer(Joueur)} }
 
     # ---------- l'embarquement complet ----------
     Embarquer()<suspends>:void =
@@ -205,7 +235,7 @@ passagers := class(creative_device):
             if (Libres.Length = 0 or Modeles.Length = 0) { break }
             if (I := Libres[GetRandomInt(0, Libres.Length - 1)], P := Places[I]):
                 if (set Occupees[I] = true) {}
-                spawn{UnPassager(P)}
+                spawn{UnPassager(P, I)}
             # rythme réaliste : beaucoup d'écarts courts, quelques longs (loi très irrégulière,
             # moyenne = Moyenne), des groupes qui arrivent collés, et parfois un retardataire
             Tirage := GetRandomInt(1, 100)
@@ -213,15 +243,43 @@ passagers := class(creative_device):
             if (Tirage <= 20) then Sleep(GetRandomFloat(0.7, 1.4))
             else if (Tirage <= 30) then Sleep(GetRandomFloat(RetardMax * 0.4, RetardMax))
             else Sleep(Max(1.0, Moyenne * 3.0 * U * U))
+            if (Arret?) { break }
         set Embarquement = false
+        # tout le monde est arrivé : on attend qu'ils soient tous assis, puis TAKE OFF
+        if (not Arret?):
+            loop:
+                if (NbEnRoute <= 0 or Arret?) { break }
+                Sleep(0.5)
+            FinEmbarquement()
 
-    UnPassager(Place:place_passager)<suspends>:void =
+    # Fin de l'embarquement (STOP, ou tout le monde est assis) : on ferme la porte
+    # et le bouton devient TAKE OFF.
+    FinEmbarquement()<suspends>:void =
+        if (EtatBouton = 1):
+            set EtatBouton = 2
+            AfficherCapuchon(2)
+            if (Porte := PortePassagers?) { spawn{Porte.FermerApresEmbarquement()} }
+
+    # Montre seulement le capuchon de l'état demandé.
+    AfficherCapuchon(Etat:int):void =
+        if (C := CapuchonStart?) { if (Etat = 0) then C.Show() else C.Hide() }
+        if (C := CapuchonStop?) { if (Etat = 1) then C.Show() else C.Hide() }
+        if (C := CapuchonDecollage?) { if (Etat >= 2) then C.Show() else C.Hide() }
+
+    CapuchonActif():?creative_prop =
+        if (EtatBouton = 0, C := CapuchonStart?) then option{C}
+        else if (EtatBouton = 1, C := CapuchonStop?) then option{C}
+        else if (EtatBouton >= 2, C := CapuchonDecollage?) then option{C}
+        else BoutonVisuel
+
+    UnPassager(Place:place_passager, Numero:int)<suspends>:void =
         Valise := if (GetRandomInt(0, 1) = 0, Valises.Length > 0) then true else if (Sacs.Length = 0) then true else false
         Liste := if (Valise?) then Valises else Sacs
         if (Modele := Modeles[GetRandomInt(0, Modeles.Length - 1)], Sac := Liste[GetRandomInt(0, Liste.Length - 1)]):
             P := passager{Modele := Modele, Valise := Valise, Sac := Sac}
             Debut := for (R : Chemin) { R.GetTransform().Translation }
             Route := Debut + array{Place.Allee.GetTransform().Translation}
+            set P.LongDehors = LongueurRoute(Debut)
             if (Depart := Route[0], Suivant := Route[1]):
                 Rot := Orientation(Suivant - Depart, RotationModele)
                 if (Corps := SpawnProp(Marche(P), transform{Translation := Depart, Rotation := Rot, Scale := EchellePerso()})(0)?):
@@ -232,8 +290,15 @@ passagers := class(creative_device):
             set EnCours += array{P}
             set NbEnRoute += 1
             Marcher(P, Route)
-            RangerBagage(P, Place)
-            Asseoir(P, Place)
+            if (P.Annule?):
+                # STOP BOARDING alors qu'il était encore dehors : il disparaît, sa place se libère
+                if (C := P.Corps?) { C.Dispose() }
+                if (B := P.Bagage?) { B.Dispose() }
+                set P.DansAllee = false
+                if (set Occupees[Numero] = false) {}
+            else:
+                RangerBagage(P, Place)
+                Asseoir(P, Place)
             set NbEnRoute -= 1
 
     # ---------- marche + queue ----------
@@ -242,6 +307,9 @@ passagers := class(creative_device):
         Pas := 0.2
         loop:
             if (P.Avancee >= Total - 1.0) { break }
+            if (Arret?, P.Avancee < P.LongDehors - 1.0):
+                set P.Annule = true
+                break
             # pas plus loin que le passager de devant (moins l'espacement)
             var Limite:float = Total
             for (Autre : EnCours, Autre.DansAllee?, Autre.Avancee > P.Avancee):
@@ -343,7 +411,7 @@ passagers := class(creative_device):
     AnimerBouton(Joueur:agent)<suspends>:void =
         # position de repos mémorisée au lancement : le bouton revient TOUJOURS au même endroit,
         # et on ignore les appuis pendant l'animation
-        if (B := BoutonVisuel?, T := BoutonRepos?, not BoutonEnCours?):
+        if (B := CapuchonActif()?, T := BoutonRepos?, not BoutonEnCours?):
             set BoutonEnCours = true
             var Dir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
             if (Perso := Joueur.GetFortCharacter[]):

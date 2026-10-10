@@ -1,6 +1,7 @@
 using { /Fortnite.com/Devices }
 using { /Verse.org/Assets }
 using { /Fortnite.com/UI }
+using { /Verse.org/Colors }
 using { /Fortnite.com/Characters }
 using { /Verse.org/Simulation }
 using { /UnrealEngine.com/Temporary/UI }
@@ -17,7 +18,8 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #      Son         : (facultatif) un Appareil Lecteur audio avec le son du decollage.
 #      ArriveeEnVol: (facultatif) un Appareil Teleporteur pose dans la cabine en vol.
 cinematique_decollage := class(creative_device):
-    @editable Bouton:button_device = button_device{}
+    # (facultatif) bouton de test ; en jeu, c'est le bouton TAKE OFF du device passagers qui lance.
+    @editable Bouton:?button_device = false
     @editable Son:?audio_player_device = false
     @editable ArriveeEnVol:?teleporter_device = false
     # (facultatif) Appareil Controleur de HUD regle pour TOUT cacher (vie, carte, inventaire...) :
@@ -151,12 +153,16 @@ cinematique_decollage := class(creative_device):
     var EnCours:logic = false
 
     OnBegin<override>()<suspends>:void =
-        loop:
-            Joueur := Bouton.InteractedWithEvent.Await()
-            if (not EnCours?):
-                spawn{Jouer(Joueur)}
+        if (B := Bouton?):
+            loop:
+                Joueur := B.InteractedWithEvent.Await()
+                if (not EnCours?):
+                    spawn{Jouer(Joueur)}
 
     Jouer(Joueur:agent)<suspends>:void =
+        if (not EnCours?) { JouerAvecFondu(Joueur) }
+
+    JouerAvecFondu(Joueur:agent)<suspends>:void =
         set EnCours = true
         if (P := player[Joueur], UI := GetPlayerUI[P], Premiere := Images[0]):
             Ecran := texture_block{DefaultImage := Premiere, DefaultDesiredSize := vector2{X := 1920.0, Y := 1080.0}}
@@ -171,7 +177,40 @@ cinematique_decollage := class(creative_device):
             if (Perso := Joueur.GetFortCharacter[]):
                 Perso.PutInStasis(stasis_args{AllowTurning := false, AllowFalling := false, AllowEmotes := false})
             if (H := CacherHUD?) { H.Enable() }
+            # 1. ecran noir qui arrive en fondu (2 s)
+            Noir := color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.0}
+            Voile := canvas:
+                Slots := array:
+                    canvas_slot:
+                        Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
+                        Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
+                        SizeToContent := false
+                        Widget := Noir
+            UI.AddWidget(Voile, player_ui_slot{ZOrder := 101, InputMode := ui_input_mode.All})
+            Noir.SetOpacity(0.1)
+            Sleep(0.2)
+            Noir.SetOpacity(0.2)
+            Sleep(0.2)
+            Noir.SetOpacity(0.3)
+            Sleep(0.2)
+            Noir.SetOpacity(0.4)
+            Sleep(0.2)
+            Noir.SetOpacity(0.5)
+            Sleep(0.2)
+            Noir.SetOpacity(0.6)
+            Sleep(0.2)
+            Noir.SetOpacity(0.7)
+            Sleep(0.2)
+            Noir.SetOpacity(0.8)
+            Sleep(0.2)
+            Noir.SetOpacity(0.9)
+            Sleep(0.2)
+            Noir.SetOpacity(1.0)
+            Sleep(0.2)
+            # 2. les images, puis on enleve le noir
             UI.AddWidget(Fond, player_ui_slot{ZOrder := 100, InputMode := ui_input_mode.All})
+            Sleep(0.1)
+            UI.RemoveWidget(Voile)
             if (S := Son?) { S.Play() }
             # l'image affichee depend du temps ecoule (et pas d'une pause par image) :
             # la cinematique dure exactement Duree secondes, meme si le serveur est lent

@@ -43,16 +43,25 @@ porte_passager := class(creative_device):
 
     var Ouverte:logic = false
     var Verrouillee:logic = false
+    # pendant l'embarquement, la porte est forcée ouverte : son propre bouton ne peut pas la fermer
+    var BloqueeOuverte:logic = false
+    var EnMouvement:logic = false
+    var Pret:logic = false
+    var Battant0:transform = transform{}
+    var Poignee0:transform = transform{}
+    var Etape1:vector3 = vector3{}
+    var Etape2:vector3 = vector3{}
+    var Long:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
 
     Verrouiller(Etat:logic):void =
         set Verrouillee = Etat
 
     OnBegin<override>()<suspends>:void =
-        Battant0 := Battant.GetTransform()
-        Poignee0 := Poignee.GetTransform()
+        set Battant0 = Battant.GetTransform()
+        set Poignee0 = Poignee.GetTransform()
         Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
         # axe du fuselage : de la charnière vers la poignée (à plat)
-        var Long:vector3 = Normaliser(vector3{X := Poignee0.Translation.X - Battant0.Translation.X, Y := Poignee0.Translation.Y - Battant0.Translation.Y, Z := 0.0})
+        set Long = Normaliser(vector3{X := Poignee0.Translation.X - Battant0.Translation.X, Y := Poignee0.Translation.Y - Battant0.Translation.Y, Z := 0.0})
         if (Distance(Long, vector3{}) < 0.5):
             set Long = Normaliser(Battant0.Rotation.GetLocalForward())
         # vers l'extérieur : perpendiculaire au fuselage, du côté opposé au bouton
@@ -65,30 +74,57 @@ porte_passager := class(creative_device):
         var Gauche:vector3 = CrossProduct(Dehors, Haut)
         if (InverserGlissement?):
             set Gauche = Gauche * -1.0
-        Etape1 := Dehors * Sortie + Haut * Levage
-        Etape2 := Etape1 + Gauche * Glissement
+        set Etape1 = Dehors * Sortie + Haut * Levage
+        set Etape2 = Etape1 + Gauche * Glissement
+        set Pret = true
         loop:
             Bouton.InteractedWithEvent.Await()
             if (Ouverte?):
-                # retour de la gauche, puis la porte rentre et se referme
-                sync:
-                    Battant.MoveTo(Battant0.Translation + Etape1, Battant0.Rotation, DureeGlissement)
-                    Poignee.MoveTo(Poignee0.Translation + Etape1, Poignee0.Rotation, DureeGlissement)
-                sync:
-                    Battant.MoveTo(Battant0.Translation, Battant0.Rotation, DureeSortie)
-                    Poignee.MoveTo(Poignee0.Translation, Poignee0.Rotation, DureeSortie)
-                set Ouverte = false
+                if (not BloqueeOuverte?) { Fermer() }
             else if (Verrouillee?):
                 TournerPoignee(Poignee0, Long)
             else:
-                TournerPoignee(Poignee0, Long)
-                set Ouverte = true
-                sync:
-                    Battant.MoveTo(Battant0.Translation + Etape1, Battant0.Rotation, DureeSortie)
-                    Poignee.MoveTo(Poignee0.Translation + Etape1, Poignee0.Rotation, DureeSortie)
-                sync:
-                    Battant.MoveTo(Battant0.Translation + Etape2, Battant0.Rotation, DureeGlissement)
-                    Poignee.MoveTo(Poignee0.Translation + Etape2, Poignee0.Rotation, DureeGlissement)
+                Ouvrir()
+
+    # Ouvre la porte (sort puis glisse à gauche). Ne fait rien si elle est déjà ouverte.
+    Ouvrir()<suspends>:void =
+        if (Pret?, not Ouverte?, not EnMouvement?):
+            set EnMouvement = true
+            TournerPoignee(Poignee0, Long)
+            set Ouverte = true
+            sync:
+                Battant.MoveTo(Battant0.Translation + Etape1, Battant0.Rotation, DureeSortie)
+                Poignee.MoveTo(Poignee0.Translation + Etape1, Poignee0.Rotation, DureeSortie)
+            sync:
+                Battant.MoveTo(Battant0.Translation + Etape2, Battant0.Rotation, DureeGlissement)
+                Poignee.MoveTo(Poignee0.Translation + Etape2, Poignee0.Rotation, DureeGlissement)
+            set EnMouvement = false
+
+    # Referme la porte (revient de la gauche puis rentre). Ne fait rien si elle est déjà fermée.
+    Fermer()<suspends>:void =
+        if (Pret?, Ouverte?, not EnMouvement?):
+            set EnMouvement = true
+            sync:
+                Battant.MoveTo(Battant0.Translation + Etape1, Battant0.Rotation, DureeGlissement)
+                Poignee.MoveTo(Poignee0.Translation + Etape1, Poignee0.Rotation, DureeGlissement)
+            sync:
+                Battant.MoveTo(Battant0.Translation, Battant0.Rotation, DureeSortie)
+                Poignee.MoveTo(Poignee0.Translation, Poignee0.Rotation, DureeSortie)
+            set Ouverte = false
+            set EnMouvement = false
+
+    # Utilisé par l'embarquement : ouverte et bloquée ouverte / débloquée puis fermée.
+    OuvrirPourEmbarquement()<suspends>:void =
+        set BloqueeOuverte = true
+        Ouvrir()
+
+    FermerApresEmbarquement()<suspends>:void =
+        set BloqueeOuverte = false
+        # si elle est en train de bouger, on attend la fin du mouvement
+        loop:
+            if (not EnMouvement?) { break }
+            Sleep(0.1)
+        Fermer()
 
     Normaliser(V:vector3):vector3 =
         L := Distance(V, vector3{})
@@ -96,10 +132,10 @@ porte_passager := class(creative_device):
 
     # La poignée tourne sur son propre pivot, autour de l'axe perpendiculaire
     # à la porte : elle s'abaisse puis remonte.
-    TournerPoignee(Poignee0:transform, Long:vector3)<suspends>:void =
-        Axe := CrossProduct(Long, vector3{X := 0.0, Y := 0.0, Z := 1.0})
+    TournerPoignee(P0:transform, L0:vector3)<suspends>:void =
+        Axe := CrossProduct(L0, vector3{X := 0.0, Y := 0.0, Z := 1.0})
         if (Distance(Axe, vector3{}) > 0.001):
             Bas := MakeRotation(Normaliser(Axe), DegreesToRadians(AnglePoignee))
-            Poignee.MoveTo(Poignee0.Translation, Poignee0.Rotation.RotateBy(Bas), 0.15)
+            Poignee.MoveTo(P0.Translation, P0.Rotation.RotateBy(Bas), 0.15)
             Sleep(0.1)
-            Poignee.MoveTo(Poignee0.Translation, Poignee0.Rotation, 0.15)
+            Poignee.MoveTo(P0.Translation, P0.Rotation, 0.15)

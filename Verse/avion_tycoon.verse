@@ -75,9 +75,9 @@ avion_tycoon := class(creative_device):
     var RevenuParSeconde:int = 0
     var Rebirths:int = 0
     var UICree:logic = false
-    TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White}
-    TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White}
-    TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White}
+    TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
+    TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
+    TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
 
     OnBegin<override>()<suspends>:void =
         Print("Avion : device démarré")
@@ -231,6 +231,8 @@ avion_tycoon := class(creative_device):
                         Widget := texture_block{DefaultImage := Image, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}
                     overlay_slot:
                         Widget := Texte
+                        # centré sur la barre seulement, à droite de l'icône
+                        Padding := margin{Left := 62.0, Right := 6.0}
                         HorizontalAlignment := horizontal_alignment.Center
                         VerticalAlignment := vertical_alignment.Center
 

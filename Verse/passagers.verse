@@ -211,10 +211,7 @@ passagers := class(creative_device):
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
             Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
-            if (not P.Valise?):
-                # sac à dos : c'est exactement le même sac qui va dans le coffre (même orientation)
-                if (B.TeleportTo[transform{Translation := T.Translation, Rotation := B.GetTransform().Rotation, Scale := EchelleBagage(P)}]) {}
-            else if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
+            if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
                 set P.Bagage = option{Rangee}
                 B.Dispose()
             else:

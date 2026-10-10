@@ -60,6 +60,8 @@ pc_destinations := class(creative_device):
     @editable SonAchat:?audio_player_device = false
     @editable Portes:[]porte_passager = array{}
     @editable MessageHUD:hud_message_device = hud_message_device{}
+    # (facultatif) le device menu_pc : le PC ouvre alors le menu des 3 cartes.
+    @editable Menu:?menu_pc = false
 
     # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
     # avec 1960, la liste + la carte prennent toute la largeur.
@@ -145,7 +147,7 @@ pc_destinations := class(creative_device):
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
             if (EstProprio[Joueur], P := player[Joueur]):
-                Ouvrir(P)
+                if (M := Menu?) then M.Ouvrir(P, Self) else Ouvrir(P)
 
     EstProprio(Joueur:agent)<transacts><decides>:void =
         Proprio := AvionTycoon.Proprio?
@@ -211,8 +213,12 @@ pc_destinations := class(creative_device):
         set Confirmation = -1
 
     FermerClique(Clic:widget_message):void =
+        Joueur := EcranJoueur
         Fermer()
         set EcranJoueur = false
+        # avec le menu : la croix ramène au menu des 3 cartes
+        if (M := Menu?, P := Joueur?):
+            M.Ouvrir(P, Self)
 
     Monter(Clic:widget_message):void =
         set Debut = Max(Debut - 1, 0)

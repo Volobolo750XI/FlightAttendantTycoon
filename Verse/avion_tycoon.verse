@@ -258,9 +258,11 @@ avion_tycoon := class(creative_device):
         TexteRevenu.SetText(Msg("${Abreger(RevenuParSeconde)}/Sec"))
         TexteRebirth.SetText(Msg("{Rebirths} Rebirths"))
 
-    # 1400000 -> "1.4M", 76000 -> "76.0K"
+    # 2500000000 -> "2.5B", 1400000 -> "1.4M", 76000 -> "76.0K"
     Abreger(N:int):string =
-        if (N >= 1000000, A := Quotient[N, 1000000], B := Quotient[Mod[N, 1000000], 100000]):
+        if (N >= 1000000000, A := Quotient[N, 1000000000], B := Quotient[Mod[N, 1000000000], 100000000]):
+            "{A}.{B}B"
+        else if (N >= 1000000, A := Quotient[N, 1000000], B := Quotient[Mod[N, 1000000], 100000]):
             "{A}.{B}M"
         else if (N >= 1000, A := Quotient[N, 1000], B := Quotient[Mod[N, 1000], 100]):
             "{A}.{B}K"

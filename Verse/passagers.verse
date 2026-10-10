@@ -43,7 +43,7 @@ modele_passager := class<concrete>:
     @editable MainCote:float = 28.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
-    @editable DosHauteur:float = 170.0
+    @editable DosHauteur:float = 182.0
     @editable DosAvant:float = -12.0
 
 bagage := class<concrete>:
@@ -104,9 +104,9 @@ passagers := class(creative_device):
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
     @editable HauteurAssis:float = -60.0
-    @editable AvanceAssis:float = -40.0
+    @editable AvanceAssis:float = -52.0
     # CoteAssis : décalage sur le côté (cm). Positif = vers la droite quand on regarde vers le fond de l'avion.
-    @editable CoteAssis:float = 25.0
+    @editable CoteAssis:float = 35.0
     @editable RotationValise:float = 0.0
     @editable RotationSac:float = -90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
@@ -317,7 +317,12 @@ passagers := class(creative_device):
     # Transform complet du bagage : position, orientation (valise penchée) et taille.
     TransformBagage(P:passager, Pieds:vector3, Dir:vector3)<transacts>:transform =
         Lacet := RadiansToDegrees(ArcTan(Dir.Y, Dir.X)) + RotationBagage(P)
-        Rot := if (P.Valise?) then MakeRotationFromYawPitchRollDegrees(Lacet, InclinaisonValise, RoulisValise) else MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
+        Base := MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
+        # la valise est penchée vers l'arrière autour de l'axe gauche-droite de la MARCHE
+        # (pas de l'axe du modèle) : elle roule toujours sur ses roulettes, derrière la personne
+        Avant := Normaliser(vector3{X := Dir.X, Y := Dir.Y, Z := 0.0})
+        Lateral := CrossProduct(vector3{X := 0.0, Y := 0.0, Z := 1.0}, Avant)
+        Rot := if (P.Valise?) then Base.RotateBy(MakeRotation(Lateral, DegreesToRadians(InclinaisonValise))).RotateBy(MakeRotation(Avant, DegreesToRadians(RoulisValise))) else Base
         transform{Translation := PositionBagage(P, Pieds, Dir), Rotation := Rot, Scale := EchelleBagage(P)}
 
     # Position du bagage : main droite (valise) ou dos (sac), dans le repère du personnage.

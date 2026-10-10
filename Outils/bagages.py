@@ -236,9 +236,9 @@ if __name__ == "__main__":
     for nom, c in SACS.items():
         m = sac(c)
         m.export(os.path.join(out, f"Sac_{nom}.glb"))
-        # version rangée : le même sac, couché sur le dos (bretelles dessous), pivot au centre du dessous
+        # version rangée : le même sac, posé sur le côté, pivot au centre du dessous
         r = m.copy()
-        r.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
+        r.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 0, 1]))
         c0 = r.bounds.mean(axis=0)
         r.apply_translation([-c0[0], -r.bounds[0][1], -c0[2]])
         r.export(os.path.join(out, f"SacRange_{nom}.glb"))

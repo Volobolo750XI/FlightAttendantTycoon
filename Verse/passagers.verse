@@ -125,6 +125,8 @@ passagers := class(creative_device):
     @editable RetardMax:float = 25.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
+    # Rotation à plat (degrés) du sac à dos couché dans le coffre.
+    @editable RotationSacRange:float = 90.0
     @editable DureeAssis:float = 3.0
     # Angle d'ouverture des portes de coffre (degrés). Si elles s'ouvrent vers le bas, mets -100.
     @editable AngleCoffre:float = 80.0
@@ -357,8 +359,10 @@ passagers := class(creative_device):
         Taille := EchelleSac * 100.0
         # du centre du sac jusqu'au pivot (haut des bretelles) quand il est debout
         CentreVersPivot := Haut * (0.285 * Taille)
-        Pivot := Repere.Translation + Haut * (0.15 * Taille) + Bascule.RotateVector(CentreVersPivot)
-        transform{Translation := Pivot, Rotation := Porte.Rotation.RotateBy(Bascule), Scale := Porte.Scale}
+        # puis on le tourne à plat (autour de la verticale) de RotationSacRange degrés
+        Tour := MakeRotation(Haut, DegreesToRadians(RotationSacRange))
+        Pivot := Repere.Translation + Haut * (0.15 * Taille) + Tour.RotateVector(Bascule.RotateVector(CentreVersPivot))
+        transform{Translation := Pivot, Rotation := Porte.Rotation.RotateBy(Bascule).RotateBy(Tour), Scale := Porte.Scale}
 
     # ---------- exemples ----------
     MesurerExemples():void =

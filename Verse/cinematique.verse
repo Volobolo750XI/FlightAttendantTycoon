@@ -22,8 +22,11 @@ cinematique_decollage := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable Son:?audio_player_device = false
     @editable ArriveeEnVol:?teleporter_device = false
-    # Images par seconde (24 = vitesse normale de la video).
-    @editable ImagesParSeconde:float = 24.0
+    # (facultatif) Appareil Controleur de HUD regle pour TOUT cacher (vie, carte, inventaire...) :
+    # il est active pendant la cinematique puis desactive.
+    @editable CacherHUD:?hud_controller_device = false
+    # Duree totale de la cinematique en secondes (5 = vitesse normale de la video).
+    @editable Duree:float = 5.0
 
     Images:[]texture = array:
         UN.Decollage_001,
@@ -166,14 +169,28 @@ cinematique_decollage := class(creative_device):
                         Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
                         SizeToContent := false
                         Widget := Ecran
-            UI.AddWidget(Fond, player_ui_slot{ZOrder := 100, InputMode := ui_input_mode.None})
+            # le joueur ne peut plus bouger ni viser pendant la cinematique
+            if (Perso := Joueur.GetFortCharacter[]):
+                Perso.PutInStasis(stasis_args{AllowTurning := false, AllowFalling := false, AllowEmotes := false})
+            if (H := CacherHUD?) { H.Enable() }
+            UI.AddWidget(Fond, player_ui_slot{ZOrder := 100, InputMode := ui_input_mode.All})
             if (S := Son?) { S.Play() }
-            Pause := 1.0 / Max(1.0, ImagesParSeconde)
-            for (Image : Images):
-                Ecran.SetImage(Image)
-                Sleep(Pause)
+            # l'image affichee depend du temps ecoule (et pas d'une pause par image) :
+            # la cinematique dure exactement Duree secondes, meme si le serveur est lent
+            Debut := GetSimulationElapsedTime()
+            var Derniere:int = -1
+            loop:
+                Ecoule := GetSimulationElapsedTime() - Debut
+                if (Ecoule >= Duree) { break }
+                if (N := Floor[Ecoule / Duree * (Images.Length * 1.0)], N <> Derniere, Image := Images[N]):
+                    set Derniere = N
+                    Ecran.SetImage(Image)
+                Sleep(0.0)
+            if (Fin := Images[Images.Length - 1]) { Ecran.SetImage(Fin) }
             # on teleporte pendant que la derniere image est encore affichee
             if (T := ArriveeEnVol?) { T.Teleport(Joueur) }
             Sleep(0.3)
             UI.RemoveWidget(Fond)
+            if (H := CacherHUD?) { H.Disable() }
+            if (Perso := Joueur.GetFortCharacter[]) { Perso.ReleaseFromStasis() }
         set EnCours = false

@@ -43,7 +43,7 @@ modele_passager := class<concrete>:
     @editable MainCote:float = 28.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
-    @editable DosHauteur:float = 182.0
+    @editable DosHauteur:float = 110.0
     @editable DosAvant:float = -12.0
 
 bagage := class<concrete>:
@@ -146,7 +146,7 @@ passagers := class(creative_device):
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
     @editable EchelleValise:float = 1.5
     @editable EchelleSac:float = 1.6
-    @editable InclinaisonValise:float = -35.0
+    @editable InclinaisonValise:float = 35.0
     @editable RoulisValise:float = 0.0
 
     var EnCours:[]passager = array{}

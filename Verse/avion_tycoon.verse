@@ -182,14 +182,15 @@ avion_tycoon := class(creative_device):
         Depart := Panneau.GetTransform()
         Position := Depart.Translation
         var Yaw:float = if (Y := Depart.Rotation.GetYawPitchRollDegrees()[0]) then Y else 0.0
+        # MoveTo par petits pas de 0.1 s (fluide en réseau) au lieu d'un TeleportTo à chaque image,
+        # qui faisait sauter / bugger le panneau.
         loop:
-            Sleep(0.0)
             if (Cible := JoueurLePlusProche[Position]):
                 YawCible := ArcTan(Cible.Y - Position.Y, Cible.X - Position.X) * 180.0 / PiFloat + Reglages.DecalageAngle
                 set Yaw += AngleLePlusCourt(YawCible - Yaw) * Reglages.Lissage
             Hauteur := Sin(GetSimulationElapsedTime() * Reglages.VitesseFlottement * 2.0 * PiFloat) * Reglages.Flottement
             NouvellePosition := Position + vector3{X := 0.0, Y := 0.0, Z := Hauteur}
-            if (Panneau.TeleportTo[NouvellePosition, MakeRotationFromYawPitchRollDegrees(Yaw, 0.0, 0.0)]) {}
+            Panneau.MoveTo(NouvellePosition, MakeRotationFromYawPitchRollDegrees(Yaw, 0.0, 0.0), 0.1)
 
     JoueurLePlusProche(Position:vector3)<decides><transacts>:vector3 =
         var PlusProche:float = Reglages.DistanceSuivi

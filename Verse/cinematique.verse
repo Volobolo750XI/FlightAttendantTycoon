@@ -5,21 +5,21 @@ using { /Verse.org/Simulation }
 using { /UnrealEngine.com/Temporary/UI }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 
-# Cinématique de décollage : quand on appuie sur le bouton, les 120 images du dossier
-# Content/Cinematique/UN défilent en plein écran (24 images/s, 5 s), puis le joueur est
-# téléporté dans la cabine en vol.
+# Cinematique de decollage : quand on appuie sur le bouton, les 120 images du dossier
+# Content/Cinematique/UN defilent en plein ecran (24 images/s, 5 s), puis le joueur est
+# teleporte dans la cabine en vol.
 #
 # Dans UEFN :
-#   1. Crée le dossier Content/Cinematique/UN et importe dedans les 120 images Decollage_001 ... 120.
+#   1. Cree le dossier Content/Cinematique/UN et importe dedans les 120 images Decollage_001 ... 120.
 #   2. Compile, place ce device, et choisis :
-#      Bouton      : le bouton qui lance la cinématique (pour tester).
-#      Son         : (facultatif) un Appareil Lecteur audio avec le son du décollage.
-#      ArriveeEnVol: (facultatif) un Appareil Téléporteur posé dans la cabine en vol.
+#      Bouton      : le bouton qui lance la cinematique (pour tester).
+#      Son         : (facultatif) un Appareil Lecteur audio avec le son du decollage.
+#      ArriveeEnVol: (facultatif) un Appareil Teleporteur pose dans la cabine en vol.
 cinematique_decollage := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable Son:?audio_player_device = false
     @editable ArriveeEnVol:?teleporter_device = false
-    # Images par seconde (24 = vitesse normale de la vidéo).
+    # Images par seconde (24 = vitesse normale de la video).
     @editable ImagesParSeconde:float = 24.0
 
     Images:[]texture = array:
@@ -169,7 +169,7 @@ cinematique_decollage := class(creative_device):
             for (Image : Images):
                 Ecran.SetImage(Image)
                 Sleep(Pause)
-            # on téléporte pendant que la dernière image est encore affichée
+            # on teleporte pendant que la derniere image est encore affichee
             if (T := ArriveeEnVol?) { T.Teleport(Joueur) }
             Sleep(0.3)
             UI.RemoveWidget(Fond)

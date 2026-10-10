@@ -63,7 +63,7 @@ menu_pc := class(creative_device):
     # 0 = menu des 3 cartes, 1 = SUPPLIES
     var Page:int = 0
     var Joueur:?player = false
-    var PC:?pc_destinations = false
+    var OrdiPC:?pc_destinations = false
     var Base:?canvas = false
     var Dynamiques:[]widget = array{}
     var Message:string = ""
@@ -92,7 +92,7 @@ menu_pc := class(creative_device):
     # ---------- Ouverture / fermeture ----------
     Ouvrir(P:player, Ordinateur:pc_destinations):void =
         Fermer()
-        set PC = option{Ordinateur}
+        set OrdiPC = option{Ordinateur}
         set Joueur = option{P}
         set Page = 0
         Afficher()
@@ -107,7 +107,7 @@ menu_pc := class(creative_device):
     # 5 ajouter le deblocage, 6 retirer le deblocage, 7 payer, 8 vider, 9 retour, 10 fermer
     Agir(Action:int, Index:int):void =
         if (Action = 0):
-            if (P := Joueur?, Ordinateur := PC?):
+            if (P := Joueur?, Ordinateur := OrdiPC?):
                 Fermer()
                 set Joueur = false
                 Ordinateur.Ouvrir(P)
@@ -168,8 +168,8 @@ menu_pc := class(creative_device):
             ViderPanier()
             AfficherMessage("THANK YOU FOR YOUR PURCHASE!", true)
 
-    AfficherMessage(Texte:string, Ok:logic):void =
-        set Message = Texte
+    AfficherMessage(Contenu:string, Ok:logic):void =
+        set Message = Contenu
         set MessageOk = Ok
         set NumeroMessage += 1
         Afficher()

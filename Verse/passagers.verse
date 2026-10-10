@@ -122,8 +122,8 @@ passagers := class(creative_device):
     @editable RetardMax:float = 25.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
-    # Couche le sac à dos dans le coffre (mets le même Sac_ dans EnMain et Rangee).
-    @editable CoucherSac:logic = true
+    # Seulement si tu mets le même Sac_ dans EnMain et Rangee (sinon mets SacRange_ dans Rangee, déjà couché).
+    @editable CoucherSac:logic = false
     @editable DureeAssis:float = 3.0
     # Angle d'ouverture des portes de coffre (degrés). Si elles s'ouvrent vers le bas, mets -100.
     @editable AngleCoffre:float = 80.0
@@ -138,9 +138,9 @@ passagers := class(creative_device):
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
     @editable HauteurAssis:float = -60.0
-    @editable AvanceAssis:float = -80.0
+    @editable AvanceAssis:float = -95.0
     # CoteAssis : décalage sur le côté (cm). Positif = vers la droite quand on regarde vers le fond de l'avion.
-    @editable CoteAssis:float = 65.0
+    @editable CoteAssis:float = 80.0
     # 90 = la valise tournée d'un quart de tour : grande face vers l'arrière, poignée en travers.
     # Si elle est encore sur le côté, mets -90.
     @editable RotationValise:float = 90.0
@@ -159,6 +159,8 @@ passagers := class(creative_device):
     var NbEnRoute:int = 0
     var Embarquement:logic = false
     var RelValise:?relatif = false
+    var BoutonRepos:?transform = false
+    var BoutonEnCours:logic = false
     var RelSac:?relatif = false
     var RelAssis:?relatif = false
     var RelValiseRangee:?relatif = false
@@ -166,6 +168,7 @@ passagers := class(creative_device):
 
     OnBegin<override>()<suspends>:void =
         MesurerExemples()
+        if (B := BoutonVisuel?) { set BoutonRepos = option{B.GetTransform()} }
         for (R : Chemin) { R.Hide() }
         for (P : Places):
             P.Siege.Hide()
@@ -326,8 +329,10 @@ passagers := class(creative_device):
     # Le bouton s'enfonce dans le sens où le joueur appuie (du joueur vers le bouton,
     # à l'horizontale) : donc toujours vers le mur, quelle que soit la rotation du prop.
     AnimerBouton(Joueur:agent)<suspends>:void =
-        if (B := BoutonVisuel?):
-            T := B.GetTransform()
+        # position de repos mémorisée au lancement : le bouton revient TOUJOURS au même endroit,
+        # et on ignore les appuis pendant l'animation
+        if (B := BoutonVisuel?, T := BoutonRepos?, not BoutonEnCours?):
+            set BoutonEnCours = true
             var Dir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
             if (Perso := Joueur.GetFortCharacter[]):
                 D := T.Translation - Perso.GetTransform().Translation
@@ -336,6 +341,8 @@ passagers := class(creative_device):
             B.MoveTo(Bas, T.Rotation, 0.08)
             Sleep(0.12)
             B.MoveTo(T.Translation, T.Rotation, 0.15)
+            if (B.TeleportTo[T.Translation, T.Rotation]) {}
+            set BoutonEnCours = false
 
     # ---------- exemples ----------
     MesurerExemples():void =

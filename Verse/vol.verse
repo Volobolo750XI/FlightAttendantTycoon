@@ -15,6 +15,8 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 # Tout est cache au debut. La cinematique appelle Decoller() a la fin ; Atterrir() remet tout comme avant.
 vol_device := class(creative_device):
     @editable Ciel:creative_prop = creative_prop{}
+    # (test) un bouton qui fait apparaitre / disparaitre le ciel directement, sans cinematique.
+    @editable BoutonTest:?button_device = false
     @editable Nuages:[]creative_prop = array{}
     # Le grand disque de nuages (SolNuages.glb), pose JUSTE SOUS le ventre de l'avion : il cache le sol.
     @editable SolNuages:?creative_prop = false
@@ -44,8 +46,14 @@ vol_device := class(creative_device):
         if (N := Nez?) { N.Hide() }
         if (Q := Queue?) { Q.Hide() }
         for (N : Nuages) { N.Hide() }
+        Print("Vol : pret (ciel cache)")
+        if (B := BoutonTest?):
+            loop:
+                B.InteractedWithEvent.Await()
+                if (EnVol?) then Atterrir() else Decoller()
 
     Decoller():void =
+        Print("Vol : Decoller appele")
         if (not EnVol?):
             set EnVol = true
             Ciel.Show()

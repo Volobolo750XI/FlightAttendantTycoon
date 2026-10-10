@@ -229,6 +229,7 @@ cinematique_decollage := class(creative_device):
             # on teleporte pendant que la derniere image est encore affichee
             if (T := ArriveeEnVol?) { T.Teleport(Joueur) }
             if (V := Vol?) { V.Decoller() }
+            else { Print("Cinematique : la case Vol est vide, le ciel ne peut pas apparaitre") }
             Sleep(0.3)
             UI.RemoveWidget(Fond)
             if (H := CacherHUD?) { H.Disable() }

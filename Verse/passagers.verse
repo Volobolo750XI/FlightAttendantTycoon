@@ -40,7 +40,7 @@ modele_passager := class<concrete>:
     @editable Assis:creative_prop_asset = DefaultCreativePropAsset
     # Où se trouve la main droite (cm) par rapport aux pieds : hauteur, côté (droite +), avant (+).
     @editable MainHauteur:float = 82.0
-    @editable MainCote:float = 28.0
+    @editable MainCote:float = 36.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
     @editable DosHauteur:float = 110.0
@@ -99,10 +99,6 @@ passagers := class(creative_device):
     # (si ton bouton est en plusieurs props, mets seulement le capuchon rouge ici).
     @editable BoutonVisuel:?creative_prop = false
     @editable EnfoncementBouton:float = 4.0
-    # Direction dans laquelle le bouton s'enfonce (axe local du prop) : 1 = avant (X), 2 = droite (Y), 3 = haut (Z).
-    # Coche InverserBouton s'il sort au lieu de rentrer.
-    @editable AxeBouton:int = 1
-    @editable InverserBouton:logic = false
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
     @editable Sacs:[]bagage = array{}
@@ -125,6 +121,8 @@ passagers := class(creative_device):
     @editable RetardMax:float = 25.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
+    # Couche le sac à dos dans le coffre (mets le même Sac_ dans EnMain et Rangee).
+    @editable CoucherSac:logic = true
     @editable DureeAssis:float = 3.0
     # Angle d'ouverture des portes de coffre (degrés). Si elles s'ouvrent vers le bas, mets -100.
     @editable AngleCoffre:float = 80.0
@@ -139,9 +137,9 @@ passagers := class(creative_device):
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
     @editable HauteurAssis:float = -60.0
-    @editable AvanceAssis:float = -65.0
+    @editable AvanceAssis:float = -80.0
     # CoteAssis : décalage sur le côté (cm). Positif = vers la droite quand on regarde vers le fond de l'avion.
-    @editable CoteAssis:float = 50.0
+    @editable CoteAssis:float = 65.0
     # 90 = la valise tournée d'un quart de tour : grande face vers l'arrière, poignée en travers.
     # Si elle est encore sur le côté, mets -90.
     @editable RotationValise:float = 90.0
@@ -179,8 +177,8 @@ passagers := class(creative_device):
         for (I -> Porte : PortesCoffres) { spawn{OuvrirCoffre(I)} }
         for (I -> Bouton : BoutonsCoffres) { spawn{GererBoutonCoffre(I, Bouton)} }
         loop:
-            BoutonEmbarquement.InteractedWithEvent.Await()
-            spawn{AnimerBouton()}
+            Joueur := BoutonEmbarquement.InteractedWithEvent.Await()
+            spawn{AnimerBouton(Joueur)}
             if (not Embarquement?):
                 spawn{Embarquer()}
 
@@ -260,6 +258,10 @@ passagers := class(creative_device):
             var Range:transform = transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
             Rel := if (P.Valise?) then RelValiseRangee else RelSacRange
             if (R := Rel?) { set Range = Appliquer(R, T) }
+            else if (not P.Valise?, CoucherSac?):
+                # sac à dos couché à plat dans le coffre (bascule de 90° sur le dos)
+                Couche := Range.Rotation.RotateBy(MakeRotation(T.Rotation.GetLocalRight(), PiFloat / 2.0))
+                set Range = transform{Translation := Range.Translation, Rotation := Couche, Scale := Range.Scale}
             if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
                 set P.Bagage = option{Rangee}
                 B.Dispose()
@@ -320,12 +322,16 @@ passagers := class(creative_device):
                 set P.Etat = 2
 
     # ---------- bouton qui s'enfonce ----------
-    AnimerBouton()<suspends>:void =
+    # Le bouton s'enfonce dans le sens où le joueur appuie (du joueur vers le bouton,
+    # à l'horizontale) : donc toujours vers le mur, quelle que soit la rotation du prop.
+    AnimerBouton(Joueur:agent)<suspends>:void =
         if (B := BoutonVisuel?):
             T := B.GetTransform()
-            Axe := if (AxeBouton = 2) then T.Rotation.GetLocalRight() else if (AxeBouton = 3) then T.Rotation.GetLocalUp() else T.Rotation.GetLocalForward()
-            Signe := if (InverserBouton?) then 1.0 else -1.0
-            Bas := T.Translation + Axe * EnfoncementBouton * Signe
+            var Dir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
+            if (Perso := Joueur.GetFortCharacter[]):
+                D := T.Translation - Perso.GetTransform().Translation
+                set Dir = Normaliser(vector3{X := D.X, Y := D.Y, Z := 0.0})
+            Bas := T.Translation + Dir * EnfoncementBouton
             B.MoveTo(Bas, T.Rotation, 0.08)
             Sleep(0.12)
             B.MoveTo(T.Translation, T.Rotation, 0.15)

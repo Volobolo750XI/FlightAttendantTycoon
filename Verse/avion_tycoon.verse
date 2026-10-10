@@ -232,7 +232,7 @@ avion_tycoon := class(creative_device):
                     overlay_slot:
                         Widget := Texte
                         # centré sur la barre seulement, à droite de l'icône
-                        Padding := margin{Left := 62.0, Right := 6.0}
+                        Padding := margin{Left := 78.0, Right := 6.0}
                         HorizontalAlignment := horizontal_alignment.Center
                         VerticalAlignment := vertical_alignment.Center
 

@@ -185,6 +185,7 @@ avion_tycoon := class(creative_device):
         # MoveTo par petits pas de 0.1 s (fluide en réseau) au lieu d'un TeleportTo à chaque image,
         # qui faisait sauter / bugger le panneau.
         loop:
+            Sleep(0.0)
             if (Cible := JoueurLePlusProche[Position]):
                 YawCible := ArcTan(Cible.Y - Position.Y, Cible.X - Position.X) * 180.0 / PiFloat + Reglages.DecalageAngle
                 set Yaw += AngleLePlusCourt(YawCible - Yaw) * Reglages.Lissage

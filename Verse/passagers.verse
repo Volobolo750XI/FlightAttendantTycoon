@@ -99,6 +99,10 @@ passagers := class(creative_device):
     # (si ton bouton est en plusieurs props, mets seulement le capuchon rouge ici).
     @editable BoutonVisuel:?creative_prop = false
     @editable EnfoncementBouton:float = 4.0
+    # Direction dans laquelle le bouton s'enfonce (axe local du prop) : 1 = avant (X), 2 = droite (Y), 3 = haut (Z).
+    # Coche InverserBouton s'il sort au lieu de rentrer.
+    @editable AxeBouton:int = 1
+    @editable InverserBouton:logic = false
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
     @editable Sacs:[]bagage = array{}
@@ -319,7 +323,9 @@ passagers := class(creative_device):
     AnimerBouton()<suspends>:void =
         if (B := BoutonVisuel?):
             T := B.GetTransform()
-            Bas := T.Translation - T.Rotation.GetLocalUp() * EnfoncementBouton
+            Axe := if (AxeBouton = 2) then T.Rotation.GetLocalRight() else if (AxeBouton = 3) then T.Rotation.GetLocalUp() else T.Rotation.GetLocalForward()
+            Signe := if (InverserBouton?) then 1.0 else -1.0
+            Bas := T.Translation + Axe * EnfoncementBouton * Signe
             B.MoveTo(Bas, T.Rotation, 0.08)
             Sleep(0.12)
             B.MoveTo(T.Translation, T.Rotation, 0.15)

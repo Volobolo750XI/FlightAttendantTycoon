@@ -5,12 +5,12 @@ using { /Verse.org/Simulation }
 using { /UnrealEngine.com/Temporary/UI }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 
-# Cinématique de décollage : quand on appuie sur le bouton, les 60 images du dossier
-# Content/Cinematique défilent en plein écran (12 images/s, 5 s), puis le joueur est
+# Cinématique de décollage : quand on appuie sur le bouton, les 120 images du dossier
+# Content/Cinematique défilent en plein écran (24 images/s, 5 s), puis le joueur est
 # téléporté dans la cabine en vol.
 #
 # Dans UEFN :
-#   1. Crée le dossier Content/Cinematique et importe dedans les 60 images Decollage_001 ... 060.
+#   1. Crée le dossier Content/Cinematique et importe dedans les 120 images Decollage_001 ... 120.
 #   2. Compile, place ce device, et choisis :
 #      Bouton      : le bouton qui lance la cinématique (pour tester).
 #      Son         : (facultatif) un Appareil Lecteur audio avec le son du décollage.
@@ -19,8 +19,8 @@ cinematique_decollage := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable Son:?audio_player_device = false
     @editable ArriveeEnVol:?teleporter_device = false
-    # Images par seconde (12 = vitesse normale de la vidéo).
-    @editable ImagesParSeconde:float = 12.0
+    # Images par seconde (24 = vitesse normale de la vidéo).
+    @editable ImagesParSeconde:float = 24.0
 
     Images:[]texture = array:
         Cinematique.Decollage_001,
@@ -82,7 +82,67 @@ cinematique_decollage := class(creative_device):
         Cinematique.Decollage_057,
         Cinematique.Decollage_058,
         Cinematique.Decollage_059,
-        Cinematique.Decollage_060
+        Cinematique.Decollage_060,
+        Cinematique.Decollage_061,
+        Cinematique.Decollage_062,
+        Cinematique.Decollage_063,
+        Cinematique.Decollage_064,
+        Cinematique.Decollage_065,
+        Cinematique.Decollage_066,
+        Cinematique.Decollage_067,
+        Cinematique.Decollage_068,
+        Cinematique.Decollage_069,
+        Cinematique.Decollage_070,
+        Cinematique.Decollage_071,
+        Cinematique.Decollage_072,
+        Cinematique.Decollage_073,
+        Cinematique.Decollage_074,
+        Cinematique.Decollage_075,
+        Cinematique.Decollage_076,
+        Cinematique.Decollage_077,
+        Cinematique.Decollage_078,
+        Cinematique.Decollage_079,
+        Cinematique.Decollage_080,
+        Cinematique.Decollage_081,
+        Cinematique.Decollage_082,
+        Cinematique.Decollage_083,
+        Cinematique.Decollage_084,
+        Cinematique.Decollage_085,
+        Cinematique.Decollage_086,
+        Cinematique.Decollage_087,
+        Cinematique.Decollage_088,
+        Cinematique.Decollage_089,
+        Cinematique.Decollage_090,
+        Cinematique.Decollage_091,
+        Cinematique.Decollage_092,
+        Cinematique.Decollage_093,
+        Cinematique.Decollage_094,
+        Cinematique.Decollage_095,
+        Cinematique.Decollage_096,
+        Cinematique.Decollage_097,
+        Cinematique.Decollage_098,
+        Cinematique.Decollage_099,
+        Cinematique.Decollage_100,
+        Cinematique.Decollage_101,
+        Cinematique.Decollage_102,
+        Cinematique.Decollage_103,
+        Cinematique.Decollage_104,
+        Cinematique.Decollage_105,
+        Cinematique.Decollage_106,
+        Cinematique.Decollage_107,
+        Cinematique.Decollage_108,
+        Cinematique.Decollage_109,
+        Cinematique.Decollage_110,
+        Cinematique.Decollage_111,
+        Cinematique.Decollage_112,
+        Cinematique.Decollage_113,
+        Cinematique.Decollage_114,
+        Cinematique.Decollage_115,
+        Cinematique.Decollage_116,
+        Cinematique.Decollage_117,
+        Cinematique.Decollage_118,
+        Cinematique.Decollage_119,
+        Cinematique.Decollage_120
 
     var EnCours:logic = false
 

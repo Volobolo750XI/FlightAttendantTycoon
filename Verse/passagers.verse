@@ -91,6 +91,7 @@ passager := class:
     var Etat:int = -1
     var Avancee:float = 0.0
     var DansAllee:logic = true
+    var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
@@ -124,8 +125,6 @@ passagers := class(creative_device):
     @editable RetardMax:float = 25.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
-    # Seulement si tu mets le même Sac_ dans EnMain et Rangee (sinon mets SacRange_ dans Rangee, déjà couché).
-    @editable CoucherSac:logic = false
     @editable DureeAssis:float = 3.0
     # Angle d'ouverture des portes de coffre (degrés). Si elles s'ouvrent vers le bas, mets -100.
     @editable AngleCoffre:float = 80.0
@@ -259,22 +258,24 @@ passagers := class(creative_device):
         Changer(P, 1, P.Modele.Attente)
         # il range son bagage : rien ne bouge pendant DureeRangement...
         Sleep(DureeRangement)
-        # ...puis le bagage apparaît d'un coup dans le coffre (version rangée)
+        # ...puis le bagage apparaît d'un coup dans le coffre
         T := Place.Coffre.GetTransform()
         if (B := P.Bagage?):
-            var Range:transform = transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
             Rel := if (P.Valise?) then RelValiseRangee else RelSacRange
-            if (R := Rel?) { set Range = Appliquer(R, T) }
-            else if (not P.Valise?, CoucherSac?):
-                # sac à dos couché à plat dans le coffre (bascule de 90° sur le dos)
-                Couche := Range.Rotation.RotateBy(MakeRotation(T.Rotation.GetLocalRight(), PiFloat / 2.0))
-                set Range = transform{Translation := Range.Translation, Rotation := Couche, Scale := Range.Scale}
-            if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
-                set P.Bagage = option{Rangee}
-                B.Dispose()
+            if (R := Rel?):
+                if (Rangee := SpawnProp(P.Sac.Rangee, Appliquer(R, T))(0)?):
+                    set P.Bagage = option{Rangee}
+                    B.Dispose()
+            else if (P.Valise?):
+                Range := transform{Translation := T.Translation, Rotation := T.Rotation, Scale := EchelleBagage(P)}
+                if (Rangee := SpawnProp(P.Sac.Rangee, Range)(0)?):
+                    set P.Bagage = option{Rangee}
+                    B.Dispose()
+                else if (B.TeleportTo[Range]) {}
             else:
-                # pas de version "rangée" choisie : on pose directement le bagage porté
-                if (B.TeleportTo[Range]) {}
+                # sac à dos : le MÊME sac, couché sur le côté (bascule de 90° autour de l'axe
+                # avant-arrière du sac), posé à plat sur le fond du coffre, au niveau du repère
+                if (B.TeleportTo[SacCouche(P, B.GetTransform(), T)]) {}
         Sleep(0.3)
 
     # La porte tourne autour de l'axe de l'allée ; le sens dépend du côté (gauche / droite).
@@ -347,6 +348,18 @@ passagers := class(creative_device):
             if (B.TeleportTo[T.Translation, T.Rotation]) {}
             set BoutonEnCours = false
 
+    # Sac couché sur le côté : on part du sac tel qu'il est porté (debout, pivot en haut des
+    # bretelles), on le bascule de 90° autour de l'axe de marche, et on met son centre sur le repère.
+    SacCouche(P:passager, Porte:transform, Repere:transform)<transacts>:transform =
+        Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
+        Axe := Normaliser(vector3{X := P.DerniereDir.X, Y := P.DerniereDir.Y, Z := 0.0})
+        Bascule := MakeRotation(Axe, PiFloat / 2.0)
+        Taille := EchelleSac * 100.0
+        # du centre du sac jusqu'au pivot (haut des bretelles) quand il est debout
+        CentreVersPivot := Haut * (0.285 * Taille)
+        Pivot := Repere.Translation + Haut * (0.15 * Taille) + Bascule.RotateVector(CentreVersPivot)
+        transform{Translation := Pivot, Rotation := Porte.Rotation.RotateBy(Bascule), Scale := Porte.Scale}
+
     # ---------- exemples ----------
     MesurerExemples():void =
         E := Exemples
@@ -395,6 +408,7 @@ passagers := class(creative_device):
     DeplacerAvecBagage(P:passager, Pos:vector3, Dir:vector3, Duree:float)<suspends>:void =
         RotCorps := Orientation(Dir, RotationModele)
         TB := TransformBagage(P, Pos, Dir)
+        set P.DerniereDir = Dir
         if (C := P.Corps?, B := P.Bagage?):
             sync:
                 C.MoveTo(transform{Translation := Pos, Rotation := RotCorps, Scale := EchellePerso()}, Duree)

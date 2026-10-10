@@ -95,6 +95,10 @@ passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
     # DeviceAvion : ton device avion_tycoon : sert à savoir combien de rangées sont achetées.
     @editable DeviceAvion:avion_tycoon = avion_tycoon{}
+    # Le bouton rouge START BOARDING (le prop) : il s'enfonce quand on appuie. Les morceaux en plus
+    # (si ton bouton est en plusieurs props, mets seulement le capuchon rouge ici).
+    @editable BoutonVisuel:?creative_prop = false
+    @editable EnfoncementBouton:float = 4.0
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
     @editable Sacs:[]bagage = array{}
@@ -134,7 +138,9 @@ passagers := class(creative_device):
     @editable AvanceAssis:float = -65.0
     # CoteAssis : décalage sur le côté (cm). Positif = vers la droite quand on regarde vers le fond de l'avion.
     @editable CoteAssis:float = 50.0
-    @editable RotationValise:float = 0.0
+    # 90 = la valise tournée d'un quart de tour : grande face vers l'arrière, poignée en travers.
+    # Si elle est encore sur le côté, mets -90.
+    @editable RotationValise:float = 90.0
     @editable RotationSac:float = -90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
@@ -170,6 +176,7 @@ passagers := class(creative_device):
         for (I -> Bouton : BoutonsCoffres) { spawn{GererBoutonCoffre(I, Bouton)} }
         loop:
             BoutonEmbarquement.InteractedWithEvent.Await()
+            spawn{AnimerBouton()}
             if (not Embarquement?):
                 spawn{Embarquer()}
 
@@ -307,6 +314,15 @@ passagers := class(creative_device):
                 C.Dispose()
                 set P.Corps = option{Nouveau}
                 set P.Etat = 2
+
+    # ---------- bouton qui s'enfonce ----------
+    AnimerBouton()<suspends>:void =
+        if (B := BoutonVisuel?):
+            T := B.GetTransform()
+            Bas := T.Translation - T.Rotation.GetLocalUp() * EnfoncementBouton
+            B.MoveTo(Bas, T.Rotation, 0.08)
+            Sleep(0.12)
+            B.MoveTo(T.Translation, T.Rotation, 0.15)
 
     # ---------- exemples ----------
     MesurerExemples():void =

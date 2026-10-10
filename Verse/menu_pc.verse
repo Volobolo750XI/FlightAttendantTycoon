@@ -14,9 +14,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir a contenu :
 #   dossier MenuPC   : Fond_Menu, Carte_Destinations, Carte_Marchandises,
-#                      Carte_Ameliorations_Verrou, Icone_Panier,
-#                      Bouton_Bleu, Bouton_Violet, Bouton_Vert, Bouton_Gris,
-#                      Bouton_Gris_Court, Bouton_Gris_Carre
+#                      Carte_Ameliorations_Verrou, Icone_Panier
 #   dossier Produits : Produit_01_Eau ... Produit_09_Caviar (sans le 07)
 #
 # Dans l'editeur : pose ce device, remplis AvionTycoon, puis dans le device
@@ -201,12 +199,11 @@ menu_pc := class(creative_device):
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
 
-    # Bouton : une image arrondie de la meme taille que le bouton, le bouton transparent dessus.
-    # Tailles prevues pour les images : 8:1 (Bouton_Bleu...), 4:1 (Court), 1:1 (Carre).
-    Bouton(S:string, Fond:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
+    # Bouton blanc tout simple : un rectangle blanc + le bouton transparent dessus.
+    Bouton(S:string, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
         B := button_quiet{DefaultText := Msg(S)}
         B.OnClick().Subscribe(clic_menu{Menu := Self, Action := Action, Index := Index}.Clique)
-        array{Bloc(Vignette(Fond, L, H), X, Y, L, H, 3), Bloc(B, X, Y, L, H, 4)}
+        array{Bloc(Rect("FFFFFF"), X, Y, L, H, 3), Bloc(B, X, Y, L, H, 4)}
 
     # Zone cliquable invisible (sur les cartes du menu).
     Zone(X:float, Y:float, L:float, H:float, Action:int):canvas_slot =
@@ -242,7 +239,7 @@ menu_pc := class(creative_device):
     PageMenu():[]canvas_slot =
         var Slots:[]canvas_slot = array{}
         set Slots += array{Bloc(Texte("FLIGHT OPS", "FFFFFF", text_justification.Left), 60.0, 40.0, 600.0, 50.0, 5)}
-        set Slots += Bouton("CLOSE", MenuPC.Bouton_Gris_Court, 1668.0, 40.0, 192.0, 48.0, 10, 0)
+        set Slots += Bouton("CLOSE", 1668.0, 40.0, 192.0, 48.0, 10, 0)
         Cartes := array{MenuPC.Carte_Destinations, MenuPC.Carte_Marchandises, MenuPC.Carte_Ameliorations_Verrou}
         for (I -> Carte : Cartes):
             X := 225.0 + I * 500.0
@@ -261,7 +258,7 @@ menu_pc := class(creative_device):
     PageBoutique():[]canvas_slot =
         var Slots:[]canvas_slot = array{}
         # en-tete
-        set Slots += Bouton("<  BACK", MenuPC.Bouton_Gris_Court, 60.0, 41.0, 192.0, 48.0, 9, 0)
+        set Slots += Bouton("<  BACK", 60.0, 41.0, 192.0, 48.0, 9, 0)
         set Slots += array{Bloc(Texte("SUPPLIES", "FFFFFF", text_justification.Left), 280.0, 48.0, 400.0, 40.0, 5)}
         set Slots += LigneMessage(560.0, 48.0, 700.0)
         # produits : 3 par ligne
@@ -278,13 +275,13 @@ menu_pc := class(creative_device):
         set Slots += array{Bloc(Texte(P.Nom, "FFFFFF", text_justification.Center), X, Y + 172.0, 390.0, 32.0, 5)}
         if (Debloque[I]?):
             set Slots += array{Bloc(Texte("x{P.Lot}  -  {Prix(P.PrixLot)}", "7DD3FC", text_justification.Center), X, Y + 204.0, 390.0, 28.0, 5)}
-            set Slots += Bouton("ADD TO CART", MenuPC.Bouton_Bleu, X + 19.0, Y + 238.0, 352.0, 44.0, 3, I)
+            set Slots += Bouton("ADD TO CART", X + 19.0, Y + 238.0, 352.0, 44.0, 3, I)
         else:
             # verrouille : image assombrie, prix du deblocage
             set Slots += array{Bloc(color_block{DefaultColor := MakeColorFromHex(CouleurCarte), DefaultOpacity := 0.6}, X + 120.0, Y + 14.0, 150.0, 150.0, 4)}
             set Slots += array{Bloc(Texte(Prix(P.PrixDeblocage), "C4B5FD", text_justification.Center), X, Y + 204.0, 390.0, 28.0, 5)}
             Quoi := if (P.Appareil = "") then "UNLOCK" else "BUY {P.Appareil}"
-            set Slots += Bouton(Quoi, MenuPC.Bouton_Violet, X + 19.0, Y + 238.0, 352.0, 44.0, 5, I)
+            set Slots += Bouton(Quoi, X + 19.0, Y + 238.0, 352.0, 44.0, 5, I)
         Slots
 
     Panier():[]canvas_slot =
@@ -318,8 +315,8 @@ menu_pc := class(creative_device):
         set Slots += array{Bloc(Texte("YOUR BALANCE", "94A3B8", text_justification.Left), X + 24.0, 843.0, 250.0, 30.0, 5)}
         CouleurSolde := if (Solde >= Total) then "94A3B8" else "F87171"
         set Slots += array{Bloc(Texte(Prix(Solde), CouleurSolde, text_justification.Right), X + L - 224.0, 843.0, 200.0, 30.0, 5)}
-        set Slots += Bouton("CHECKOUT", MenuPC.Bouton_Vert, X + 25.0, 895.0, 480.0, 60.0, 7, 0)
-        set Slots += Bouton("EMPTY CART", MenuPC.Bouton_Gris, X + 89.0, 970.0, 352.0, 44.0, 8, 0)
+        set Slots += Bouton("CHECKOUT", X + 25.0, 895.0, 480.0, 60.0, 7, 0)
+        set Slots += Bouton("EMPTY CART", X + 89.0, 970.0, 352.0, 44.0, 8, 0)
         Slots
 
     # Une ligne : nom a gauche, prix a droite, petit bouton "-" pour retirer un lot.
@@ -329,5 +326,5 @@ menu_pc := class(creative_device):
         var Slots:[]canvas_slot = array{}
         set Slots += array{Bloc(Texte(Nom, "E2E8F0", text_justification.Left), X + 24.0, Y + 6.0, 300.0, 32.0, 5)}
         set Slots += array{Bloc(Texte(Prix(Montant), "E2E8F0", text_justification.Right), X + 310.0, Y + 6.0, 140.0, 32.0, 5)}
-        set Slots += Bouton("-", MenuPC.Bouton_Gris_Carre, X + 466.0, Y + 2.0, 40.0, 40.0, 4, Index)
+        set Slots += Bouton("-", X + 466.0, Y + 2.0, 40.0, 40.0, 4, Index)
         Slots

@@ -125,6 +125,8 @@ passagers := class(creative_device):
     @editable RetardMax:float = 25.0
     # Temps passé à ranger le bagage (immobile), puis le bagage apparaît d'un coup dans le coffre.
     @editable DureeRangement:float = 2.5
+    # Sac rangé : de combien il est poussé au fond du coffre (cm, vers le hublot).
+    @editable FondSac:float = 35.0
     # Rotation à plat (degrés) du sac à dos couché dans le coffre.
     @editable RotationSacRange:float = 90.0
     @editable DureeAssis:float = 3.0
@@ -277,7 +279,11 @@ passagers := class(creative_device):
             else:
                 # sac à dos : le MÊME sac, couché sur le côté (bascule de 90° autour de l'axe
                 # avant-arrière du sac), posé à plat sur le fond du coffre, au niveau du repère
-                if (B.TeleportTo[SacCouche(P, B.GetTransform(), T)]) {}
+                # "au fond" = du côté opposé à l'allée (vers le hublot)
+                A := Place.Allee.GetTransform().Translation
+                Fond := Normaliser(vector3{X := T.Translation.X - A.X, Y := T.Translation.Y - A.Y, Z := 0.0})
+                Repere := transform{Translation := T.Translation + Fond * FondSac, Rotation := T.Rotation, Scale := T.Scale}
+                if (B.TeleportTo[SacCouche(P, B.GetTransform(), Repere)]) {}
         Sleep(0.3)
 
     # La porte tourne autour de l'axe de l'allée ; le sens dépend du côté (gauche / droite).
@@ -354,7 +360,8 @@ passagers := class(creative_device):
     # bretelles), on le bascule de 90° autour de l'axe de marche, et on met son centre sur le repère.
     SacCouche(P:passager, Porte:transform, Repere:transform)<transacts>:transform =
         Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
-        Axe := Normaliser(vector3{X := P.DerniereDir.X, Y := P.DerniereDir.Y, Z := 0.0})
+        Avant := Normaliser(vector3{X := P.DerniereDir.X, Y := P.DerniereDir.Y, Z := 0.0})
+        Axe := CrossProduct(Haut, Avant)
         Bascule := MakeRotation(Axe, PiFloat / 2.0)
         Taille := EchelleSac * 100.0
         # du centre du sac jusqu'au pivot (haut des bretelles) quand il est debout

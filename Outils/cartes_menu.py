@@ -12,7 +12,7 @@ for src, nom, titre in CARTES:
     im = Image.open(f"{SRC}/{src}").convert("RGB")
     r = W / im.width; im = im.resize((W, round(im.height*r)), Image.LANCZOS)
     y = (im.height - H_IMG)//2; im = im.crop((0, y, W, y+H_IMG))
-    for verrou in (False, True):
+    for verrou in ((False, True) if nom == "Carte_Ameliorations" else (False,)):
         c = Image.new("RGB", (W, W), (12,12,14)); d = ImageDraw.Draw(c)
         p = im
         if verrou: p = ImageEnhance.Brightness(ImageEnhance.Color(im).enhance(0.1)).enhance(0.45)

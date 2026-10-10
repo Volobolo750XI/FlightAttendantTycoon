@@ -65,6 +65,8 @@ avion_tycoon := class(creative_device):
     @editable Claim:reglages_claim = reglages_claim{}
     @editable Rangees:[]reglages_rangee = array{}
     @editable Reglages:reglages_generaux = reglages_generaux{}
+    # Son joué à chaque achat de rangée (même gratuite) : un Appareil Lecteur audio.
+    @editable SonAchat:?audio_player_device = false
 
     var Proprio:?agent = false
     var Argent:int = 0
@@ -145,6 +147,7 @@ avion_tycoon := class(creative_device):
             AttendreSurPlaque(R.Plaque, Proprio)
             if (Argent >= R.Prix):
                 set Argent -= R.Prix
+                if (Son := SonAchat?) { Son.Play() }
                 break
             # Pas assez d'argent : on réessaie dans 1 seconde.
             Sleep(1.0)

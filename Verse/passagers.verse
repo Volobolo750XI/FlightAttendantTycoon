@@ -99,6 +99,8 @@ passagers := class(creative_device):
     # Le bouton rouge START BOARDING (le prop) : il s'enfonce quand on appuie. Les morceaux en plus
     # (si ton bouton est en plusieurs props, mets seulement le capuchon rouge ici).
     @editable BoutonVisuel:?creative_prop = false
+    # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
+    @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
     @editable Modeles:[]modele_passager = array{}
     @editable Valises:[]bagage = array{}
@@ -182,6 +184,7 @@ passagers := class(creative_device):
         for (I -> Bouton : BoutonsCoffres) { spawn{GererBoutonCoffre(I, Bouton)} }
         loop:
             Joueur := BoutonEmbarquement.InteractedWithEvent.Await()
+            if (Son := SonBouton?) { Son.Play() }
             spawn{AnimerBouton(Joueur)}
             if (not Embarquement?):
                 spawn{Embarquer()}

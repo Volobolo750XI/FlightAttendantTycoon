@@ -56,6 +56,8 @@ pc_destinations := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     @editable BoutonDecollage:button_device = button_device{}
+    # Son joué à chaque achat de destination (même FREE) : un Appareil Lecteur audio.
+    @editable SonAchat:?audio_player_device = false
     @editable Portes:[]porte_passager = array{}
     @editable MessageHUD:hud_message_device = hud_message_device{}
 
@@ -249,6 +251,7 @@ pc_destinations := class(creative_device):
             if (AvionTycoon.Argent >= D.Prix):
                 set AvionTycoon.Argent -= D.Prix
                 AvionTycoon.MettreAJourUI()
+                if (Son := SonAchat?) { Son.Play() }
                 if (set Achetees[Index] = true) {}
                 # pendant un vol, on achète mais le trajet change seulement à l'atterrissage
                 if (not EnVol[]):

@@ -109,9 +109,6 @@ passagers := class(creative_device):
     @editable BoutonsCoffres:[]button_device = array{}
 
     @editable Exemples:exemples = exemples{}
-    # Le capuchon rouge du bouton (Bouton_Capuchon) : il s'enfonce quand on appuie.
-    @editable CapuchonBouton:?creative_prop = false
-    @editable EnfoncementBouton:float = 3.0
 
     # Vitesse de marche (cm/s), écart entre deux passagers dans la queue (cm),
     # temps entre deux arrivées (s), durée pour s'asseoir (s).
@@ -179,7 +176,6 @@ passagers := class(creative_device):
         for (I -> Bouton : BoutonsCoffres) { spawn{GererBoutonCoffre(I, Bouton)} }
         loop:
             BoutonEmbarquement.InteractedWithEvent.Await()
-            if (Cap := CapuchonBouton?) { spawn{EnfoncerBouton(Cap)} }
             spawn{AnimerBouton()}
             if (not Embarquement?):
                 spawn{Embarquer()}
@@ -327,14 +323,6 @@ passagers := class(creative_device):
             B.MoveTo(Bas, T.Rotation, 0.08)
             Sleep(0.12)
             B.MoveTo(T.Translation, T.Rotation, 0.15)
-
-    # Le capuchon s'enfonce vers le mur (vers l'arrière de sa face) puis revient.
-    EnfoncerBouton(Cap:creative_prop)<suspends>:void =
-        T := Cap.GetTransform()
-        Dedans := T.Translation - T.Rotation.GetLocalUp() * EnfoncementBouton * T.Scale.Z
-        Cap.MoveTo(Dedans, T.Rotation, 0.08)
-        Sleep(0.25)
-        Cap.MoveTo(T.Translation, T.Rotation, 0.15)
 
     # ---------- exemples ----------
     MesurerExemples():void =

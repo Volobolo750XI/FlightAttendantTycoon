@@ -43,7 +43,7 @@ modele_passager := class<concrete>:
     @editable MainCote:float = 28.0
     @editable MainAvant:float = 0.0
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
-    @editable DosHauteur:float = 158.0
+    @editable DosHauteur:float = 170.0
     @editable DosAvant:float = -12.0
 
 bagage := class<concrete>:
@@ -104,16 +104,16 @@ passagers := class(creative_device):
     # HauteurAssis négatif = plus bas. AvanceAssis positif = vers l'avant du siège.
     @editable RotationAssis:float = 180.0
     @editable HauteurAssis:float = -60.0
-    @editable AvanceAssis:float = -25.0
-    # CoteAssis : décalage sur le côté (cm). Négatif = vers la gauche du passager assis.
-    @editable CoteAssis:float = -20.0
+    @editable AvanceAssis:float = -40.0
+    # CoteAssis : décalage sur le côté (cm). Positif = vers la droite quand on regarde vers le fond de l'avion.
+    @editable CoteAssis:float = 25.0
     @editable RotationValise:float = 0.0
     @editable RotationSac:float = -90.0
     # Taille des bagages (1.5 = 1.5 partout) et inclinaison de la valise tirée (degrés).
     # Si la valise penche vers l'avant au lieu de traîner derrière, mets -35. Roulis : à régler si elle penche sur le côté.
     @editable EchelleValise:float = 1.5
     @editable EchelleSac:float = 1.6
-    @editable InclinaisonValise:float = 35.0
+    @editable InclinaisonValise:float = -35.0
     @editable RoulisValise:float = 0.0
 
     var EnCours:[]passager = array{}
@@ -263,7 +263,7 @@ passagers := class(creative_device):
         set P.DansAllee = false
         T := Place.Siege.GetTransform()
         Rot := T.Rotation.RotateBy(MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, DegreesToRadians(RotationAssis)))
-        Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + Rot.GetLocalRight() * -CoteAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
+        Pos := T.Translation + Rot.GetLocalForward() * AvanceAssis + CrossProduct(vector3{X := 0.0, Y := 0.0, Z := 1.0}, AxeAllee()) * CoteAssis + vector3{X := 0.0, Y := 0.0, Z := HauteurAssis}
         # il s'assoit d'un coup : le blueprint assis apparaît directement sur le siège
         if (C := P.Corps?):
             if (Nouveau := SpawnProp(P.Modele.Assis, transform{Translation := Pos, Rotation := Rot, Scale := EchellePerso()})(0)?):

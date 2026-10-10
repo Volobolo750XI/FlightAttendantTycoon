@@ -84,6 +84,13 @@ def build():
         sc.add_geometry(m, node_name=nom, geom_name=nom)
     out = os.path.join(SORTIE, "Bouton_StartBoarding.glb")
     sc.export(out)
+    # deux morceaux séparés (même pivot) : le socle fixe et le capuchon qui s'enfonce
+    for nom_f, noms in (("Bouton_Socle.glb", ("Socle", "Danger", "Collerette")), ("Bouton_Capuchon.glb", ("Liseret", "Capuchon", "Dome"))):
+        part = trimesh.Scene()
+        for nom, m in pieces:
+            if nom in noms:
+                part.add_geometry(m, node_name=nom, geom_name=nom)
+        part.export(os.path.join(SORTIE, nom_f))
     tex.save(os.path.join(SORTIE, "texture_start_boarding.png"))
     print(out)
 

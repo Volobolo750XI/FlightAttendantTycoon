@@ -34,13 +34,6 @@ def texture_ciel(W=2048, H=1024, graine=3):
     ombre = nu.filter(ImageFilter.GaussianBlur(14)).transform(nu.size, Image.AFFINE, (1, 0, 0, 0, 1, -10))
     im.paste((200, 214, 232), mask=ombre.point(lambda a: a * 0.5))
     im.paste((255, 255, 255), mask=nu)
-    # quelques petits nuages hauts dans le ciel
-    hn = Image.new("L", (W, H), 0); d = ImageDraw.Draw(hn)
-    for _ in range(40):
-        x = rng.uniform(0, W); y = H * rng.uniform(0.25, 0.44); r = rng.uniform(8, 26)
-        for k in range(5):
-            d.ellipse((x + k * r * 0.9 - r, y - r * (0.6 + 0.4 * (k % 2)), x + k * r * 0.9 + r, y + r * 0.5), fill=200)
-    im.paste((255, 255, 255), mask=hn.filter(ImageFilter.GaussianBlur(5)))
     return im
 
 

@@ -140,35 +140,35 @@ service_device := class(creative_device):
     EstPlat(Index:int)<transacts><decides>:void =
         Plats[Index]?
 
-    Echelle(Index:int):vector3 =
+    Echelle(Index:int)<transacts>:vector3 =
         E := if (Index < 0) then EchelleAssiette else if (V := Echelles[Index]) then V else 1.0
         vector3{X := E, Y := E, Z := E}
 
-    Modele(Index:int):creative_prop_asset =
+    Modele(Index:int)<transacts>:creative_prop_asset =
         if (Index < 0) then ModeleAssiette else if (P := ModelesProduits[Index]) then P.Modele else DefaultCreativePropAsset
 
-    DecalagePose(Index:int):float =
+    DecalagePose(Index:int)<transacts>:float =
         if (P := ModelesProduits[Index]) then P.DecalagePose else 0.0
 
-    RotationProduit(Index:int):float =
+    RotationProduit(Index:int)<transacts>:float =
         if (P := ModelesProduits[Index]) then P.Rotation else 0.0
 
-    Haut():vector3 = vector3{X := 0.0, Y := 0.0, Z := 1.0}
+    Haut()<transacts>:vector3 = vector3{X := 0.0, Y := 0.0, Z := 1.0}
 
-    Produit(A:vector3, B:vector3):float = A.X * B.X + A.Y * B.Y + A.Z * B.Z
+    Scalaire(A:vector3, B:vector3)<transacts>:float = A.X * B.X + A.Y * B.Y + A.Z * B.Z
 
-    Absolu(V:float):float = if (V < 0.0) then -V else V
+    Absolu(V:float)<transacts>:float = if (V < 0.0) then -V else V
 
     # Rotation a plat dans la direction du regard (+ correction du produit)
-    RotationPlate(Avant:vector3, Degres:float):rotation =
+    RotationPlate(Avant:vector3, Degres:float)<transacts>:rotation =
         Plat := vector3{X := Avant.X, Y := Avant.Y, Z := 0.0}
         Base := if (Plat.Length() > 0.01) then MakeShortestRotationBetween(vector3{X := 1.0, Y := 0.0, Z := 0.0}, Plat) else IdentityRotation()
         Base.RotateBy(MakeRotationFromYawPitchRollDegrees(Degres, 0.0, 0.0))
 
-    Regard(FC:fort_character):vector3 =
+    Regard(FC:fort_character)<transacts>:vector3 =
         FC.GetViewRotation().RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
 
-    PositionEnMain(FC:fort_character):vector3 =
+    PositionEnMain(FC:fort_character)<transacts>:vector3 =
         Avant := Regard(FC)
         Plat := RotationPlate(Avant, 0.0)
         FC.GetViewLocation() + Avant * DistanceEnMain + Plat.RotateVector(vector3{X := 0.0, Y := DecalageMainDroite, Z := 0.0}) - vector3{Z := DecalageMainBas}
@@ -264,7 +264,7 @@ service_device := class(creative_device):
 
     # ---------- ou poser ----------
     # Point vise sur une planche du galley ou sur le plateau d'un chariot
-    PointVise(CamPos:vector3, Avant:vector3):?point_planche =
+    PointVise(CamPos:vector3, Avant:vector3)<transacts>:?point_planche =
         var Meilleur:?point_planche = false
         var MeilleurT:float = PorteeMax
         var Surfaces:[]tuple(creative_prop, int) = for (Pl : Planches) { (Pl, -1) }
@@ -276,32 +276,32 @@ service_device := class(creative_device):
             AxeX := Tr.Rotation.RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
             AxeY := Tr.Rotation.RotateVector(vector3{X := 0.0, Y := 1.0, Z := 0.0})
             Surface := Tr.Translation + H * (HauteurSurfacePlanche * Tr.Scale.Z)
-            Den := Produit(Avant, H)
+            Den := Scalaire(Avant, H)
             if (Den < -0.05):
-                T := Produit(Surface - CamPos, H) / Den
+                T := Scalaire(Surface - CamPos, H) / Den
                 Point := CamPos + Avant * T
                 Local := Point - Surface
-                if (T > 0.0, T < MeilleurT, Absolu(Produit(Local, AxeX)) <= TailleBasePlancheX * Tr.Scale.X / 2.0, Absolu(Produit(Local, AxeY)) <= TailleBasePlancheY * Tr.Scale.Y / 2.0):
+                if (T > 0.0, T < MeilleurT, Absolu(Scalaire(Local, AxeX)) <= TailleBasePlancheX * Tr.Scale.X / 2.0, Absolu(Scalaire(Local, AxeY)) <= TailleBasePlancheY * Tr.Scale.Y / 2.0):
                     set MeilleurT = T
                     set Meilleur = option{point_planche{Point := Point, Haut := H, ChariotIndex := S(1)}}
         Meilleur
 
     # Objet pose vise (le plus proche de la ligne du regard)
-    ObjetVise(CamPos:vector3, Avant:vector3, AssietteVideSeulement:logic):?objet_service =
+    ObjetVise(CamPos:vector3, Avant:vector3, AssietteVideSeulement:logic)<transacts>:?objet_service =
         var Meilleur:?objet_service = false
         var MeilleurEcart:float = RayonRamassage
         for (O : Poses):
             Vide := if (O.Index < 0, not O.Dessus?) then true else false
             if (not AssietteVideSeulement? or Vide?):
                 Pos := O.Prop.GetTransform().Translation
-                T := Produit(Pos - CamPos, Avant)
+                T := Scalaire(Pos - CamPos, Avant)
                 Ecart := Distance(CamPos + Avant * T, Pos)
                 if (T > 0.0, T < PorteeMax, Ecart < MeilleurEcart):
                     set MeilleurEcart = Ecart
                     set Meilleur = option{O}
         Meilleur
 
-    Cible(P:player, O:objet_service):?cible_pose =
+    Cible(P:player, O:objet_service)<transacts>:?cible_pose =
         if (FC := P.GetFortCharacter[]):
             CamPos := FC.GetViewLocation()
             Avant := Regard(FC)

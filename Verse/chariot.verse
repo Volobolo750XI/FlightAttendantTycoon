@@ -80,7 +80,7 @@ chariot_device := class(creative_device):
         PlacerBouton(Chariot.GetTransform())
 
     # Accroche un objet au chariot, a la position / rotation donnees (monde).
-    Attacher(P:creative_prop, Pos:vector3, Rot:rotation):attache_chariot =
+    Attacher(P:creative_prop, Pos:vector3, Rot:rotation)<transacts>:attache_chariot =
         C := Chariot.GetTransform()
         A := attache_chariot{Prop := P, RelPos := C.Rotation.UnrotateVector(Pos - C.Translation), RelRot := C.Rotation.Invert().RotateBy(Rot)}
         set Attaches += array{A}

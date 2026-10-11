@@ -97,7 +97,9 @@ service_device := class(creative_device):
     @editable PlancheVisible:logic = false
     @editable PorteeMax:float = 400.0
     # Precision pour viser un objet pose / une assiette (cm)
-    @editable RayonRamassage:float = 25.0
+    @editable RayonRamassage:float = 40.0
+    # Affiche dans le journal pourquoi on ne peut pas poser / reprendre (pour regler les planches)
+    @editable ModeDebug:logic = true
 
     # ===== En main (repere de la camera) =====
     @editable DistanceEnMain:float = 70.0
@@ -191,6 +193,7 @@ service_device := class(creative_device):
             Depart := transform{Translation := PositionEnMain(FC), Rotation := Rot, Scale := Echelle(Index)}
             Resultat := SpawnProp(Modele(Index), Depart)
             if (Prop := Resultat(0)?):
+                if (Prop.TeleportTo[Depart]) {}
                 if (Index = 0, Mat := MateriauEau?) { Prop.SetMaterial(Mat) }
                 MettreEnMain(P, objet_service{Index := Index, Prop := Prop})
             else:
@@ -200,6 +203,7 @@ service_device := class(creative_device):
         var Holo:?creative_prop = false
         Resultat := SpawnProp(Modele(O.Index), transform{Translation := vector3{Z := -5000.0}, Rotation := IdentityRotation(), Scale := Echelle(O.Index)})
         if (H := Resultat(0)?):
+            Placer(H, O.Index, vector3{Z := -5000.0}, IdentityRotation())
             if (Mat := MateriauHologramme?):
                 for (Slot := 0..NombreSlotsHolo - 1) { H.SetMaterial(Mat, ?Index := Slot) }
             H.Hide()
@@ -213,15 +217,19 @@ service_device := class(creative_device):
         Actuel := EnMain[P]?
         Actuel = T
 
-    Glisser(Prop:creative_prop, Pos:vector3, Rot:rotation)<suspends>:void =
+    # Place un objet a sa TAILLE (Echelle du produit) : Fortnite ne garde pas l'echelle au spawn.
+    Placer(Prop:creative_prop, Index:int, Pos:vector3, Rot:rotation)<transacts>:void =
+        if (Prop.TeleportTo[transform{Translation := Pos, Rotation := Rot, Scale := Echelle(Index)}]) {}
+
+    Glisser(Prop:creative_prop, Index:int, Pos:vector3, Rot:rotation)<suspends>:void =
         if (Distance(Prop.GetTransform().Translation, Pos) > SeuilTeleport):
-            if (Prop.TeleportTo[Pos, Rot]) {}
+            Placer(Prop, Index, Pos, Rot)
         else:
-            Prop.MoveTo(Pos, Rot, DureeLissage)
+            Prop.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Echelle(Index)}, DureeLissage)
 
     GlisserDessus(O:objet_service, Pos:vector3, Rot:rotation)<suspends>:void =
         if (D := O.Dessus?):
-            Glisser(D.Prop, Pos + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, Rot.RotateBy(MakeRotationFromYawPitchRollDegrees(RotationProduit(D.Index), 0.0, 0.0)))
+            Glisser(D.Prop, D.Index, Pos + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, Rot.RotateBy(MakeRotationFromYawPitchRollDegrees(RotationProduit(D.Index), 0.0, 0.0)))
         else:
             Sleep(DureeLissage)
 
@@ -234,7 +242,7 @@ service_device := class(creative_device):
                 Rot := RotationPlate(Regard(FC), if (O.Index >= 0) then RotationProduit(O.Index) else 0.0)
                 race:
                     sync:
-                        Glisser(O.Prop, Pos, Rot)
+                        Glisser(O.Prop, O.Index, Pos, Rot)
                         GlisserDessus(O, Pos, Rot)
                     Sleep(0.0)
             else:
@@ -250,7 +258,7 @@ service_device := class(creative_device):
             if (not Tient[P, T]) { break }
             if (H := T.Holo?):
                 if (C := Cible(P, T.Objet)?):
-                    if (H.TeleportTo[C.Position, C.Rotation]) {}
+                    Placer(H, T.Objet.Index, C.Position, C.Rotation)
                     if (not T.Visible?):
                         H.Show()
                         set T.Visible = true
@@ -318,6 +326,26 @@ service_device := class(creative_device):
                 return option{SurPlanche}
         false
 
+    # Journal : ou tu vises par rapport a chaque planche (X / Y doivent etre dans +-Demi)
+    Diagnostic(P:player):void =
+        if (FC := P.GetFortCharacter[]):
+            CamPos := FC.GetViewLocation()
+            Avant := Regard(FC)
+            for (I -> Pl : Planches):
+                Tr := Pl.GetTransform()
+                H := Tr.Rotation.RotateVector(Haut())
+                Surface := Tr.Translation + H * (HauteurSurfacePlanche * Tr.Scale.Z)
+                Den := Scalaire(Avant, H)
+                if (Den < -0.05):
+                    T := Scalaire(Surface - CamPos, H) / Den
+                    Local := CamPos + Avant * T - Surface
+                    LX := Scalaire(Local, Tr.Rotation.RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0}))
+                    LY := Scalaire(Local, Tr.Rotation.RotateVector(vector3{X := 0.0, Y := 1.0, Z := 0.0}))
+                    Print("Planche {I} : distance {T}  X {LX} / Y {LY}  (demi-taille {TailleBasePlancheX * Tr.Scale.X / 2.0} / {TailleBasePlancheY * Tr.Scale.Y / 2.0})")
+                else:
+                    Print("Planche {I} : tu ne regardes pas le dessus (vise plus vers le bas)")
+            Print("Objets poses : {Poses.Length}")
+
     # ---------- touche ----------
     OnTouche(Agent:agent):void =
         if (P := player[Agent], PeutAgir[P]):
@@ -325,15 +353,16 @@ service_device := class(creative_device):
                 Poser(P, T)
             else:
                 Reprendre(P)
+            if (ModeDebug?) { Diagnostic(P) }
 
     Poser(P:player, T:tenu_service):void =
         O := T.Objet
         if (C := Cible(P, O)?):
             Marquer(P)
             if (set EnMain[P] = false) {}
-            if (O.Prop.TeleportTo[C.Position, C.Rotation]) {}
+            Placer(O.Prop, O.Index, C.Position, C.Rotation)
             if (D := O.Dessus?):
-                if (D.Prop.TeleportTo[C.Position + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, C.Rotation]) {}
+                Placer(D.Prop, D.Index, C.Position + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, C.Rotation)
             spawn{Recaler(O, C)}
             if (A := C.Assiette?):
                 set A.Dessus = option{O}
@@ -348,9 +377,9 @@ service_device := class(creative_device):
         if (O.Attache?):
             # sur un chariot : c'est le chariot qui le place
             return
-        if (O.Prop.TeleportTo[C.Position, C.Rotation]) {}
+        Placer(O.Prop, O.Index, C.Position, C.Rotation)
         if (D := O.Dessus?):
-            if (D.Prop.TeleportTo[C.Position + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, C.Rotation]) {}
+            Placer(D.Prop, D.Index, C.Position + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, C.Rotation)
 
     Accrocher(O:objet_service, ChariotIndex:int):void =
         if (Ch := Chariots[ChariotIndex]):

@@ -5,42 +5,47 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 
 # Flight Attendant Tycoon - le chariot de service.
 #
-# On appuie sur le bouton du galley -> le chariot vient devant nous et nous suit
-# (il reste au sol, il tourne seulement a l'horizontale, comme si on le poussait).
-# On rappuie sur le bouton -> le chariot retourne a sa place.
-# Il retourne aussi tout seul a sa place si le joueur meurt ou quitte la partie.
+# Le bouton est colle au chariot et le suit partout.
+#   E sur le chariot -> on le prend : il se place devant nous et nous suit (poignee vers nous).
+#   E encore        -> on le lache la ou il est.
+# Si le joueur meurt ou quitte la partie, le chariot est lache sur place.
 #
 # Dans l'editeur :
-#   Chariot     : le prop du chariot, pose a sa place dans le galley.
-#                 Dans ses reglages : decoche "Peut etre endommage" et desactive les collisions
-#                 avec les joueurs, sinon il te bloque quand il avance devant toi.
-#   Bouton      : un Appareil Bouton pose dans le galley (texte "Cart").
+#   Chariot     : le prop du chariot. Dans ses reglages : decoche "Peut etre endommage"
+#                 et desactive les collisions avec les joueurs.
+#   Bouton      : un Appareil Bouton pose SUR le chariot (la ou tu veux voir "Interagir").
+#                 Il garde cette place par rapport au chariot quand il bouge.
 #   AvionTycoon : (facultatif) seul le proprio de l'avion peut prendre le chariot.
 
 chariot_device := class(creative_device):
     @editable Chariot:creative_prop = creative_prop{}
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:?avion_tycoon = false
-    # Distance entre le joueur et le chariot (cm).
+    # Distance entre le joueur et le centre du chariot (cm).
     @editable Ecart:float = 130.0
-    # Si le chariot n'est pas tourne dans le bon sens, essaie 90, -90 ou 180.
-    @editable RotationModele:float = 0.0
-    # Temps de chaque petit mouvement (plus petit = plus colle, plus grand = plus doux).
-    @editable Douceur:float = 0.1
+    # Pour que la poignee soit vers toi. Si ce n'est pas bon, essaie -90, 0 ou 180.
+    @editable RotationModele:float = 90.0
+    # Temps de chaque petit mouvement (s).
+    @editable Douceur:float = 0.05
 
-    var Place:transform = transform{}
+    # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
+    var BoutonRelatif:vector3 = vector3{}
+    var BoutonRotation:rotation = IdentityRotation()
     var Porteur:?agent = false
-    # Change a chaque prise / depot : la boucle de suivi d'avant s'arrete toute seule.
+    # Change a chaque prise / lacher : la boucle de suivi d'avant s'arrete toute seule.
     var Numero:int = 0
 
     OnBegin<override>()<suspends>:void =
-        set Place = Chariot.GetTransform()
+        C := Chariot.GetTransform()
+        B := Bouton.GetTransform()
+        set BoutonRelatif = C.Rotation.UnrotateVector(B.Translation - C.Translation)
+        set BoutonRotation = C.Rotation.Invert().RotateBy(B.Rotation)
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
             if (Actuel := Porteur?):
-                # seul celui qui le tient peut le reposer
+                # seul celui qui le tient peut le lacher
                 if (Actuel = Joueur):
-                    Reposer()
+                    Lacher()
             else if (PeutPrendre[Joueur]):
                 Prendre(Joueur)
 
@@ -54,35 +59,56 @@ chariot_device := class(creative_device):
         set Numero += 1
         spawn{Suivre(Joueur, Numero)}
 
-    Reposer():void =
+    Lacher():void =
         set Porteur = false
         set Numero += 1
-        if (Chariot.TeleportTo[Place]) {}
+        PlacerBouton(Chariot.GetTransform())
 
-    # Position du chariot devant le joueur : au sol (hauteur de sa place), tourne comme le joueur.
-    Cible(Perso:fort_character)<transacts>:transform =
-        T := Perso.GetTransform()
-        Lacet := if (Angles := T.Rotation.GetYawPitchRollDegrees(), Y := Angles[0]) then Y else 0.0
-        Direction := MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
-        Avant := Direction.GetLocalForward()
-        Position := vector3:
-            X := T.Translation.X + Avant.X * Ecart
-            Y := T.Translation.Y + Avant.Y * Ecart
-            Z := Place.Translation.Z
+    # Le bouton suit le chariot.
+    PlacerBouton(C:transform):void =
+        Position := C.Translation + C.Rotation.RotateVector(BoutonRelatif)
+        if (Bouton.TeleportTo[Position, C.Rotation.RotateBy(BoutonRotation)]) {}
+
+    Lacet(Perso:fort_character)<transacts>:float =
+        if (Angles := Perso.GetTransform().Rotation.GetYawPitchRollDegrees(), Y := Angles[0]) then Y else 0.0
+
+    # Ou doit etre le chariot : devant le joueur, a la hauteur ou il est deja.
+    # Avance = petite avance pour compenser le temps du mouvement (sinon il traine derriere).
+    Cible(Position:vector3, Angle:float, Avance:vector3)<transacts>:transform =
+        Avant := MakeRotationFromYawPitchRollDegrees(Angle, 0.0, 0.0).GetLocalForward()
         transform:
-            Translation := Position
-            Rotation := MakeRotationFromYawPitchRollDegrees(Lacet + RotationModele, 0.0, 0.0)
-            Scale := Place.Scale
+            Translation := vector3:
+                X := Position.X + Avant.X * Ecart + Avance.X
+                Y := Position.Y + Avant.Y * Ecart + Avance.Y
+                Z := Chariot.GetTransform().Translation.Z
+            Rotation := MakeRotationFromYawPitchRollDegrees(Angle + RotationModele, 0.0, 0.0)
+            Scale := Chariot.GetTransform().Scale
 
     Suivre(Joueur:agent, MonNumero:int)<suspends>:void =
-        # premiere fois : le chariot apparait directement devant le joueur
-        if (Perso := Joueur.GetFortCharacter[], Chariot.TeleportTo[Cible(Perso)]) {}
+        var Precedente:vector3 = vector3{}
+        var Temps:float = GetSimulationElapsedTime()
+        if (Perso := Joueur.GetFortCharacter[]):
+            set Precedente = Perso.GetTransform().Translation
+            if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
         loop:
             if (MonNumero <> Numero) { break }
             if (Perso := Joueur.GetFortCharacter[], Perso.IsActive[]):
-                Chariot.MoveTo(Cible(Perso), Douceur)
+                Maintenant := GetSimulationElapsedTime()
+                Position := Perso.GetTransform().Translation
+                Ecoule := Maintenant - Temps
+                # vitesse du joueur (a plat), pour viser la ou il sera a la fin du mouvement
+                Avance := if (Ecoule > 0.001):
+                    Vitesse := (Position - Precedente) / Ecoule
+                    vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
+                else:
+                    vector3{}
+                set Precedente = Position
+                set Temps = Maintenant
+                C := Cible(Position, Lacet(Perso), Avance)
+                PlacerBouton(C)
+                Chariot.MoveTo(C, Douceur)
+                Sleep(0.0)
             else:
-                # joueur mort ou parti : le chariot rentre a sa place
-                if (MonNumero = Numero) { Reposer() }
+                # joueur mort ou parti : on lache le chariot sur place
+                if (MonNumero = Numero) { Lacher() }
                 break
-            Sleep(0.0)

@@ -43,6 +43,7 @@ chariot_device := class(creative_device):
         B := Bouton.GetTransform()
         set BoutonRelatif = C.Rotation.UnrotateVector(B.Translation - C.Translation)
         set BoutonRotation = C.Rotation.Invert().RotateBy(B.Rotation)
+        RangerZone()
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
             if (Actuel := Porteur?):
@@ -64,9 +65,15 @@ chariot_device := class(creative_device):
 
     Lacher():void =
         set Porteur = false
-        if (R := Ralentisseur?) { R.Disable() }
+        RangerZone()
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())
+
+    # Zone de ralentissement : desactivee et envoyee tres loin sous la carte quand on ne pousse pas.
+    RangerZone():void =
+        if (R := Ralentisseur?):
+            R.Disable()
+            if (R.TeleportTo[vector3{X := 0.0, Y := 0.0, Z := -50000.0}, IdentityRotation()]) {}
 
     # Le bouton suit le chariot.
     PlacerBouton(C:transform):void =

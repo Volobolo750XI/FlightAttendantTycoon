@@ -3,18 +3,22 @@ using { /Fortnite.com/Characters }
 using { /Verse.org/Simulation }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 
-# Flight Attendant Tycoon - le chariot de service.
+# Flight Attendant Tycoon - le chariot de service, pousse comme un vrai chariot.
 #
-# Le bouton est colle au chariot et le suit partout.
-#   E sur le chariot -> on le prend : il se place devant nous et nous suit (poignee vers nous).
-#   E encore        -> on le lache la ou il est.
-# Si le joueur meurt ou quitte la partie, le chariot est lache sur place.
+# Le chariot roule SUR UN RAIL : il reste au milieu de l'allee et avance seulement
+# dans le sens de l'allee, a vitesse lente et reguliere (pas d'a-coups).
+# Il a des collisions : tu ne peux pas le traverser ni le depasser dans l'allee,
+# donc quand tu pousses, TU avances a la vitesse du chariot. C'est ca qui te ralentit.
+#
+#   E sur le chariot -> on le prend : il part dans le sens ou on regarde (le long de l'allee).
+#   On avance -> il avance devant nous. On s'arrete -> il s'arrete. On recule -> il revient.
+#   E encore -> on le lache. Pour changer de sens : lache-le, passe de l'autre cote, reprends-le.
+# Si le joueur meurt, part, ou s'eloigne trop : le chariot est lache sur place.
 #
 # Dans l'editeur :
-#   Chariot     : le prop du chariot. Dans ses reglages : decoche "Peut etre endommage"
-#                 et desactive les collisions avec les joueurs.
-#   Bouton      : un Appareil Bouton pose SUR le chariot (la ou tu veux voir "Interagir").
-#                 Il garde cette place par rapport au chariot quand il bouge.
+#   Chariot     : le prop du chariot, pose au milieu de l'allee.
+#                 Decoche "Peut etre endommage". LAISSE LES COLLISIONS ACTIVEES.
+#   Bouton      : un Appareil Bouton pose SUR le chariot (il suit le chariot).
 #   AvionTycoon : (facultatif) seul le proprio de l'avion peut prendre le chariot.
 
 chariot_device := class(creative_device):
@@ -23,14 +27,12 @@ chariot_device := class(creative_device):
     @editable AvionTycoon:?avion_tycoon = false
     # Distance entre le joueur et le centre du chariot (cm).
     @editable Ecart:float = 100.0
+    # Vitesse du chariot quand on pousse (cm/s). Un joueur qui marche fait environ 450.
+    @editable VitesseChariot:float = 150.0
     # Pour que la poignee soit vers toi. Si ce n'est pas bon, essaie -90, 0 ou 180.
     @editable RotationModele:float = 90.0
-    # Temps de chaque petit mouvement (s).
-    @editable Douceur:float = 0.1
-    # Ralentit le joueur quand il pousse le chariot : un Appareil Modulateur de mouvement
-    # (Vitesse 0.5, Duree de l'effet 0.5 s, SANS impulsion). Il est relance tant qu'on pousse.
-    # Tu peux en mettre plusieurs (0.5 chacun) : si Fortnite les cumule, on va encore plus lentement.
-    @editable Ralentisseurs:[]movement_modulator_device = array{}
+    # Si le joueur est plus loin que ca du chariot (cm), il le lache.
+    @editable DistanceLacher:float = 300.0
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -61,7 +63,7 @@ chariot_device := class(creative_device):
     Prendre(Joueur:agent):void =
         set Porteur = option{Joueur}
         set Numero += 1
-        spawn{Suivre(Joueur, Numero)}
+        spawn{Pousser(Joueur, Numero)}
 
     Lacher():void =
         set Porteur = false
@@ -76,51 +78,47 @@ chariot_device := class(creative_device):
     Lacet(Perso:fort_character)<transacts>:float =
         if (Angles := Perso.GetTransform().Rotation.GetYawPitchRollDegrees(), Y := Angles[0]) then Y else 0.0
 
-    # Ou doit etre le chariot : devant le joueur, a la hauteur ou il est deja.
-    # Avance = petite avance pour compenser le temps du mouvement (sinon il traine derriere).
-    Cible(Position:vector3, Angle:float, Avance:vector3)<transacts>:transform =
-        Avant := MakeRotationFromYawPitchRollDegrees(Angle, 0.0, 0.0).GetLocalForward()
-        transform:
-            Translation := vector3:
-                X := Position.X + Avant.X * Ecart + Avance.X
-                Y := Position.Y + Avant.Y * Ecart + Avance.Y
-                Z := Chariot.GetTransform().Translation.Z
-            Rotation := MakeRotationFromYawPitchRollDegrees(Angle + RotationModele, 0.0, 0.0)
-            Scale := Chariot.GetTransform().Scale
+    Absolu(V:float)<transacts>:float = if (V < 0.0) then -V else V
 
-    Suivre(Joueur:agent, MonNumero:int)<suspends>:void =
-        var Precedente:vector3 = vector3{}
-        var Temps:float = GetSimulationElapsedTime()
-        # vitesse lissee : evite les a-coups dus aux petites variations de position
-        var Vitesse:vector3 = vector3{}
-        var DernierRalenti:float = -10.0
+    Pousser(Joueur:agent, MonNumero:int)<suspends>:void =
         if (Perso := Joueur.GetFortCharacter[]):
-            set Precedente = Perso.GetTransform().Translation
-            if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
-        loop:
-            if (MonNumero <> Numero) { break }
-            if (Perso := Joueur.GetFortCharacter[], Perso.IsActive[]):
-                Maintenant := GetSimulationElapsedTime()
-                Position := Perso.GetTransform().Translation
-                Ecoule := Maintenant - Temps
-                # vitesse du joueur (a plat), pour viser la ou il sera a la fin du mouvement
-                if (Ecoule > 0.001):
-                    Brute := (Position - Precedente) / Ecoule
-                    set Vitesse = vector3:
-                        X := Vitesse.X * 0.75 + Brute.X * 0.25
-                        Y := Vitesse.Y * 0.75 + Brute.Y * 0.25
-                        Z := 0.0
-                Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
-                set Precedente = Position
-                if (Maintenant - DernierRalenti > 0.3):
-                    for (R : Ralentisseurs) { R.Activate(Joueur) }
-                    set DernierRalenti = Maintenant
-                set Temps = Maintenant
-                C := Cible(Position, Lacet(Perso), Avance)
-                PlacerBouton(C)
-                Chariot.MoveTo(C, Douceur)
-                Sleep(0.0)
-            else:
-                # joueur mort ou parti : on lache le chariot sur place
-                if (MonNumero = Numero) { Lacher() }
-                break
+            Depart := Chariot.GetTransform()
+            # sens de l'allee = l'axe du monde (X ou Y) le plus proche du regard du joueur,
+            # et le chariot part du cote ou le joueur regarde
+            Regard := MakeRotationFromYawPitchRollDegrees(Lacet(Perso), 0.0, 0.0).GetLocalForward()
+            SurX := if (Absolu(Regard.X) >= Absolu(Regard.Y)) then true else false
+            Signe := if (SurX?) then (if (Regard.X >= 0.0) then 1.0 else -1.0) else (if (Regard.Y >= 0.0) then 1.0 else -1.0)
+            Angle := if (SurX?) then (if (Signe > 0.0) then 0.0 else 180.0) else (if (Signe > 0.0) then 90.0 else -90.0)
+            Orientation := MakeRotationFromYawPitchRollDegrees(Angle + RotationModele, 0.0, 0.0)
+            # le chariot garde toujours sa place sur le cote (il reste au milieu de l'allee)
+            Lateral := if (SurX?) then Depart.Translation.Y else Depart.Translation.X
+            Pas := 0.1
+            loop:
+                if (MonNumero <> Numero) { break }
+                if (P := Joueur.GetFortCharacter[], P.IsActive[]):
+                    PosJoueur := P.GetTransform().Translation
+                    Actuel := Chariot.GetTransform().Translation
+                    # positions le long de l'allee (dans le sens de la poussee)
+                    Joueur1D := if (SurX?) then PosJoueur.X * Signe else PosJoueur.Y * Signe
+                    Chariot1D := if (SurX?) then Actuel.X * Signe else Actuel.Y * Signe
+                    Voulu1D := Joueur1D + Ecart
+                    if (Absolu(Voulu1D - Chariot1D) > DistanceLacher):
+                        Lacher()
+                        break
+                    # on avance vers la place voulue, jamais plus vite que VitesseChariot
+                    PasMax := VitesseChariot * Pas
+                    Delta := Voulu1D - Chariot1D
+                    Bouge := if (Delta > PasMax) then PasMax else if (Delta < -PasMax) then -PasMax else Delta
+                    Nouveau := (Chariot1D + Bouge) * Signe
+                    Position := if (SurX?):
+                        vector3{X := Nouveau, Y := Lateral, Z := Depart.Translation.Z}
+                    else:
+                        vector3{X := Lateral, Y := Nouveau, Z := Depart.Translation.Z}
+                    C := transform{Translation := Position, Rotation := Orientation, Scale := Depart.Scale}
+                    PlacerBouton(C)
+                    Chariot.MoveTo(C, Pas)
+                    Sleep(0.0)
+                else:
+                    # joueur mort ou parti : on lache le chariot sur place
+                    if (MonNumero = Numero) { Lacher() }
+                    break

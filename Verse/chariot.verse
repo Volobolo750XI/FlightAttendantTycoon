@@ -28,7 +28,8 @@ chariot_device := class(creative_device):
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
     # Ralentit le joueur quand il pousse le chariot : un Appareil Zone de mutateur
-    # (vitesse de deplacement reduite). Elle suit le joueur tant qu'il pousse, desactivee sinon.
+    # (vitesse de deplacement reduite) qui couvre TOUTE la cabine. Elle ne peut pas bouger :
+    # elle est activee seulement quand on tient le chariot, desactivee sinon.
     @editable Ralentisseur:?mutator_zone_device = false
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
@@ -70,14 +71,11 @@ chariot_device := class(creative_device):
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())
 
-    # Zone de ralentissement : desactivee et envoyee tres loin sous la carte quand on ne pousse pas.
+    # Zone de ralentissement : desactivee quand on ne pousse pas.
     RangerZone():void =
         if (R := Ralentisseur?):
             R.Disable()
-            if (R.TeleportTo[vector3{X := 0.0, Y := 0.0, Z := -50000.0}, IdentityRotation()]):
-                Print("[Chariot] zone desactivee et rangee sous la carte")
-            else:
-                Print("[Chariot] zone desactivee MAIS impossible de la deplacer")
+            Print("[Chariot] zone desactivee")
         else:
             Print("[Chariot] champ Ralentisseur VIDE")
 
@@ -127,7 +125,6 @@ chariot_device := class(creative_device):
                         Z := 0.0
                 Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
                 set Precedente = Position
-                if (R := Ralentisseur?, R.TeleportTo[Position, IdentityRotation()]) {}
                 set Temps = Maintenant
                 C := Cible(Position, Lacet(Perso), Avance)
                 PlacerBouton(C)

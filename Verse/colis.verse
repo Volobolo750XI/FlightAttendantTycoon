@@ -9,13 +9,13 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 # On paye sur le PC (SUPPLIES) -> la commande devient des colis (1 colis par produit).
 #   Avion au sol : les colis apparaissent tout de suite dans la passerelle (PointLivraison).
 #   En vol       : la commande attend, les colis apparaissent a l'atterrissage.
-# On vise un colis + touche InputColis (ou son bouton) -> on le porte devant soi.
+# On vise un colis + touche InputColis -> on le porte devant soi.
 # Pres du depot (BoutonDepot), touche InputColis (ou le bouton) -> le colis glisse vers
 # son emplacement de rangement, disparait, et le stock du produit augmente.
 #
 # Dans l'editeur :
-#   PoolBoites      : tes props de colis (ton modele 3D), poses n'importe ou (caches au debut).
-#   PoolBoutons     : 1 bouton par colis, dans le meme ordre (pour ramasser au bouton).
+#   ModeleColis     : ton modele de colis (l'asset du Tiroir a contenu, PAS un prop pose) :
+#                     le code cree autant de colis qu'il faut, et les supprime une fois ranges.
 #   PointLivraison  : un prop (invisible) dans la passerelle, la ou les colis tombent.
 #   BoutonDepot     : un Appareil Bouton dans le galley, la ou on range les colis.
 #   PropsStockage   : 1 prop par produit, DANS L'ORDRE de la boutique
@@ -30,16 +30,10 @@ ligne_colis := struct:
 
 colis_avion := class<unique>:
     Prop:creative_prop
-    Bouton:button_device
     var Contenu:[]ligne_colis = array{}
     var Actif:logic = false
     # true = le colis est par terre et peut etre ramasse
     var AuSol:logic = false
-
-colis_clic := class:
-    Manager:colis_device
-    LeColis:colis_avion
-    OnClick(Agent:agent):void = Manager.Ramasser(Agent, LeColis)
 
 # Mesure la vitesse horizontale du joueur (pour placer le colis la ou il va etre).
 vitesse_porteur := class:
@@ -63,8 +57,7 @@ vitesse_porteur := class:
         VitesseLissee
 
 colis_device := class(creative_device):
-    @editable PoolBoites:[]creative_prop = array{}
-    @editable PoolBoutons:[]button_device = array{}
+    @editable ModeleColis:creative_prop_asset = DefaultCreativePropAsset
     @editable PointLivraison:?creative_prop = false
     @editable BoutonDepot:button_device = button_device{}
     @editable PropsStockage:[]creative_prop = array{}
@@ -96,12 +89,6 @@ colis_device := class(creative_device):
     OnBegin<override>()<suspends>:void =
         BoutonDepot.InteractedWithEvent.Subscribe(OnDepot)
         InputColis.PressedEvent.Subscribe(OnInput)
-        for (I -> P : PoolBoites, B := PoolBoutons[I]):
-            C := colis_avion{Prop := P, Bouton := B}
-            set Pool += array{C}
-            B.InteractedWithEvent.Subscribe(colis_clic{Manager := Self, LeColis := C}.OnClick)
-            P.Hide()
-            B.Disable()
         # livre ce qui attend des que l'avion est au sol
         loop:
             Sleep(0.5)
@@ -129,27 +116,18 @@ colis_device := class(creative_device):
     Larguer(Commande:[]ligne_colis):void =
         if (Livraison := PointLivraison?):
             Base := Livraison.GetTransform().Translation
-            var Dernier:?colis_avion = false
             for (Ligne : Commande):
-                var Trouve:?colis_avion = false
-                for (C : Pool, not Trouve?, not C.Actif?):
-                    set Trouve = option{C}
-                if (C := Trouve?):
-                    set Dernier = option{C}
+                Pos := Base + vector3{X := GetRandomFloat(-Eparpillement, Eparpillement), Y := GetRandomFloat(-Eparpillement, Eparpillement), Z := 0.0}
+                Rot := MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, GetRandomFloat(0.0, 6.28))
+                Resultat := SpawnProp(ModeleColis, Pos, Rot)
+                if (Nouveau := Resultat(0)?):
+                    C := colis_avion{Prop := Nouveau}
                     set C.Actif = true
                     set C.Contenu = array{Ligne}
-                    Pos := Base + vector3{X := GetRandomFloat(-Eparpillement, Eparpillement), Y := GetRandomFloat(-Eparpillement, Eparpillement), Z := 0.0}
-                    Rot := MakeRotation(vector3{X := 0.0, Y := 0.0, Z := 1.0}, GetRandomFloat(0.0, 6.28))
-                    if (C.Prop.TeleportTo[Pos, Rot]):
-                        C.Prop.Show()
-                        set C.AuSol = true
-                        if (C.Bouton.TeleportTo[Pos + vector3{Z := 80.0}, Rot]) {}
-                        C.Bouton.Enable()
-                else if (D := Dernier?):
-                    # plus de colis libre : on regroupe dans le dernier
-                    set D.Contenu += array{Ligne}
+                    set C.AuSol = true
+                    set Pool += array{C}
                 else:
-                    # aucun colis disponible : directement dans le stock
+                    # impossible de creer le colis : directement dans le stock
                     AjouterAuStock(Ligne)
         else:
             # pas de point de livraison : directement dans le stock
@@ -165,7 +143,6 @@ colis_device := class(creative_device):
     Ramasser(Agent:agent, Cible:colis_avion):void =
         if (P := player[Agent], Cible.AuSol?, PeutAgir[P], not Porte[P]?):
             set Cible.AuSol = false
-            Cible.Bouton.Disable()
             Marquer(P)
             if (set Porte[P] = option{Cible}):
                 spawn{Porter(P, Cible)}
@@ -235,14 +212,12 @@ colis_device := class(creative_device):
                     if (Tenu := Porte[P]?, Tenu = Boite):
                         if (set Porte[P] = false) {}
                         set Boite.AuSol = true
-                        Boite.Bouton.Enable()
                     break
 
     Ranger(P:player):void =
         if (PeutAgir[P], Boite := Porte[P]?):
             Marquer(P)
             if (set Porte[P] = false) {}
-            Boite.Bouton.Disable()
             spawn{AnimerRangement(Boite)}
 
     AnimerRangement(Boite:colis_avion)<suspends>:void =
@@ -255,5 +230,6 @@ colis_device := class(creative_device):
         for (L : Boite.Contenu) { AjouterAuStock(L) }
         set Boite.Actif = false
         set Boite.Contenu = array{}
-        Boite.Prop.Hide()
-        if (Boite.Prop.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
+        # le colis n'existe plus : on le retire de la liste et on le supprime
+        set Pool = for (C : Pool, C <> Boite) { C }
+        Boite.Prop.Dispose()

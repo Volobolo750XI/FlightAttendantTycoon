@@ -88,7 +88,7 @@ chariot_device := class(creative_device):
             Rotation := MakeRotationFromYawPitchRollDegrees(Angle + RotationModele, 0.0, 0.0)
             Scale := Chariot.GetTransform().Scale
 
-    Distance2D(A:vector3, B:vector3):float =
+    Distance2D(A:vector3, B:vector3)<transacts>:float =
         Sqrt((A.X - B.X) * (A.X - B.X) + (A.Y - B.Y) * (A.Y - B.Y))
 
     Suivre(Joueur:agent, MonNumero:int)<suspends>:void =

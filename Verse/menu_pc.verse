@@ -42,9 +42,6 @@ menu_pc := class(creative_device):
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     # Son joue a chaque paiement : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
-    # (facultatif) le device colis_device : les achats arrivent en colis dans la passerelle.
-    # Vide = le stock augmente tout de suite au paiement.
-    @editable Livraison:?colis_device = false
 
     ListeProduits:[]produit = array:
         produit{Nom := "WATER", Lot := 20, PrixLot := 20, PrixDeblocage := 0, Appareil := "", Image := Produits.Produit_01_Eau}
@@ -167,17 +164,11 @@ menu_pc := class(creative_device):
             set AvionTycoon.Argent -= Total
             AvionTycoon.MettreAJourUI()
             if (Son := SonAchat?) { Son.Play() }
-            Commande := for (I -> P : ListeProduits, N := PanierLots[I], N > 0):
-                ligne_colis{Index := I, Unites := N * P.Lot}
-            if (L := Livraison?):
-                L.Commander(Self, Commande)
-            else:
-                for (Ligne : Commande) { AjouterStock(Ligne.Index, Ligne.Unites) }
+            # le stock augmente tout de suite
+            for (I -> P : ListeProduits, N := PanierLots[I], N > 0):
+                AjouterStock(I, N * P.Lot)
             ViderPanier()
-            if (Livraison?):
-                AfficherMessage("ORDER PLACED! PICK IT UP AT THE JET BRIDGE", true)
-            else:
-                AfficherMessage("THANK YOU FOR YOUR PURCHASE!", true)
+            AfficherMessage("THANK YOU FOR YOUR PURCHASE!", true)
 
     # Appele quand un colis est range (ou directement sans colis).
     AjouterStock(Index:int, Unites:int):void =

@@ -27,12 +27,6 @@ chariot_device := class(creative_device):
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
-    # Ralentit le joueur quand il pousse le chariot, avec 2 classes (Concepteur de classe) :
-    #   ClasseLente   : Selecteur de classe et d'equipe qui donne la classe lente
-    #                   (Multiplicateur de deplacement bas).
-    #   ClasseNormale : Selecteur de classe et d'equipe qui redonne la classe normale.
-    @editable ClasseLente:?class_and_team_selector_device = false
-    @editable ClasseNormale:?class_and_team_selector_device = false
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -66,12 +60,6 @@ chariot_device := class(creative_device):
         spawn{Suivre(Joueur, Numero)}
 
     Lacher():void =
-        if (J := Porteur?):
-            if (S := ClasseNormale?):
-                S.ChangeClass(J)
-                Print("[Chariot] lache : retour a la classe normale")
-            else:
-                Print("[Chariot] lache : champ ClasseNormale VIDE")
         set Porteur = false
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())
@@ -101,9 +89,6 @@ chariot_device := class(creative_device):
         var Temps:float = GetSimulationElapsedTime()
         # vitesse lissee : evite les a-coups dus aux petites variations de position
         var Vitesse:vector3 = vector3{}
-        if (S := ClasseLente?):
-            S.ChangeClass(Joueur)
-            Print("[Chariot] pris : classe lente")
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
             if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}

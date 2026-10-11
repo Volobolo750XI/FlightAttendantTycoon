@@ -22,7 +22,7 @@ chariot_device := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:?avion_tycoon = false
     # Distance entre le joueur et le chariot (cm).
-    @editable Distance:float = 130.0
+    @editable Ecart:float = 130.0
     # Si le chariot n'est pas tourne dans le bon sens, essaie 90, -90 ou 180.
     @editable RotationModele:float = 0.0
     # Temps de chaque petit mouvement (plus petit = plus colle, plus grand = plus doux).
@@ -60,14 +60,14 @@ chariot_device := class(creative_device):
         if (Chariot.TeleportTo[Place]) {}
 
     # Position du chariot devant le joueur : au sol (hauteur de sa place), tourne comme le joueur.
-    Cible(Perso:fort_character):transform =
+    Cible(Perso:fort_character)<transacts>:transform =
         T := Perso.GetTransform()
         Lacet := if (Angles := T.Rotation.GetYawPitchRollDegrees(), Y := Angles[0]) then Y else 0.0
         Direction := MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)
         Avant := Direction.GetLocalForward()
         Position := vector3:
-            X := T.Translation.X + Avant.X * Distance
-            Y := T.Translation.Y + Avant.Y * Distance
+            X := T.Translation.X + Avant.X * Ecart
+            Y := T.Translation.Y + Avant.Y * Ecart
             Z := Place.Translation.Z
         transform:
             Translation := Position

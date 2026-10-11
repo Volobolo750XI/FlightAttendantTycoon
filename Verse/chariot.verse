@@ -22,11 +22,11 @@ chariot_device := class(creative_device):
     @editable Bouton:button_device = button_device{}
     @editable AvionTycoon:?avion_tycoon = false
     # Distance entre le joueur et le centre du chariot (cm).
-    @editable Ecart:float = 130.0
+    @editable Ecart:float = 100.0
     # Pour que la poignee soit vers toi. Si ce n'est pas bon, essaie -90, 0 ou 180.
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
-    @editable Douceur:float = 0.05
+    @editable Douceur:float = 0.1
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -87,6 +87,8 @@ chariot_device := class(creative_device):
     Suivre(Joueur:agent, MonNumero:int)<suspends>:void =
         var Precedente:vector3 = vector3{}
         var Temps:float = GetSimulationElapsedTime()
+        # vitesse lissee : evite les a-coups dus aux petites variations de position
+        var Vitesse:vector3 = vector3{}
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
             if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
@@ -97,11 +99,13 @@ chariot_device := class(creative_device):
                 Position := Perso.GetTransform().Translation
                 Ecoule := Maintenant - Temps
                 # vitesse du joueur (a plat), pour viser la ou il sera a la fin du mouvement
-                Avance := if (Ecoule > 0.001):
-                    Vitesse := (Position - Precedente) / Ecoule
-                    vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
-                else:
-                    vector3{}
+                if (Ecoule > 0.001):
+                    Brute := (Position - Precedente) / Ecoule
+                    set Vitesse = vector3:
+                        X := Vitesse.X * 0.75 + Brute.X * 0.25
+                        Y := Vitesse.Y * 0.75 + Brute.Y * 0.25
+                        Z := 0.0
+                Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
                 set Precedente = Position
                 set Temps = Maintenant
                 C := Cible(Position, Lacet(Perso), Avance)

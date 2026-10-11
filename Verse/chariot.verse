@@ -17,6 +17,12 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #                 Il garde cette place par rapport au chariot quand il bouge.
 #   AvionTycoon : (facultatif) seul le proprio de l'avion peut prendre le chariot.
 
+# Un objet pose sur le chariot : il suit le chariot (position/rotation relatives).
+attache_chariot := class<unique>:
+    Prop:creative_prop
+    RelPos:vector3
+    RelRot:rotation
+
 chariot_device := class(creative_device):
     @editable Chariot:creative_prop = creative_prop{}
     @editable Bouton:button_device = button_device{}
@@ -27,6 +33,9 @@ chariot_device := class(creative_device):
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
+    # (facultatif) un prop plat invisible pose SUR le dessus du chariot : c'est la zone
+    # ou l'on pose les assiettes / boissons (le service_device s'en sert). Il suit le chariot.
+    @editable Plateau:?creative_prop = false
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -34,12 +43,18 @@ chariot_device := class(creative_device):
     var Porteur:?agent = false
     # Change a chaque prise / lacher : la boucle de suivi d'avant s'arrete toute seule.
     var Numero:int = 0
+    # Objets poses sur le chariot (ils bougent avec lui)
+    var Attaches:[]attache_chariot = array{}
 
     OnBegin<override>()<suspends>:void =
         C := Chariot.GetTransform()
         B := Bouton.GetTransform()
         set BoutonRelatif = C.Rotation.UnrotateVector(B.Translation - C.Translation)
         set BoutonRotation = C.Rotation.Invert().RotateBy(B.Rotation)
+        if (P := Plateau?):
+            T := P.GetTransform()
+            Attacher(P, T.Translation, T.Rotation)
+            P.Hide()
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
             if (Actuel := Porteur?):
@@ -63,6 +78,23 @@ chariot_device := class(creative_device):
         set Porteur = false
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())
+
+    # Accroche un objet au chariot, a la position / rotation donnees (monde).
+    Attacher(P:creative_prop, Pos:vector3, Rot:rotation):attache_chariot =
+        C := Chariot.GetTransform()
+        A := attache_chariot{Prop := P, RelPos := C.Rotation.UnrotateVector(Pos - C.Translation), RelRot := C.Rotation.Invert().RotateBy(Rot)}
+        set Attaches += array{A}
+        A
+
+    Detacher(A:attache_chariot):void =
+        set Attaches = for (X : Attaches, X <> A) { X }
+
+    PlacerAttaches(C:transform):void =
+        for (A : Attaches):
+            if (A.Prop.TeleportTo[C.Translation + C.Rotation.RotateVector(A.RelPos), C.Rotation.RotateBy(A.RelRot)]) {}
+
+    BougerAttache(A:attache_chariot, C:transform)<suspends>:void =
+        A.Prop.MoveTo(C.Translation + C.Rotation.RotateVector(A.RelPos), C.Rotation.RotateBy(A.RelRot), Douceur)
 
     # Le bouton suit le chariot.
     PlacerBouton(C:transform):void =
@@ -91,7 +123,9 @@ chariot_device := class(creative_device):
         var Vitesse:vector3 = vector3{}
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
-            if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
+            Debut := Cible(Precedente, Lacet(Perso), vector3{})
+            if (Chariot.TeleportTo[Debut]) {}
+            PlacerAttaches(Debut)
         loop:
             if (MonNumero <> Numero) { break }
             if (Perso := Joueur.GetFortCharacter[], Perso.IsActive[]):
@@ -110,6 +144,7 @@ chariot_device := class(creative_device):
                 set Temps = Maintenant
                 C := Cible(Position, Lacet(Perso), Avance)
                 PlacerBouton(C)
+                for (A : Attaches) { spawn{BougerAttache(A, C)} }
                 Chariot.MoveTo(C, Douceur)
                 Sleep(0.0)
             else:

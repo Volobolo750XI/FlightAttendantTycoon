@@ -170,7 +170,13 @@ menu_pc := class(creative_device):
             ViderPanier()
             AfficherMessage("THANK YOU FOR YOUR PURCHASE!", true)
 
-    # Appele quand un colis est range (ou directement sans colis).
+    # Appele au paiement : le stock augmente.
+    # Le galley prend 1 produit dans le stock (echoue si le stock est vide).
+    RetirerUn(Index:int)<transacts><decides>:void =
+        S := Stock[Index]
+        S > 0
+        set Stock[Index] = S - 1
+
     AjouterStock(Index:int, Unites:int):void =
         if (S := Stock[Index], set Stock[Index] = S + Unites) {}
         if (Page = 1) { Afficher() }

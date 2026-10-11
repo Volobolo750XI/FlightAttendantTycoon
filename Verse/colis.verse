@@ -125,7 +125,8 @@ colis_device := class(creative_device):
                         set MeilleureDistance = D
                         set Meilleur = option{C}
             if (C := Meilleur?):
-                if (Actuel := SousBouton?, Actuel = C) {} else:
+                Pareil := if (Actuel := SousBouton?, Actuel = C) then true else false
+                if (not Pareil?):
                     set SousBouton = option{C}
                     T := C.Prop.GetTransform()
                     if (B.TeleportTo[T.Translation + vector3{Z := HauteurBouton}, T.Rotation]) {}

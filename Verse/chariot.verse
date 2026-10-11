@@ -27,6 +27,9 @@ chariot_device := class(creative_device):
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
+    # Ralentit le joueur quand il pousse le chariot : un Appareil Modulateur de mouvement
+    # (Multiplicateur de mouvement 0.3, Duree de l'effet 0.5 s). Il est relance tant qu'on pousse.
+    @editable Ralentisseur:?movement_modulator_device = false
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -89,6 +92,7 @@ chariot_device := class(creative_device):
         var Temps:float = GetSimulationElapsedTime()
         # vitesse lissee : evite les a-coups dus aux petites variations de position
         var Vitesse:vector3 = vector3{}
+        var DernierRalenti:float = -10.0
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
             if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
@@ -107,6 +111,9 @@ chariot_device := class(creative_device):
                         Z := 0.0
                 Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
                 set Precedente = Position
+                if (Maintenant - DernierRalenti > 0.3, R := Ralentisseur?):
+                    R.Activate(Joueur)
+                    set DernierRalenti = Maintenant
                 set Temps = Maintenant
                 C := Cible(Position, Lacet(Perso), Avance)
                 PlacerBouton(C)

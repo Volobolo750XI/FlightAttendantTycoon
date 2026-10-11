@@ -66,7 +66,12 @@ chariot_device := class(creative_device):
         spawn{Suivre(Joueur, Numero)}
 
     Lacher():void =
-        if (J := Porteur?, S := ClasseNormale?) { S.ChangeClass(J) }
+        if (J := Porteur?):
+            if (S := ClasseNormale?):
+                S.ChangeClass(J)
+                Print("[Chariot] lache : retour a la classe normale")
+            else:
+                Print("[Chariot] lache : champ ClasseNormale VIDE")
         set Porteur = false
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())
@@ -96,7 +101,9 @@ chariot_device := class(creative_device):
         var Temps:float = GetSimulationElapsedTime()
         # vitesse lissee : evite les a-coups dus aux petites variations de position
         var Vitesse:vector3 = vector3{}
-        if (S := ClasseLente?) { S.ChangeClass(Joueur) }
+        if (S := ClasseLente?):
+            S.ChangeClass(Joueur)
+            Print("[Chariot] pris : classe lente")
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
             if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}

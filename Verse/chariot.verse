@@ -28,9 +28,9 @@ chariot_device := class(creative_device):
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
     # Ralentit le joueur quand il pousse le chariot : un Appareil Zone de mutateur
-    # (vitesse de deplacement reduite) qui couvre TOUTE la cabine. Elle ne peut pas bouger :
-    # elle est activee seulement quand on tient le chariot, desactivee sinon.
-    @editable Ralentisseur:?mutator_zone_device = false
+    # (vitesse de deplacement reduite). Mets-en plusieurs cote a cote pour couvrir TOUTE la cabine.
+    # Elles ne bougent pas : activees seulement quand on tient le chariot, desactivees sinon.
+    @editable Ralentisseurs:[]mutator_zone_device = array{}
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -40,7 +40,6 @@ chariot_device := class(creative_device):
     var Numero:int = 0
 
     OnBegin<override>()<suspends>:void =
-        Print("[Chariot] le device demarre")
         C := Chariot.GetTransform()
         B := Bouton.GetTransform()
         set BoutonRelatif = C.Rotation.UnrotateVector(B.Translation - C.Translation)
@@ -73,11 +72,7 @@ chariot_device := class(creative_device):
 
     # Zone de ralentissement : desactivee quand on ne pousse pas.
     RangerZone():void =
-        if (R := Ralentisseur?):
-            R.Disable()
-            Print("[Chariot] zone desactivee")
-        else:
-            Print("[Chariot] champ Ralentisseur VIDE")
+        for (R : Ralentisseurs) { R.Disable() }
 
     # Le bouton suit le chariot.
     PlacerBouton(C:transform):void =
@@ -104,9 +99,7 @@ chariot_device := class(creative_device):
         var Temps:float = GetSimulationElapsedTime()
         # vitesse lissee : evite les a-coups dus aux petites variations de position
         var Vitesse:vector3 = vector3{}
-        if (R := Ralentisseur?):
-            R.Enable()
-            Print("[Chariot] zone activee sur le joueur")
+        for (R : Ralentisseurs) { R.Enable() }
         if (Perso := Joueur.GetFortCharacter[]):
             set Precedente = Perso.GetTransform().Translation
             if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}

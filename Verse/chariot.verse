@@ -27,11 +27,9 @@ chariot_device := class(creative_device):
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
-    # Vitesse max du chariot (cm/s). Un joueur qui marche fait environ 450.
-    # Si on va plus vite, le chariot ne suit pas : il faut ralentir pour le garder devant soi.
-    @editable VitesseMax:float = 200.0
-    # Si on s'eloigne trop du chariot (cm), on le lache sur place.
-    @editable DistanceLacher:float = 350.0
+    # Ralentit le joueur quand il pousse le chariot : un Appareil Modulateur de mouvement
+    # (Vitesse 0.5, Duree de l'effet 0.5 s, SANS impulsion). Il est relance tant qu'on pousse.
+    @editable Ralentisseur:?movement_modulator_device = false
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -77,39 +75,47 @@ chariot_device := class(creative_device):
     Lacet(Perso:fort_character)<transacts>:float =
         if (Angles := Perso.GetTransform().Rotation.GetYawPitchRollDegrees(), Y := Angles[0]) then Y else 0.0
 
-    # Ou le joueur voudrait le chariot : devant lui, a la hauteur ou il est deja.
-    Cible(Position:vector3, Angle:float)<transacts>:transform =
+    # Ou doit etre le chariot : devant le joueur, a la hauteur ou il est deja.
+    # Avance = petite avance pour compenser le temps du mouvement (sinon il traine derriere).
+    Cible(Position:vector3, Angle:float, Avance:vector3)<transacts>:transform =
         Avant := MakeRotationFromYawPitchRollDegrees(Angle, 0.0, 0.0).GetLocalForward()
         transform:
             Translation := vector3:
-                X := Position.X + Avant.X * Ecart
-                Y := Position.Y + Avant.Y * Ecart
+                X := Position.X + Avant.X * Ecart + Avance.X
+                Y := Position.Y + Avant.Y * Ecart + Avance.Y
                 Z := Chariot.GetTransform().Translation.Z
             Rotation := MakeRotationFromYawPitchRollDegrees(Angle + RotationModele, 0.0, 0.0)
             Scale := Chariot.GetTransform().Scale
 
-    Distance2D(A:vector3, B:vector3)<transacts>:float =
-        Sqrt((A.X - B.X) * (A.X - B.X) + (A.Y - B.Y) * (A.Y - B.Y))
-
     Suivre(Joueur:agent, MonNumero:int)<suspends>:void =
+        var Precedente:vector3 = vector3{}
+        var Temps:float = GetSimulationElapsedTime()
+        # vitesse lissee : evite les a-coups dus aux petites variations de position
+        var Vitesse:vector3 = vector3{}
+        var DernierRalenti:float = -10.0
         if (Perso := Joueur.GetFortCharacter[]):
-            if (Chariot.TeleportTo[Cible(Perso.GetTransform().Translation, Lacet(Perso))]) {}
+            set Precedente = Perso.GetTransform().Translation
+            if (Chariot.TeleportTo[Cible(Precedente, Lacet(Perso), vector3{})]) {}
         loop:
             if (MonNumero <> Numero) { break }
             if (Perso := Joueur.GetFortCharacter[], Perso.IsActive[]):
-                PosJoueur := Perso.GetTransform().Translation
-                Actuel := Chariot.GetTransform()
-                if (Distance2D(PosJoueur, Actuel.Translation) > Ecart + DistanceLacher):
-                    # trop loin : on a lache le chariot
-                    Lacher()
-                    break
-                Voulu := Cible(PosJoueur, Lacet(Perso))
-                # le chariot avance vers la place voulue, mais jamais plus vite que VitesseMax
-                Ecartement := Voulu.Translation - Actuel.Translation
-                Longueur := Distance2D(Voulu.Translation, Actuel.Translation)
-                PasMax := VitesseMax * Douceur
-                Arrivee := if (Longueur > PasMax) then Actuel.Translation + Ecartement * (PasMax / Longueur) else Voulu.Translation
-                C := transform{Translation := Arrivee, Rotation := Voulu.Rotation, Scale := Voulu.Scale}
+                Maintenant := GetSimulationElapsedTime()
+                Position := Perso.GetTransform().Translation
+                Ecoule := Maintenant - Temps
+                # vitesse du joueur (a plat), pour viser la ou il sera a la fin du mouvement
+                if (Ecoule > 0.001):
+                    Brute := (Position - Precedente) / Ecoule
+                    set Vitesse = vector3:
+                        X := Vitesse.X * 0.75 + Brute.X * 0.25
+                        Y := Vitesse.Y * 0.75 + Brute.Y * 0.25
+                        Z := 0.0
+                Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
+                set Precedente = Position
+                if (Maintenant - DernierRalenti > 0.3, R := Ralentisseur?):
+                    R.Activate(Joueur)
+                    set DernierRalenti = Maintenant
+                set Temps = Maintenant
+                C := Cible(Position, Lacet(Perso), Avance)
                 PlacerBouton(C)
                 Chariot.MoveTo(C, Douceur)
                 Sleep(0.0)

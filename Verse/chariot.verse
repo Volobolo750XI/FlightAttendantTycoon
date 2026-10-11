@@ -29,7 +29,8 @@ chariot_device := class(creative_device):
     @editable Douceur:float = 0.1
     # Ralentit le joueur quand il pousse le chariot : un Appareil Modulateur de mouvement
     # (Vitesse 0.5, Duree de l'effet 0.5 s, SANS impulsion). Il est relance tant qu'on pousse.
-    @editable Ralentisseur:?movement_modulator_device = false
+    # Tu peux en mettre plusieurs (0.5 chacun) : si Fortnite les cumule, on va encore plus lentement.
+    @editable Ralentisseurs:[]movement_modulator_device = array{}
 
     # Le bouton par rapport au chariot (mesure au debut, dans le repere du chariot).
     var BoutonRelatif:vector3 = vector3{}
@@ -111,8 +112,8 @@ chariot_device := class(creative_device):
                         Z := 0.0
                 Avance := vector3{X := Vitesse.X * Douceur, Y := Vitesse.Y * Douceur, Z := 0.0}
                 set Precedente = Position
-                if (Maintenant - DernierRalenti > 0.3, R := Ralentisseur?):
-                    R.Activate(Joueur)
+                if (Maintenant - DernierRalenti > 0.3):
+                    for (R : Ralentisseurs) { R.Activate(Joueur) }
                     set DernierRalenti = Maintenant
                 set Temps = Maintenant
                 C := Cible(Position, Lacet(Perso), Avance)

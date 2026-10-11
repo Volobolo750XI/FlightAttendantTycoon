@@ -176,8 +176,10 @@ colis_device := class(creative_device):
                 if (FC := P.GetFortCharacter[]):
                     if (Distance(FC.GetTransform().Translation, BoutonDepot.GetTransform().Translation) < RayonDepot):
                         Ranger(P)
-            else if (C := ColisVise(P)?):
-                Ramasser(Agent, C)
+            else:
+                Vise := ColisVise(P)
+                if (C := Vise?):
+                    Ramasser(Agent, C)
 
     OnDepot(Agent:agent):void =
         if (P := player[Agent]):

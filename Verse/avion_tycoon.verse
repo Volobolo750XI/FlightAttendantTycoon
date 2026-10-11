@@ -67,6 +67,8 @@ avion_tycoon := class(creative_device):
     @editable Reglages:reglages_generaux = reglages_generaux{}
     # Son joué à chaque achat de rangée (même gratuite) : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
+    # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
+    @editable ArgentInfini:logic = false
 
     var Proprio:?agent = false
     var Argent:int = 0
@@ -94,6 +96,7 @@ avion_tycoon := class(creative_device):
                 Joueur := AttendreSurPlaque(Claim.Plaque, false)
                 set Proprio = option{Joueur}
                 Print("Avion : claim OK")
+                if (ArgentInfini?) { set Argent = 1000000000000000 }
             SuivreRegard(Claim.Panneau)
         Claim.Panneau.Hide()
         if (Joueur := Proprio?):

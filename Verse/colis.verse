@@ -60,6 +60,11 @@ colis_device := class(creative_device):
     @editable ModeleColis:creative_prop_asset = DefaultCreativePropAsset
     @editable PointLivraison:?creative_prop = false
     @editable BoutonDepot:button_device = button_device{}
+    # UN SEUL bouton pour tous les colis : il se colle tout seul sur le colis au sol
+    # le plus proche d'un joueur. On s'approche d'un colis -> "Interagir" apparait dessus.
+    @editable BoutonColis:?button_device = false
+    # Hauteur du bouton au-dessus du colis (cm)
+    @editable HauteurBouton:float = 60.0
     @editable PropsStockage:[]creative_prop = array{}
     @editable InputColis:input_trigger_device = input_trigger_device{}
     @editable Vol:?vol_device = false
@@ -80,6 +85,8 @@ colis_device := class(creative_device):
     @editable Anticipation:float = 0.15
 
     var Pool:[]colis_avion = array{}
+    # colis sur lequel le bouton unique est pose en ce moment
+    var SousBouton:?colis_avion = false
     var Menu:?menu_pc = false
     var EnAttente:[]ligne_colis = array{}
     var Porte:[player]?colis_avion = map{}
@@ -89,6 +96,9 @@ colis_device := class(creative_device):
     OnBegin<override>()<suspends>:void =
         BoutonDepot.InteractedWithEvent.Subscribe(OnDepot)
         InputColis.PressedEvent.Subscribe(OnInput)
+        if (B := BoutonColis?):
+            B.InteractedWithEvent.Subscribe(OnBoutonColis)
+            spawn{PlacerBoutonColis(B)}
         # livre ce qui attend des que l'avion est au sol
         loop:
             Sleep(0.5)
@@ -96,6 +106,34 @@ colis_device := class(creative_device):
                 Commande := EnAttente
                 set EnAttente = array{}
                 Larguer(Commande)
+
+    OnBoutonColis(Agent:agent):void =
+        if (C := SousBouton?):
+            Ramasser(Agent, C)
+
+    # Toutes les 0.2 s : le bouton va sur le colis au sol le plus proche d'un joueur.
+    PlacerBoutonColis(B:button_device)<suspends>:void =
+        loop:
+            Sleep(0.2)
+            var Meilleur:?colis_avion = false
+            var MeilleureDistance:float = 100000.0
+            for (C : Pool, C.AuSol?):
+                PosC := C.Prop.GetTransform().Translation
+                for (J : GetPlayspace().GetPlayers(), FC := J.GetFortCharacter[]):
+                    D := Distance(FC.GetTransform().Translation, PosC)
+                    if (D < MeilleureDistance):
+                        set MeilleureDistance = D
+                        set Meilleur = option{C}
+            if (C := Meilleur?):
+                if (Actuel := SousBouton?, Actuel = C) {} else:
+                    set SousBouton = option{C}
+                    T := C.Prop.GetTransform()
+                    if (B.TeleportTo[T.Translation + vector3{Z := HauteurBouton}, T.Rotation]) {}
+                    B.Enable()
+            else if (SousBouton?):
+                set SousBouton = false
+                B.Disable()
+                if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
 
     EnVol()<transacts><decides>:void =
         V := Vol?

@@ -29,7 +29,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #
 # Dans l'editeur :
 #   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
-#   Fleches           : des Fleche.glb POSEES dans la map (ex : 6 copies, n'importe ou, cachees au debut).
+#   ModeleFleche      : le modele de la fleche (Creative Prop fait avec Fleche.glb). Rien a poser.
 #   Bulles            : (ancien) des bulles posees dans la map, si tu n'as pas de fleches.
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
@@ -41,8 +41,10 @@ demande := class<unique>:
     Choix:int
     Debut:float
     Patience:float
-    # numero de la bulle utilisee
+    # numero de la bulle / fleche posee utilisee (-1 = fleche creee par le code)
     Emplacement:int
+    # la fleche creee pour cette commande (ModeleFleche)
+    var Fleche:?creative_prop = false
 
 profil_passager := class<unique>:
     Passager:passager
@@ -72,6 +74,10 @@ demandes_device := class(creative_device):
     @editable RotationBulle:float = 0.0
     # LES FLECHES (Fleche.glb, pointe en bas) : hauteur de la pointe au-dessus du pivot du passager
     # assis (cm), taille, et si elles ne se voient que quand on tient le chariot.
+    # ModeleFleche : le modele de la fleche (un Creative Prop fait avec Fleche.glb). Le code en fait
+    # apparaitre une a chaque commande et la supprime ensuite : rien a poser dans la map.
+    # (Fleches : ancienne facon, des fleches deja posees dans la map ; laisse vide.)
+    @editable ModeleFleche:creative_prop_asset = DefaultCreativePropAsset
     @editable Fleches:[]creative_prop = array{}
     @editable HauteurFleche:float = 230.0
     @editable EchelleFleche:float = 1.0
@@ -225,15 +231,26 @@ demandes_device := class(creative_device):
     Commander(P:passager, Choix:int):void =
         if (C := P.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
-            # une bulle libre
+            # sans fleches posees : on fait apparaitre une fleche (ModeleFleche), cachee pour l'instant
+            var Apparue:?creative_prop = false
+            if (Fleches.Length = 0):
+                Taille := vector3{X := EchelleFleche, Y := EchelleFleche, Z := EchelleFleche}
+                Resultat := SpawnProp(ModeleFleche, transform{Translation := vector3{Z := -5000.0}, Rotation := IdentityRotation(), Scale := Taille})
+                if (F := Resultat(0)?):
+                    F.Hide()
+                    set Apparue = option{F}
+            # sinon : une fleche / bulle posee libre
             var Libre:int = -1
-            for (I -> B : Marqueurs(), Libre < 0, not Occupe[I]) { set Libre = I }
-            if (Libre < 0) { return }
-            if (Fleches.Length = 0, B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
+            if (not Apparue?):
+                for (I -> B : Marqueurs(), Libre < 0, not Occupe[I]) { set Libre = I }
+                if (Libre < 0) { return }
+                if (Fleches.Length = 0, B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
             D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
+            set D.Fleche = Apparue
             set Actives += array{D}
-            if (Fleches.Length > 0):
+            AvecFleche := if (Apparue?) then true else if (Fleches.Length > 0) then true else false
+            if (AvecFleche?):
                 spawn{AnimerFleche(D)}
             else:
                 Placer(D)
@@ -256,7 +273,7 @@ demandes_device := class(creative_device):
     # Bulle au-dessus du passager, tournee vers le joueur le plus proche (les fleches s'animent
     # toutes seules, voir AnimerFleche).
     Placer(D:demande):void =
-        if (Fleches.Length = 0, C := D.Passager.Corps?):
+        if (Fleches.Length = 0, not D.Fleche?, C := D.Passager.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
             var Vers:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
             var Meilleure:float = 100000.0
@@ -271,7 +288,11 @@ demandes_device := class(creative_device):
                 if (B.TeleportTo[transform{Translation := Base, Rotation := Face, Scale := vector3{X := EchelleBulle, Y := EchelleBulle, Z := EchelleBulle}}]) {}
 
     Effacer(D:demande):void =
-        Ranger(D.Emplacement)
+        if (F := D.Fleche?):
+            F.Dispose()
+            set D.Fleche = false
+        else:
+            Ranger(D.Emplacement)
 
     # cachee et envoyee sous la carte
     Ranger(I:int):void =
@@ -293,7 +314,7 @@ demandes_device := class(creative_device):
         var Visible:logic = false
         loop:
             if (not EstActive[D]) { break }
-            if (B := Fleches[D.Emplacement], C := D.Passager.Corps?):
+            if (B := FlecheDe(D)?, C := D.Passager.Corps?):
                 Temps := GetSimulationElapsedTime()
                 Pointe := C.GetTransform().Translation + vector3{Z := HauteurFleche + 12.0 * Sin(Temps * 4.0)}
                 Cible := transform:
@@ -313,6 +334,10 @@ demandes_device := class(creative_device):
                 B.MoveTo(Cible, 0.05)
             else:
                 Sleep(0.1)
+
+    # La fleche d'une commande : celle creee par le code, sinon celle posee dans la map.
+    FlecheDe(D:demande)<transacts>:?creative_prop =
+        if (F := D.Fleche?) then option{F} else if (F := Fleches[D.Emplacement]) then option{F} else false
 
     EstActive(D:demande)<transacts><decides>:void =
         var Oui:logic = false

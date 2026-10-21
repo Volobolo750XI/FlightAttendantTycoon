@@ -29,10 +29,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #
 # Dans l'editeur :
 #   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
-#   ModeleBulle       : le prop (asset) de la bulle.
+#   Bulles            : tes bulles POSEES dans la map (ex : 6 copies, n'importe ou, cachees au debut).
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
-#   ModeleBarre       : le prop (asset) plat de la barre.
+#   Barres            : tes barres POSEES dans la map, autant que de bulles (meme ordre).
 #   MateriauxPatience : 10 materiaux, du PLEIN au VIDE : Patience_10, 09, ... 01.
 #   SonCommande / SonServi / SonErreur / SonFache : (facultatif) Lecteurs audio.
 #   MessageGain       : (facultatif) Appareil Message HUD pour "+$..." et "Wrong order".
@@ -42,8 +42,8 @@ demande := class<unique>:
     Choix:int
     Debut:float
     Patience:float
-    Bulle:?creative_prop
-    Barre:?creative_prop
+    # numero de la paire bulle / barre utilisee
+    Emplacement:int
     var Palier:int = -1
 
 profil_passager := class<unique>:
@@ -62,12 +62,10 @@ demandes_device := class(creative_device):
     @editable DeviceAvion:?avion_tycoon = false
     @editable DevicePC:?pc_destinations = false
 
-    @editable ModeleBulle:creative_prop_asset = DefaultCreativePropAsset
+    @editable Bulles:[]creative_prop = array{}
     @editable MateriauxBulle:[]material = array{}
-    @editable EchelleBulle:float = 1.0
-    @editable ModeleBarre:creative_prop_asset = DefaultCreativePropAsset
+    @editable Barres:[]creative_prop = array{}
     @editable MateriauxPatience:[]material = array{}
-    @editable EchelleBarre:float = 1.0
     # Ou est la bulle : hauteur au-dessus du pivot du passager assis (cm)
     @editable HauteurBulle:float = 150.0
     # Barre : sous la bulle (cm) et decalage vers la gauche (cm) si son pivot est au bord gauche
@@ -114,6 +112,7 @@ demandes_device := class(creative_device):
     var DernierePosition:?vector3 = false
 
     OnBegin<override>()<suspends>:void =
+        for (I -> B : Bulles) { Ranger(I) }
         loop:
             Sleep(0.1)
             if (EnVol[]):
@@ -221,17 +220,18 @@ demandes_device := class(creative_device):
     Commander(P:passager, Choix:int):void =
         if (C := P.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
-            var Bulle:?creative_prop = false
-            var Barre:?creative_prop = false
-            if (B := SpawnProp(ModeleBulle, transform{Translation := Base, Rotation := IdentityRotation(), Scale := Uniforme(EchelleBulle)})(0)?):
-                if (Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
-                set Bulle = option{B}
-            if (B := SpawnProp(ModeleBarre, transform{Translation := Base - vector3{Z := EcartBarre}, Rotation := IdentityRotation(), Scale := Uniforme(EchelleBarre)})(0)?):
-                set Barre = option{B}
+            # une paire bulle / barre libre
+            var Libre:int = -1
+            for (I -> B : Bulles, Libre < 0, not Occupe[I]) { set Libre = I }
+            if (Libre < 0) { return }
+            if (B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
+            if (B := Barres[Libre], Mat := MateriauxPatience[0]) { B.SetMaterial(Mat) }
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
-            D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Bulle := Bulle, Barre := Barre}
+            D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
             set Actives += array{D}
             Placer(D)
+            if (B := Bulles[Libre]) { B.Show() }
+            if (B := Barres[Libre]) { B.Show() }
             if (S := SonCommande?) { S.Play() }
 
     Uniforme(E:float)<transacts>:vector3 = vector3{X := E, Y := E, Z := E}
@@ -247,7 +247,7 @@ demandes_device := class(creative_device):
                 Placer(D)
                 # palier 0 = plein (Patience_10) ... 9 = presque vide (Patience_01)
                 Palier := Max(0, Min(9, 9 - Entier(Reste * 10.0)))
-                if (Palier <> D.Palier, B := D.Barre?, Mat := MateriauxPatience[Palier]):
+                if (Palier <> D.Palier, B := Barres[D.Emplacement], Mat := MateriauxPatience[Palier]):
                     B.SetMaterial(Mat)
                     set D.Palier = Palier
 
@@ -268,15 +268,28 @@ demandes_device := class(creative_device):
             Face := MakeShortestRotationBetween(vector3{X := 1.0, Y := 0.0, Z := 0.0}, Vers).RotateBy(MakeRotationFromYawPitchRollDegrees(RotationBulle, 0.0, 0.0))
             # droite vue par le joueur (pour decaler la barre vers la gauche)
             Droite := vector3{X := Vers.Y, Y := -Vers.X, Z := 0.0}
-            if (B := D.Bulle?):
-                if (B.TeleportTo[transform{Translation := Base, Rotation := Face, Scale := Uniforme(EchelleBulle)}]) {}
-            if (B := D.Barre?):
+            if (B := Bulles[D.Emplacement]):
+                if (B.TeleportTo[Base, Face]) {}
+            if (B := Barres[D.Emplacement]):
                 PosBarre := Base - vector3{Z := EcartBarre} - Droite * DecalageBarre
-                if (B.TeleportTo[transform{Translation := PosBarre, Rotation := Face, Scale := Uniforme(EchelleBarre)}]) {}
+                if (B.TeleportTo[PosBarre, Face]) {}
 
     Effacer(D:demande):void =
-        if (B := D.Bulle?) { B.Dispose() }
-        if (B := D.Barre?) { B.Dispose() }
+        Ranger(D.Emplacement)
+
+    # cachee et envoyee sous la carte
+    Ranger(I:int):void =
+        if (B := Bulles[I]):
+            B.Hide()
+            if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
+        if (B := Barres[I]):
+            B.Hide()
+            if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
+
+    Occupe(I:int)<transacts><decides>:void =
+        var Oui:logic = false
+        for (D : Actives, D.Emplacement = I) { set Oui = true }
+        Oui?
 
     Retirer(D:demande):void =
         Effacer(D)

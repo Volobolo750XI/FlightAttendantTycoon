@@ -332,18 +332,14 @@ feuille_mission := class(creative_device):
         Fabriquer(P, if (Chance[Chances]) then true else false)
 
     # ----- le cerveau des faux papiers -----
-    # Il fabrique des papiers cohérents (nom, sexe et âge qui vont avec le visage, passeport valide,
-    # billet pour CE vol, CE jour), puis, si ce sont des faux, il glisse UNE erreur dedans :
-    #   facile    1 mauvaise destination   2 mauvais numéro de vol   3 photo de quelqu'un d'autre
-    #   moyen     4 date du billet ≠ aujourd'hui   5 passeport expiré   6 prénoms différents
-    #             7 mauvais sexe sur le passeport
-    #   difficile 8 n° de passeport ≠ celui de la bande du bas   9 nom mal écrit sur le billet
-    # Le niveau dépend de la destination (les grosses destinations = erreurs plus subtiles) et de
-    # la forme du joueur (il réussit tout -> plus dur ; il se trompe -> plus facile). Il choisit
-    # surtout les erreurs que le joueur a déjà laissé passer ou qu'il n'a encore jamais vues.
+    # Il fabrique des papiers cohérents (billet pour CE vol, CE jour, même nom que le passeport),
+    # puis, si ce sont des faux, il glisse UNE erreur dedans. Il n'y a que 3 choses à vérifier :
+    #   1 la destination du billet (TO)   2 le numéro de vol du billet   6/9 le nom (billet = passeport)
+    #   6 = prénom différent (facile) ; 9 = nom de famille avec une lettre en moins (plus subtil, il
+    #   arrive avec les grosses destinations ou quand le joueur réussit tout).
+    # Il choisit surtout les erreurs que le joueur a déjà laissé passer.
     Fabriquer(P:passager, Faux:logic):billet_passager =
         Vraie := PhotoPassager(P)
-        PhotoOk := if (Vraie > 0) then true else false
         SexeVrai := if (Vraie = 1 or Vraie = 4) then "M" else if (Vraie >= 2 and Vraie <= 5) then "F" else if (GetRandomInt(0, 1) = 0) then "M" else "F"
         Homme := if (SexeVrai = "M") then true else false
         PrenomVrai := if (Homme?) then Choisir(PrenomsH) else Choisir(PrenomsF)
@@ -366,7 +362,7 @@ feuille_mission := class(creative_device):
             set ExpA = AujAn
             set ExpM = GetRandomInt(AujMois + 1, 12)
         ExpJ := GetRandomInt(1, 28)
-        Defaut := if (Faux?) then ChoisirProbleme(PhotoOk) else 0
+        Defaut := if (Faux?) then ChoisirProbleme() else 0
         # les valeurs, puis l'erreur éventuelle
         Arrivee := VilleArrivee()
         var VersB:string = Arrivee
@@ -381,24 +377,9 @@ feuille_mission := class(creative_device):
             for (Essai := 1..10, VersB = Arrivee) { set VersB = Choisir(AutresVilles) }
         else if (Defaut = 2):
             for (Essai := 1..10, VolB = NumeroVol) { set VolB = NumeroAuHasard() }
-        else if (Defaut = 3):
-            for (Essai := 1..10, PhotoB = Vraie) { set PhotoB = GetRandomInt(1, PhotosPassagers.Length) }
-        else if (Defaut = 4):
-            set JourBillet = if (AujJour > 3) then AujJour - GetRandomInt(1, 3) else AujJour + GetRandomInt(1, 3)
-        else if (Defaut = 5):
-            if (AujMois > 1, GetRandomInt(0, 1) = 0):
-                set ExpA = AujAn
-                set ExpM = GetRandomInt(1, AujMois - 1)
-            else:
-                set ExpA = AujAn - GetRandomInt(1, 4)
         else if (Defaut = 6):
             Liste := if (Homme?) then PrenomsH else PrenomsF
             for (Essai := 1..10, PrenomB = PrenomVrai) { set PrenomB = Choisir(Liste) }
-        else if (Defaut = 7):
-            set SexePasseport = if (Homme?) then "F" else "M"
-        else if (Defaut = 8):
-            Autres := GetRandomInt(1000000, 9999999)
-            set NumeroBande = "{L1}{L2}{Autres}"
         else if (Defaut = 9):
             set NomB = SansUneLettre(NomVrai)
         NaissMrz := DateMrz(JourNaiss, MoisNaiss, AnNaiss)
@@ -439,13 +420,13 @@ feuille_mission := class(creative_device):
         Max(1, Min(3, NiveauBase + Bonus))
 
     NiveauDe(Code:int)<transacts>:int =
-        if (Code <= 3) then 1 else if (Code <= 7) then 2 else 3
+        if (Code = 9) then 2 else 1
 
-    ChoisirProbleme(PhotoOk:logic):int =
+    ChoisirProbleme():int =
         N := NiveauActuel()
         var Codes:[]int = array{}
         var Poids:[]float = array{}
-        for (C := 1..9, NiveauDe(C) <= N, (C <> 3 and C <> 7) or PhotoOk?):
+        for (C : array{1, 2, 6, 9}, NiveauDe(C) <= N):
             Rate := if (R := Rates[C]) then R else 0
             Vu := if (A := Attrapes[C]) then A else 0
             # ce qu'il a laissé passer revient plus souvent ; ce qu'il attrape toujours, moins
@@ -872,9 +853,8 @@ feuille_mission := class(creative_device):
         set S += array{SurBillet(B.Vers, 1390.0, 455.0, 410.0)}
         # le passeport
         set S += array{Bloc(Vignette(FeuilleMission.Passeport, 2048.0 * PassK, 1024.0 * PassK), PassX - 394.0 * PassK, PassY - 12.0 * PassK, 2048.0 * PassK, 1024.0 * PassK, 1)}
-        if (Tex := PhotoDe[B.Photo]):
-            Cote := 360.0 * PassK
-            set S += array{Bloc(Vignette(Tex, Cote, Cote), PassX + 60.0 * PassK, PassY + 190.0 * PassK, Cote, Cote, 2)}
+        # pas de photo : on cache le cadre photo et la signature de l'image
+        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("ECF0E2"), DefaultOpacity := 1.0}, PassX + 40.0 * PassK, PassY + 172.0 * PassK, 405.0 * PassK, 500.0 * PassK, 2)}
         set S += array{SurPasseport(B.Nom, 470.0, 228.0, 430.0)}
         set S += array{SurPasseport(B.Numero, 900.0, 228.0, 340.0)}
         set S += array{SurPasseport(B.Prenom, 470.0, 348.0, 760.0)}
@@ -884,44 +864,28 @@ feuille_mission := class(creative_device):
         set S += array{SurPasseport(B.Expiration, 900.0, 588.0, 340.0)}
         set S += array{SurPasseport(B.Mrz1, 60.0, 800.0, 1170.0)}
         set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1170.0)}
-        # le vrai visage du passager
-        set S += array{Bloc(Ecrit("PASSENGER", "E2E8F0", text_justification.Left), 20.0, 622.0, 240.0, 36.0, 3)}
-        if (Tex := PhotoDe[PhotoPassager(P)]):
-            set S += array{Bloc(Vignette(Tex, 180.0, 180.0), 20.0, 660.0, 180.0, 180.0, 2)}
         # le tampon, ou les boutons
         if (B.Decision = 1):
             set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
         else if (B.Decision = 2):
             set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
         if (B.Decision = 0):
-            set S += BoutonEcran("VALID", "15803D", 300.0, 652.0, 330.0, 76.0, 1)
-            set S += BoutonEcran("REFUSE", "B91C1C", 690.0, 652.0, 330.0, 76.0, 2)
+            set S += BoutonEcran("VALID", "15803D", 180.0, 680.0, 330.0, 80.0, 1)
+            set S += BoutonEcran("REFUSE", "B91C1C", 630.0, 680.0, 330.0, 80.0, 2)
         else:
-            set S += array{Bloc(Ecrit("Documents already checked.", "CBD5E1", text_justification.Left), 300.0, 672.0, 700.0, 36.0, 3)}
+            set S += array{Bloc(Ecrit("Documents already checked.", "CBD5E1", text_justification.Center), 20.0, 700.0, 1100.0, 40.0, 3)}
         set S += Regles()
         set S += BoutonEcran("CLOSE", "374151", 1700.0, 20.0, 180.0, 50.0, 3)
         S
 
-    # Le règlement en bas : ce qu'il faut comparer. Seules les règles du niveau actuel du cerveau
-    # sont montrées (au début : visage, vol, destination). 3 colonnes.
+    # Le règlement en bas : les 3 choses à comparer.
     Regles():[]canvas_slot =
-        N := NiveauActuel()
-        Toutes := array:
-            "1. FACE = passport photo"
-            "2. FLIGHT No. = this flight"
-            "3. TO = this flight's city"
-            "4. TICKET DATE = today"
-            "5. NAMES: ticket = passport"
-            "6. PASSPORT: valid, right sex"
-            "7. PASSPORT No. = bottom line"
-        Niveaux := array{1, 1, 1, 2, 2, 2, 3}
-        Visibles := for (I -> R : Toutes, Nv := Niveaux[I], Nv <= N) { R }
-        Rangees := if (Q := Quotient[Visibles.Length + 2, 3]) then Q * 1.0 else 1.0
+        Toutes := array{"1. FLIGHT No. = this flight", "2. TO = this flight's city", "3. NAME: ticket = passport"}
         var S:[]canvas_slot = array{}
-        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("0F172A"), DefaultOpacity := 0.95}, 260.0, 862.0, 1620.0, 56.0 + Rangees * 38.0, 1)}
-        set S += array{Bloc(Ecrit("CHECK THAT EVERYTHING MATCHES  -  ONE MISTAKE = REFUSE", "FBBF24", text_justification.Center), 260.0, 868.0, 1620.0, 40.0, 3)}
-        for (I -> R : Visibles, Col := Mod[I, 3], Ligne := Quotient[I, 3]):
-            set S += array{Bloc(Ecrit(R, "E2E8F0", text_justification.Left), 290.0 + Col * 540.0, 912.0 + Ligne * 38.0, 520.0, 38.0, 3)}
+        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("0F172A"), DefaultOpacity := 0.95}, 150.0, 850.0, 1620.0, 110.0, 1)}
+        set S += array{Bloc(Ecrit("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "FBBF24", text_justification.Center), 150.0, 858.0, 1620.0, 40.0, 3)}
+        for (I -> R : Toutes):
+            set S += array{Bloc(Ecrit(R, "E2E8F0", text_justification.Center), 150.0 + I * 540.0, 906.0, 540.0, 40.0, 3)}
         S
 
     # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).

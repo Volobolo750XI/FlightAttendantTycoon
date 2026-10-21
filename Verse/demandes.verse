@@ -16,24 +16,22 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   - quand quelqu'un commande, ses voisins ont plus de chances de commander aussi ;
 #   - il ne demande que ce qui est debloque, et surtout ce qui est en stock.
 #
-# Au-dessus du passager : la BULLE (materiau = le produit demande) et dessous la BARRE de patience
-# (10 materiaux, du plein au vide). Elles n'apparaissent QUE quand il commande, suivent le
-# passager et se tournent vers le joueur le plus proche.
+# Au-dessus du passager : la BULLE (materiau = le produit demande). Elle n'apparait QUE quand
+# il commande, suit le passager et se tourne vers le joueur le plus proche.
+# Patience invisible : s'il attend trop longtemps, il part fache.
 #
 # Servir : tu vises le passager (ou sa bulle) avec le bon objet en main et tu appuies sur la
 # TOUCHE du galley (InputPoser du service_device).
 #   boisson (eau, soda, cafe) : la bouteille / canette / tasse en main ;
 #   plat : l'ASSIETTE avec le plat dessus.
 # Paiement = prix d'une unite x Marge x multiplicateur de la destination x bonus de rapidite
-#   (barre verte x1.5, jaune / orange x1, rouge x0.5). Trop tard : il part fache, 0 $.
+#   (servi vite x1.5, normal x1, tard x0.5). Trop tard : il part fache, 0 $.
 #
 # Dans l'editeur :
 #   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
 #   Bulles            : tes bulles POSEES dans la map (ex : 6 copies, n'importe ou, cachees au debut).
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
-#   Barres            : tes barres POSEES dans la map, autant que de bulles (meme ordre).
-#   MateriauxPatience : 10 materiaux, du PLEIN au VIDE : Patience_10, 09, ... 01.
 #   SonCommande / SonServi / SonErreur / SonFache : (facultatif) Lecteurs audio.
 #   MessageGain       : (facultatif) Appareil Message HUD pour "+$..." et "Wrong order".
 
@@ -42,9 +40,8 @@ demande := class<unique>:
     Choix:int
     Debut:float
     Patience:float
-    # numero de la paire bulle / barre utilisee
+    # numero de la bulle utilisee
     Emplacement:int
-    var Palier:int = -1
 
 profil_passager := class<unique>:
     Passager:passager
@@ -64,14 +61,9 @@ demandes_device := class(creative_device):
 
     @editable Bulles:[]creative_prop = array{}
     @editable MateriauxBulle:[]material = array{}
-    @editable Barres:[]creative_prop = array{}
-    @editable MateriauxPatience:[]material = array{}
     # Ou est la bulle : hauteur au-dessus du pivot du passager assis (cm)
     @editable HauteurBulle:float = 150.0
-    # Barre : sous la bulle (cm) et decalage vers la gauche (cm) si son pivot est au bord gauche
-    @editable EcartBarre:float = 45.0
-    @editable DecalageBarre:float = 0.0
-    # Si la bulle / la barre ne font pas face au joueur, essaie 90, -90 ou 180
+    # Si la bulle ne fait pas face au joueur, essaie 90, -90 ou 180
     @editable RotationBulle:float = 0.0
 
     @editable SonCommande:?audio_player_device = false
@@ -220,18 +212,16 @@ demandes_device := class(creative_device):
     Commander(P:passager, Choix:int):void =
         if (C := P.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
-            # une paire bulle / barre libre
+            # une bulle libre
             var Libre:int = -1
             for (I -> B : Bulles, Libre < 0, not Occupe[I]) { set Libre = I }
             if (Libre < 0) { return }
             if (B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
-            if (B := Barres[Libre], Mat := MateriauxPatience[0]) { B.SetMaterial(Mat) }
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
             D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
             set Actives += array{D}
             Placer(D)
             if (B := Bulles[Libre]) { B.Show() }
-            if (B := Barres[Libre]) { B.Show() }
             if (S := SonCommande?) { S.Play() }
 
     Uniforme(E:float)<transacts>:vector3 = vector3{X := E, Y := E, Z := E}
@@ -245,15 +235,8 @@ demandes_device := class(creative_device):
                 Fache(D)
             else:
                 Placer(D)
-                # palier 0 = plein (Patience_10) ... 9 = presque vide (Patience_01)
-                Palier := Max(0, Min(9, 9 - Entier(Reste * 10.0)))
-                if (Palier <> D.Palier, B := Barres[D.Emplacement], Mat := MateriauxPatience[Palier]):
-                    B.SetMaterial(Mat)
-                    set D.Palier = Palier
 
-    Entier(V:float):int = if (N := Floor[V]) then N else 0
-
-    # Bulle au-dessus du passager, tournee vers le joueur le plus proche ; barre accrochee dessous.
+    # Bulle au-dessus du passager, tournee vers le joueur le plus proche .
     Placer(D:demande):void =
         if (C := D.Passager.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
@@ -266,13 +249,8 @@ demandes_device := class(creative_device):
                     set Meilleure = Plat.Length()
                     set Vers = Plat / Plat.Length()
             Face := MakeShortestRotationBetween(vector3{X := 1.0, Y := 0.0, Z := 0.0}, Vers).RotateBy(MakeRotationFromYawPitchRollDegrees(RotationBulle, 0.0, 0.0))
-            # droite vue par le joueur (pour decaler la barre vers la gauche)
-            Droite := vector3{X := Vers.Y, Y := -Vers.X, Z := 0.0}
             if (B := Bulles[D.Emplacement]):
                 if (B.TeleportTo[Base, Face]) {}
-            if (B := Barres[D.Emplacement]):
-                PosBarre := Base - vector3{Z := EcartBarre} - Droite * DecalageBarre
-                if (B.TeleportTo[PosBarre, Face]) {}
 
     Effacer(D:demande):void =
         Ranger(D.Emplacement)
@@ -280,9 +258,6 @@ demandes_device := class(creative_device):
     # cachee et envoyee sous la carte
     Ranger(I:int):void =
         if (B := Bulles[I]):
-            B.Hide()
-            if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
-        if (B := Barres[I]):
             B.Hide()
             if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
 

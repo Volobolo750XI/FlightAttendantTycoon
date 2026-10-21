@@ -150,6 +150,10 @@ passagers := class(creative_device):
     @editable RayonControle:float = 600.0
     @editable ArretControle:float = 80.0
     @editable AttenteMax:float = 30.0
+    # (facultatif) un petit repère (prop) posé là où les passagers doivent s'arrêter pour le
+    # contrôle, sur leur chemin (par ex. juste devant la porte, dans la passerelle). Il est caché en
+    # jeu. Vide : ils s'arrêtent ArretControle cm avant le dernier repère du Chemin.
+    @editable PointControle:?creative_prop = false
     # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
     @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
@@ -233,6 +237,7 @@ passagers := class(creative_device):
         if (B := CapuchonStart?) { set BoutonRepos = option{B.GetTransform()} }
         AfficherCapuchon(0)
         for (R : Chemin) { R.Hide() }
+        if (Pc := PointControle?) { Pc.Hide() }
         for (P : Places):
             P.Siege.Hide()
             P.Allee.Hide()
@@ -396,6 +401,9 @@ passagers := class(creative_device):
     Marcher(P:passager, Route:[]vector3)<suspends>:void =
         Total := LongueurRoute(Route)
         Pas := 0.2
+        # poste de contrôle : où il s'arrête (le repère PointControle, sinon juste avant la porte)
+        Arret0 := if (Pc := PointControle?) then DistanceSurRoute(Route, Pc.GetTransform().Translation) else P.LongDehors - ArretControle
+        PointArret := PointRoute(Route, Arret0)
         loop:
             if (P.Avancee >= Total - 1.0) { break }
             if (Arret?, P.Avancee < P.LongDehors - 1.0):
@@ -407,13 +415,11 @@ passagers := class(creative_device):
             for (Autre : EnCours, Autre.DansAllee?, Autre.Avancee > P.Avancee):
                 set Limite = Min(Limite, Autre.Avancee - Espacement)
             # poste de contrôle : il attend devant la porte qu'on regarde ses papiers
-            Arret0 := P.LongDehors - ArretControle
             if (ControlePorte?, P.Controle = 0, P.Avancee <= Arret0 + 1.0):
                 set Limite = Min(Limite, Arret0)
                 # arrivé à la porte : si le proprio n'est pas là depuis trop longtemps, il entre seul
                 if (P.Avancee >= Arret0 - 5.0, AttenteMax > 0.0):
-                    Porte := PointRoute(Route, P.LongDehors)
-                    if (ProprioALaPorte[Porte]):
+                    if (ProprioALaPorte[PointArret]):
                         set P.AttentePorte = 0.0
                     else:
                         set P.AttentePorte += Pas
@@ -428,6 +434,23 @@ passagers := class(creative_device):
                 Dir := DirectionRoute(Route, Cible)
                 DeplacerAvecBagage(P, Pos, Dir, (Cible - P.Avancee) / VitesseMarche)
                 set P.Avancee = Cible
+
+    # Distance le long de la route jusqu'au point de la route le plus proche de Pos.
+    DistanceSurRoute(Route:[]vector3, Pos:vector3):float =
+        var Resultat:float = 0.0
+        var PlusPres:float = 1000000000.0
+        var Cumul:float = 0.0
+        for (I := 1..Route.Length - 1, A := Route[I - 1], B := Route[I]):
+            L := Distance(A, B)
+            if (L > 0.0):
+                AB := B - A
+                T := Max(0.0, Min(1.0, DotProduct(Pos - A, AB) / (L * L)))
+                D := Distance(A + AB * T, Pos)
+                if (D < PlusPres):
+                    set PlusPres = D
+                    set Resultat = Cumul + L * T
+            set Cumul += L
+        Resultat
 
     # Le proprio est-il près de la porte (pour le poste de contrôle) ?
     ProprioALaPorte(Porte:vector3)<transacts><decides>:void =

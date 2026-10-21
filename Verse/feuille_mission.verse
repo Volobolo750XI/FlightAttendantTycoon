@@ -165,8 +165,10 @@ feuille_mission := class(creative_device):
     var Forme:int = 0
     var Attrapes:[]int = array{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
     var Rates:[]int = array{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-    # Le message quand on vise un passager
+    # Le message quand on vise un passager, et le point au milieu de l'écran
     var Invite:?canvas = false
+    PointDiscret:color_block = color_block{DefaultColor := NamedColors.White, DefaultOpacity := 0.45}
+    PointActif:color_block = color_block{DefaultColor := NamedColors.White, DefaultOpacity := 1.0}
     TexteInvite:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.9, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
 
     # L'écran ouvert : 0 rien, 1 la feuille, 2 des papiers
@@ -557,12 +559,41 @@ feuille_mission := class(creative_device):
                     TexteInvite.SetVisibility(widget_visibility.Visible)
                 else:
                     TexteInvite.SetVisibility(widget_visibility.Collapsed)
+                # le point au milieu : mi-transparent, tout blanc quand on vise quelque chose
+                # d'utile (un passager, la feuille du mur)
+                PosFeuille := BoutonFeuille.GetTransform().Translation
+                Utile := if (Vise?) then true else if (VisePoint[Proprio, PosFeuille, 60.0, 400.0]) then true else false
+                if (Page > 0):
+                    PointDiscret.SetVisibility(widget_visibility.Collapsed)
+                    PointActif.SetVisibility(widget_visibility.Collapsed)
+                else if (Utile?):
+                    PointDiscret.SetVisibility(widget_visibility.Collapsed)
+                    PointActif.SetVisibility(widget_visibility.Visible)
+                else:
+                    PointDiscret.SetVisibility(widget_visibility.Visible)
+                    PointActif.SetVisibility(widget_visibility.Collapsed)
+
+    # Le joueur vise-t-il ce point (à moins de Rayon cm de sa ligne de visée, à portée) ?
+    VisePoint(Agent:agent, Pos:vector3, Rayon:float, Portee:float)<transacts><decides>:void =
+        FC := Agent.GetFortCharacter[]
+        CamPos := FC.GetViewLocation()
+        Avant := FC.GetViewRotation().RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
+        D := Pos - CamPos
+        T := D.X * Avant.X + D.Y * Avant.Y + D.Z * Avant.Z
+        T > 0.0
+        T < Portee
+        Distance(CamPos + Avant * T, Pos) < Rayon
 
     CreerInvite(J:player):void =
         if (UI := GetPlayerUI[J]):
-            C := canvas{Slots := array{Bloc(TexteInvite, 560.0, 640.0, 800.0, 40.0, 0)}}
+            C := canvas:
+                Slots := array:
+                    Bloc(TexteInvite, 560.0, 640.0, 800.0, 40.0, 0)
+                    Bloc(PointDiscret, 956.0, 536.0, 8.0, 8.0, 0)
+                    Bloc(PointActif, 954.0, 534.0, 12.0, 12.0, 0)
             UI.AddWidget(C)
             TexteInvite.SetVisibility(widget_visibility.Collapsed)
+            PointActif.SetVisibility(widget_visibility.Collapsed)
             set Invite = option{C}
 
     # ---------- le vol en cours, les dates, les noms ----------

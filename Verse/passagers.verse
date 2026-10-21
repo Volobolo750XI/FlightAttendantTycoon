@@ -52,7 +52,8 @@ modele_passager := class<concrete>:
     @editable DosHauteur:float = 110.0
     @editable DosAvant:float = -12.0
     # Sa photo sur la feuille de mission (ligne "fraudeur") : 1 vieux monsieur, 2 femme veste
-    # orange, 3 grand-mère, 4 homme barbu, 5 femme blouson noir. 0 = pas de photo.
+    # orange, 3 grand-mère, 4 homme barbu, 5 femme blouson noir. 0 = automatique (le modèle n°1 de
+    # la liste prend la photo 1, le 2 la photo 2...).
     @editable Photo:int = 0
 
 bagage := class<concrete>:
@@ -103,8 +104,9 @@ passager := class<unique>:
     var LongDehors:float = 0.0
     var Annule:logic = false
     var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
-    # Numéro de sa place (dans Places).
+    # Numéro de sa place (dans Places) et de son modèle (dans Modeles).
     var NumeroPlace:int = -1
+    var IndexModele:int = 0
     # Faux papiers (feuille de mission) : il ne paie pas à l'atterrissage.
     var Fraudeur:logic = false
     # Contrôle des papiers : 0 pas encore, 1 VALID (il entre), 2 REFUSE (il repart)
@@ -349,9 +351,11 @@ passagers := class(creative_device):
     UnPassager(Place:place_passager, Numero:int)<suspends>:void =
         Valise := if (GetRandomInt(0, 1) = 0, Valises.Length > 0) then true else if (Sacs.Length = 0) then true else false
         Liste := if (Valise?) then Valises else Sacs
-        if (Modele := Modeles[GetRandomInt(0, Modeles.Length - 1)], Sac := Liste[GetRandomInt(0, Liste.Length - 1)]):
+        IM := GetRandomInt(0, Modeles.Length - 1)
+        if (Modele := Modeles[IM], Sac := Liste[GetRandomInt(0, Liste.Length - 1)]):
             P := passager{Modele := Modele, Valise := Valise, Sac := Sac}
             set P.NumeroPlace = Numero
+            set P.IndexModele = IM
             Debut := for (R : Chemin) { R.GetTransform().Translation }
             Route := Debut + array{Place.Allee.GetTransform().Translation}
             set P.LongDehors = LongueurRoute(Debut)

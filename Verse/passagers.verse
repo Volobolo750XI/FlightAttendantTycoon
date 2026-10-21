@@ -82,7 +82,7 @@ exemples := class<concrete>:
     @editable RepereCoffre:?creative_prop = false
 
 # Un passager en cours d'embarquement.
-passager := class:
+passager := class<unique>:
     Modele:modele_passager
     Valise:logic
     Sac:bagage

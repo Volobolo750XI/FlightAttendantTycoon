@@ -33,6 +33,11 @@ chariot_device := class(creative_device):
     @editable RotationModele:float = 90.0
     # Temps de chaque petit mouvement (s).
     @editable Douceur:float = 0.1
+    # Ralentit le joueur quand il pousse le chariot (2 Selecteurs de classe) :
+    #   ClasseLente   : passe a la classe lente (Multiplicateur de deplacement bas)
+    #   ClasseNormale : redonne la classe normale
+    @editable ClasseLente:?class_and_team_selector_device = false
+    @editable ClasseNormale:?class_and_team_selector_device = false
     # (facultatif) un prop plat invisible pose SUR le dessus du chariot : c'est la zone
     # ou l'on pose les assiettes / boissons (le service_device s'en sert). Il suit le chariot.
     @editable Plateau:?creative_prop = false
@@ -72,9 +77,11 @@ chariot_device := class(creative_device):
     Prendre(Joueur:agent):void =
         set Porteur = option{Joueur}
         set Numero += 1
+        if (S := ClasseLente?) { S.ChangeClass(Joueur) }
         spawn{Suivre(Joueur, Numero)}
 
     Lacher():void =
+        if (J := Porteur?, S := ClasseNormale?) { S.ChangeClass(J) }
         set Porteur = false
         set Numero += 1
         PlacerBouton(Chariot.GetTransform())

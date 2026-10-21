@@ -16,20 +16,21 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   - quand quelqu'un commande, ses voisins ont plus de chances de commander aussi ;
 #   - il ne demande que ce qui est debloque, et surtout ce qui est en stock.
 #
-# Au-dessus du passager : la BULLE (materiau = le produit demande). Elle n'apparait QUE quand
-# il commande, suit le passager et se tourne vers le joueur le plus proche.
-# Patience invisible : s'il attend trop longtemps, il part fache.
+# Au-dessus du passager qui commande : une FLECHE jaune qui flotte et tourne (Fleches). Si
+# FlecheAvecChariot est coche, on ne la voit que quand on tient le chariot. (Sans fleches, ce
+# sont les anciennes bulles.) Patience invisible : s'il attend trop longtemps, il part fache.
 #
-# Servir : tu vises le passager (ou sa bulle) avec le bon objet en main et tu appuies sur la
-# TOUCHE du galley (InputPoser du service_device).
-#   boisson (eau, soda, cafe) : la bouteille / canette / tasse en main ;
-#   plat : l'ASSIETTE avec le plat dessus.
+# Servir : on amene le chariot a cote du passager, on le vise, TOUCHE de la feuille de mission
+# -> on est fige face a lui, sa commande s'affiche dans une bulle sur l'ecran, et on clique le
+# bon produit parmi ce qu'il y a sur le chariot (feuille_mission + service_device).
+# (Ancienne facon, toujours possible : viser le passager avec le bon objet en main + TOUCHE du galley.)
 # Paiement = prix d'une unite x Marge x multiplicateur de la destination x bonus de rapidite
 #   (servi vite x1.5, normal x1, tard x0.5). Trop tard : il part fache, 0 $.
 #
 # Dans l'editeur :
 #   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
-#   Bulles            : tes bulles POSEES dans la map (ex : 6 copies, n'importe ou, cachees au debut).
+#   Fleches           : des Fleche.glb POSEES dans la map (ex : 6 copies, n'importe ou, cachees au debut).
+#   Bulles            : (ancien) des bulles posees dans la map, si tu n'as pas de fleches.
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
 #   SonCommande / SonServi / SonErreur / SonFache : (facultatif) Lecteurs audio.
@@ -69,6 +70,12 @@ demandes_device := class(creative_device):
     @editable EchelleBulle:float = 0.4
     # Si la bulle ne fait pas face au joueur, essaie 90, -90 ou 180
     @editable RotationBulle:float = 0.0
+    # LES FLECHES (Fleche.glb, pointe en bas) : hauteur de la pointe au-dessus du pivot du passager
+    # assis (cm), taille, et si elles ne se voient que quand on tient le chariot.
+    @editable Fleches:[]creative_prop = array{}
+    @editable HauteurFleche:float = 230.0
+    @editable EchelleFleche:float = 1.0
+    @editable FlecheAvecChariot:logic = true
 
     @editable SonCommande:?audio_player_device = false
     @editable SonServi:?audio_player_device = false
@@ -110,7 +117,7 @@ demandes_device := class(creative_device):
     var DernierePosition:?vector3 = false
 
     OnBegin<override>()<suspends>:void =
-        for (I -> B : Bulles) { Ranger(I) }
+        for (I -> B : Marqueurs()) { Ranger(I) }
         loop:
             Sleep(0.1)
             if (Actif?, EnVol[]):
@@ -220,15 +227,19 @@ demandes_device := class(creative_device):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
             # une bulle libre
             var Libre:int = -1
-            for (I -> B : Bulles, Libre < 0, not Occupe[I]) { set Libre = I }
+            for (I -> B : Marqueurs(), Libre < 0, not Occupe[I]) { set Libre = I }
             if (Libre < 0) { return }
-            if (B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
+            if (Fleches.Length = 0, B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
             D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
             set Actives += array{D}
-            Placer(D)
-            if (B := Bulles[Libre]) { B.Show() }
+            if (Fleches.Length > 0):
+                spawn{AnimerFleche(D)}
+            else:
+                Placer(D)
+                if (B := Bulles[Libre]) { B.Show() }
             if (S := SonCommande?) { S.Play() }
+            Message("A passenger is calling! Bring the trolley.")
 
     Uniforme(E:float)<transacts>:vector3 = vector3{X := E, Y := E, Z := E}
 
@@ -242,9 +253,10 @@ demandes_device := class(creative_device):
             else:
                 Placer(D)
 
-    # Bulle au-dessus du passager, tournee vers le joueur le plus proche .
+    # Bulle au-dessus du passager, tournee vers le joueur le plus proche (les fleches s'animent
+    # toutes seules, voir AnimerFleche).
     Placer(D:demande):void =
-        if (C := D.Passager.Corps?):
+        if (Fleches.Length = 0, C := D.Passager.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
             var Vers:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
             var Meilleure:float = 100000.0
@@ -263,7 +275,8 @@ demandes_device := class(creative_device):
 
     # cachee et envoyee sous la carte
     Ranger(I:int):void =
-        if (B := Bulles[I]):
+        Liste := Marqueurs()
+        if (B := Liste[I]):
             B.Hide()
             if (B.TeleportTo[vector3{Z := -5000.0}, IdentityRotation()]) {}
 
@@ -271,6 +284,58 @@ demandes_device := class(creative_device):
         var Oui:logic = false
         for (D : Actives, D.Emplacement = I) { set Oui = true }
         Oui?
+
+    # Les fleches si on en a, sinon les anciennes bulles.
+    Marqueurs()<transacts>:[]creative_prop = if (Fleches.Length > 0) then Fleches else Bulles
+
+    # La fleche flotte (haut / bas) et tourne au-dessus du passager tant qu'il attend.
+    AnimerFleche(D:demande)<suspends>:void =
+        var Visible:logic = false
+        loop:
+            if (not EstActive[D]) { break }
+            if (B := Fleches[D.Emplacement], C := D.Passager.Corps?):
+                Temps := GetSimulationElapsedTime()
+                Pointe := C.GetTransform().Translation + vector3{Z := HauteurFleche + 12.0 * Sin(Temps * 4.0)}
+                Cible := transform:
+                    Translation := Pointe
+                    Rotation := MakeRotationFromYawPitchRollDegrees(Temps * 120.0, 0.0, 0.0)
+                    Scale := vector3{X := EchelleFleche, Y := EchelleFleche, Z := EchelleFleche}
+                Voir := if (not FlecheAvecChariot? or ChariotEnMain[]) then true else false
+                if (Voir?):
+                    if (not Visible?):
+                        # elle apparait directement au-dessus du passager
+                        if (B.TeleportTo[Cible]) {}
+                        B.Show()
+                        set Visible = true
+                else if (Visible?):
+                    B.Hide()
+                    set Visible = false
+                B.MoveTo(Cible, 0.05)
+            else:
+                Sleep(0.1)
+
+    EstActive(D:demande)<transacts><decides>:void =
+        var Oui:logic = false
+        for (X : Actives, X = D) { set Oui = true }
+        Oui?
+
+    # Quelqu'un tient un chariot du galley ?
+    ChariotEnMain()<transacts><decides>:void =
+        S := Service?
+        var Oui:logic = false
+        for (Ch : S.Chariots, Ch.Porteur?) { set Oui = true }
+        Oui?
+
+    # La commande en cours d'un passager (false s'il n'a rien demande).
+    DemandeDe(P:passager)<transacts>:?demande =
+        for (D : Actives, D.Passager = P):
+            return option{D}
+        false
+
+    # Mauvais produit choisi (appele par la feuille de mission).
+    MauvaisProduit():void =
+        if (S := SonErreur?) { S.Play() }
+        Message("Wrong order!")
 
     Retirer(D:demande):void =
         Effacer(D)

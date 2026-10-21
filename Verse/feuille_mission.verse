@@ -19,6 +19,11 @@ using { /UnrealEngine.com/Temporary/UI }
 #   EN VOL
 #     - servir N passagers (leurs commandes, device demandes)
 #
+# SERVIR : une flèche flotte au-dessus d'un passager qui commande. On amène le chariot à côté
+# (chargé au galley), on le vise : "[E] TAKE ORDER". La touche -> on est figé face à lui, sa
+# commande s'affiche dans une bulle sur l'écran (l'icône du produit), et en dessous ce qu'il y a
+# sur le chariot : on clique le bon produit. Bon = servi et payé ; mauvais = "Wrong order!".
+#
 # LES PAPIERS : quand on vise un passager, "[F] CHECK PASSPORT & TICKET" s'affiche. La touche
 # ouvre ses papiers en gros : son vrai visage à gauche, son billet au milieu, son passeport à
 # droite, et en haut la date du jour + le vol en cours. Il faut vérifier que tout correspond, puis
@@ -89,6 +94,8 @@ feuille_mission := class(creative_device):
     @editable DevicePC:?pc_destinations = false
     # Le device des commandes des passagers (mission "servir").
     @editable Demandes:?demandes_device = false
+    # Le galley (service_device) : le chariot et ce qu'il y a dessus (pour servir).
+    @editable Service:?service_device = false
     # Un Appareil Bouton posé sur la feuille accrochée au mur (texte "Read").
     @editable BoutonFeuille:button_device = button_device{}
     # Un Déclencheur d'entrée : la touche pour regarder les papiers du passager visé,
@@ -177,6 +184,11 @@ feuille_mission := class(creative_device):
     var Base:?canvas = false
     var Dynamiques:[]widget = array{}
     var BilletOuvert:?billet_passager = false
+    # L'écran de service (page 3) : la commande, le chariot utilisé, et si le joueur est figé.
+    var CommandeOuverte:?demande = false
+    var ChariotOuvert:int = -1
+    var Fige:logic = false
+    var MessageService:string = ""
 
     OnBegin<override>()<suspends>:void =
         BoutonFeuille.InteractedWithEvent.Subscribe(OnFeuille)
@@ -306,13 +318,59 @@ feuille_mission := class(creative_device):
     # ---------- les papiers (passeport + billet) ----------
     # Viser un passager + la touche -> ses papiers en gros. Marche à la porte (le passager attend
     # devant le poste de contrôle) comme une fois assis.
+    # La touche : selon le passager visé, ses papiers (pas encore assis, pas encore contrôlé) ou
+    # sa commande (il a une flèche au-dessus de la tête, et le chariot est à côté).
     OnBillet(Agent:agent):void =
         Vise := PassagerVise(Agent)
         if (Page = 0, EstProprio[Agent], P := Vise?, J := player[Agent]):
-            B := BilletDe(P)
-            Ouvrir(J, 2)
-            set BilletOuvert = option{B}
-            Afficher()
+            if (AControler[P]):
+                B := BilletDe(P)
+                Ouvrir(J, 2)
+                set BilletOuvert = option{B}
+                Afficher()
+            else if (Dem := Demandes?, D := Dem.DemandeDe(P)?):
+                Chariot := ChariotPour(Agent)
+                if (I := Chariot?):
+                    OuvrirService(J, D, I)
+                else:
+                    Erreur("Bring the trolley to serve this passenger!")
+
+    # Les papiers ne se contrôlent qu'avant d'être assis, et une seule fois.
+    AControler(P:passager)<transacts><decides>:void =
+        P.Etat <> 2
+        P.Controle = 0
+
+    ChariotPour(Agent:agent):?int =
+        if (S := Service?) then S.ChariotDe(Agent) else false
+
+    # ---------- l'écran de service ----------
+    # Le joueur est figé face au passager, sa commande s'affiche dans une bulle.
+    OuvrirService(J:player, D:demande, I:int):void =
+        Ouvrir(J, 3)
+        set CommandeOuverte = option{D}
+        set ChariotOuvert = I
+        set MessageService = ""
+        if (FC := J.GetFortCharacter[], C := D.Passager.Corps?):
+            Pos := FC.GetTransform().Translation
+            Vers := C.GetTransform().Translation - Pos
+            Lacet := RadiansToDegrees(ArcTan(Vers.Y, Vers.X))
+            if (FC.TeleportTo[Pos, MakeRotationFromYawPitchRollDegrees(Lacet, 0.0, 0.0)]) {}
+            FC.PutInStasis(stasis_args{AllowTurning := false, AllowFalling := false, AllowEmotes := false})
+            set Fige = true
+        Afficher()
+
+    # Clic sur un produit du chariot.
+    ServirProduit(Produit:int):void =
+        if (D := CommandeOuverte?, Dem := Demandes?, S := Service?):
+            if (Produit = D.Choix):
+                Retire := S.RetirerDuChariot(ChariotOuvert, Produit)
+                if (Retire?):
+                    Dem.Payer(D)
+                    Fermer()
+            else:
+                Dem.MauvaisProduit()
+                set MessageService = "Wrong order! Look at the bubble."
+                Afficher()
 
     ABillet(P:passager)<transacts><decides>:void =
         var Oui:logic = false
@@ -509,8 +567,8 @@ feuille_mission := class(creative_device):
         for (T : Taches, T.Genre = 1, not T.Fait?, not T.Rate?):
             set T.Compte += 1
 
-    # Le passager que le joueur vise (son corps), à portée. Si plusieurs sont dans la visée
-    # (une file d'attente), c'est le PLUS PROCHE du joueur qui compte (celui de devant).
+    # Le passager que le joueur vise : n'importe où sur son corps (des pieds à la tête), à portée.
+    # Si plusieurs sont dans la visée (une file d'attente), c'est le PLUS PROCHE qui compte.
     PassagerVise(Agent:agent):?passager =
         var Vise:?passager = false
         if (FC := Agent.GetFortCharacter[]):
@@ -518,13 +576,15 @@ feuille_mission := class(creative_device):
             Avant := FC.GetViewRotation().RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
             var PlusProche:float = PorteeVisee
             for (P : Passagers.EnCours, P.Controle <> 2, C := P.Corps?):
-                Pos := C.GetTransform().Translation + vector3{Z := 60.0}
-                D := Pos - CamPos
-                T := D.X * Avant.X + D.Y * Avant.Y + D.Z * Avant.Z
-                Ecart := Distance(CamPos + Avant * T, Pos)
-                if (T > 0.0, T < PlusProche, Ecart < RayonVisee):
-                    set PlusProche = T
-                    set Vise = option{P}
+                Pieds := C.GetTransform().Translation
+                for (Hauteur : array{20.0, 60.0, 100.0, 140.0, 180.0, 210.0}):
+                    Pos := Pieds + vector3{Z := Hauteur}
+                    D := Pos - CamPos
+                    T := D.X * Avant.X + D.Y * Avant.Y + D.Z * Avant.Z
+                    Ecart := Distance(CamPos + Avant * T, Pos)
+                    if (T > 0.0, T < PlusProche, Ecart < RayonVisee):
+                        set PlusProche = T
+                        set Vise = option{P}
         Vise
 
     # ----- le message quand on vise un passager -----
@@ -535,12 +595,23 @@ feuille_mission := class(creative_device):
                 if (not Invite?) { CreerInvite(J) }
                 var Vise:?passager = false
                 if (Page = 0) { set Vise = PassagerVise(Proprio) }
+                # ce qu'on peut faire avec le passager visé
+                var Texte:string = ""
+                ChariotDispo := ChariotPour(Proprio)
                 if (P := Vise?):
-                    Texte := if (DejaControle[P]) then "DOCUMENTS CHECKED" else "[{NomTouche}]  CHECK PASSPORT & TICKET"
+                    if (AControler[P]):
+                        set Texte = "[{NomTouche}]  CHECK PASSPORT & TICKET"
+                    else if (Dem := Demandes?, Dem.DemandeDe(P)?):
+                        set Texte = if (ChariotDispo?) then "[{NomTouche}]  TAKE ORDER" else "BRING THE TROLLEY"
+                if (Texte <> ""):
                     TexteInvite.SetText(Msg(Texte))
                     TexteInvite.SetVisibility(widget_visibility.Visible)
                 else:
                     TexteInvite.SetVisibility(widget_visibility.Collapsed)
+                    set Vise = false
+                # écran de service ouvert mais la commande n'existe plus (il est parti) : on ferme
+                if (Page = 3, D := CommandeOuverte?, Dem := Demandes?, not Dem.DemandeDe(D.Passager)?):
+                    Fermer()
                 # le point au milieu : mi-transparent, tout blanc quand on vise quelque chose
                 # d'utile (un passager, la feuille du mur)
                 PosFeuille := BoutonFeuille.GetTransform().Translation
@@ -719,11 +790,17 @@ feuille_mission := class(creative_device):
         set Dynamiques = array{}
         set Page = 0
         set BilletOuvert = false
+        set CommandeOuverte = false
+        if (Fige?, J := Joueur?, FC := J.GetFortCharacter[]):
+            FC.ReleaseFromStasis()
+        set Fige = false
 
-    # 1 VALID, 2 REFUSE, 3 fermer le billet, 10 fermer la feuille
+    # 1 VALID, 2 REFUSE, 3 fermer le billet, 10 fermer la feuille, 100 + produit : servir
     Agir(Action:int):void =
         if (Action = 1 or Action = 2):
             Decider(Action)
+        else if (Action >= 100):
+            ServirProduit(Action - 100)
         else:
             Fermer()
 
@@ -742,7 +819,7 @@ feuille_mission := class(creative_device):
                 set Base = option{Nouveau}
                 set Toile = Nouveau
             for (W : Dynamiques) { Toile.RemoveWidget(W) }
-            Slots := if (Page = 1) then PageFeuille() else if (B := BilletOuvert?) then PageBillet(B) else array{}
+            Slots := if (Page = 1) then PageFeuille() else if (Page = 3) then PageService() else if (B := BilletOuvert?) then PageBillet(B) else array{}
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
 
@@ -825,6 +902,59 @@ feuille_mission := class(creative_device):
 
     TexteTache(T:tache_feuille):string =
         if (T.Genre = 1) then "Check papers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (T.Genre = 2) then "Serve passengers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (Texte := TextesTaches[T.Genre]) then Texte else "?"
+
+    # ---------- l'écran de service ----------
+    # En haut à droite : la bulle du passager avec l'icône de ce qu'il veut. En bas : ce qu'il y a
+    # sur le chariot, une carte par produit (icône + nombre) ; on clique celle qu'il demande.
+    PageService():[]canvas_slot =
+        var S:[]canvas_slot = array{}
+        if (D := CommandeOuverte?, Dem := Demandes?, M := Dem.Menu?, Prod := M.ListeProduits[D.Choix]):
+            # la bulle : bord sombre, fond blanc, petite queue en escalier vers le passager
+            set S += array{Bloc(Rect("1E293B"), 1046.0, 96.0, 468.0, 348.0, 1)}
+            set S += array{Bloc(Rect("FFFFFF"), 1052.0, 102.0, 456.0, 336.0, 2)}
+            set S += array{Bloc(Rect("1E293B"), 1086.0, 438.0, 72.0, 40.0, 1)}
+            set S += array{Bloc(Rect("FFFFFF"), 1092.0, 432.0, 60.0, 40.0, 2)}
+            set S += array{Bloc(Rect("1E293B"), 1062.0, 472.0, 50.0, 34.0, 1)}
+            set S += array{Bloc(Rect("FFFFFF"), 1068.0, 466.0, 38.0, 34.0, 2)}
+            set S += array{Bloc(Ecrit("I'D LIKE...", "64748B", text_justification.Center), 1052.0, 112.0, 456.0, 40.0, 3)}
+            set S += array{Bloc(Vignette(Prod.Image, 210.0, 210.0), 1175.0, 160.0, 210.0, 210.0, 3)}
+            set S += array{Bloc(Ecrit(Prod.Nom, "111827", text_justification.Center), 1052.0, 380.0, 456.0, 44.0, 3)}
+            # le chariot : un bandeau en bas, une carte par produit (icône, nom, pastille du nombre)
+            Contenu := if (Sv := Service?) then Sv.ContenuChariot(ChariotOuvert) else array{}
+            Presents := for (K -> N : Contenu, N > 0) { K }
+            # le bandeau s'élargit s'il y a beaucoup de produits (8 au maximum)
+            Largeur := 210.0
+            Ecart := 16.0
+            LargeurCartes := Presents.Length * Largeur + Max(0, Presents.Length - 1) * Ecart
+            Bandeau := Max(1400.0, LargeurCartes + 60.0)
+            set S += array{Bloc(Rect("0F172A"), 960.0 - Bandeau / 2.0, 770.0, Bandeau, 280.0, 1)}
+            set S += array{Bloc(Ecrit("YOUR TROLLEY  -  CLICK WHAT THE PASSENGER WANTS", "FBBF24", text_justification.Center), 260.0, 780.0, 1400.0, 44.0, 3)}
+            if (Presents.Length = 0):
+                set S += array{Bloc(Ecrit("Your trolley is empty. Load it at the galley (E on the storage).", "E2E8F0", text_justification.Center), 260.0, 910.0, 1400.0, 44.0, 3)}
+            else:
+                # cartes centrées
+                Debut := 960.0 - LargeurCartes / 2.0
+                for (N -> K : Presents, P2 := M.ListeProduits[K], Nb := Contenu[K]):
+                    X := Debut + N * (Largeur + Ecart)
+                    set S += array{Bloc(Rect("FFFFFF"), X, 836.0, Largeur, 200.0, 2)}
+                    set S += array{Bloc(Vignette(P2.Image, 120.0, 120.0), X + 24.0, 846.0, 120.0, 120.0, 3)}
+                    set S += array{Bloc(Ecrit(P2.Nom, "1E293B", text_justification.Center), X, 976.0, Largeur, 44.0, 3)}
+                    set S += array{Bloc(Rect("244A8C"), X + Largeur - 62.0, 842.0, 56.0, 40.0, 3)}
+                    set S += array{Bloc(Ecrit("x{Nb}", "FFFFFF", text_justification.Center), X + Largeur - 62.0, 842.0, 56.0, 40.0, 4)}
+                    set S += array{ZoneClic(X, 836.0, Largeur, 200.0, 100 + K)}
+            if (MessageService <> ""):
+                set S += array{Bloc(Rect("7F1D1D"), 560.0, 712.0, 800.0, 48.0, 1)}
+                set S += array{Bloc(Ecrit(MessageService, "FFFFFF", text_justification.Center), 560.0, 714.0, 800.0, 44.0, 3)}
+        set S += BoutonEcran("CLOSE", "374151", 1700.0, 20.0, 180.0, 50.0, 10)
+        S
+
+    Rect(Hex:string):color_block = color_block{DefaultColor := MakeColorFromHex(Hex), DefaultOpacity := 1.0}
+
+    # Zone cliquable invisible (au-dessus d'une carte).
+    ZoneClic(X:float, Y:float, L:float, H:float, Action:int):canvas_slot =
+        B := button_quiet{DefaultText := Msg("")}
+        B.OnClick().Subscribe(clic_feuille{Feuille := Self, Action := Action}.Clique)
+        Bloc(B, X, Y, L, H, 5)
 
     # ---------- les papiers en gros plan ----------
     # En haut le jour et le vol en cours, à gauche le billet, à droite le passeport, en dessous

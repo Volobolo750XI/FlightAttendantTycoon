@@ -50,6 +50,8 @@ chariot_device := class(creative_device):
     var Numero:int = 0
     # Objets poses sur le chariot (ils bougent avec lui)
     var Attaches:[]attache_chariot = array{}
+    # Centre du dessus du chariot, dans le repere du chariot (le Plateau s'il y en a un)
+    var CentrePlateau:?vector3 = false
 
     OnBegin<override>()<suspends>:void =
         C := Chariot.GetTransform()
@@ -58,7 +60,8 @@ chariot_device := class(creative_device):
         set BoutonRotation = C.Rotation.Invert().RotateBy(B.Rotation)
         if (P := Plateau?):
             T := P.GetTransform()
-            Attacher(P, T.Translation, T.Rotation)
+            A := Attacher(P, T.Translation, T.Rotation)
+            set CentrePlateau = option{A.RelPos}
             P.Hide()
         loop:
             Joueur := Bouton.InteractedWithEvent.Await()
@@ -92,6 +95,20 @@ chariot_device := class(creative_device):
         A := attache_chariot{Prop := P, RelPos := C.Rotation.UnrotateVector(Pos - C.Translation), RelRot := C.Rotation.Invert().RotateBy(Rot)}
         set Attaches += array{A}
         A
+
+    # Accroche un objet a une position EXACTE dans le repere du chariot (une case du plateau) et
+    # le place tout de suite : pas de decalage meme si le chariot est en train de bouger.
+    AttacherRelatif(P:creative_prop, RelPos:vector3, RelRot:rotation)<transacts>:attache_chariot =
+        A := attache_chariot{Prop := P, RelPos := RelPos, RelRot := RelRot}
+        set Attaches += array{A}
+        C := Chariot.GetTransform()
+        if (P.TeleportTo[C.Translation + C.Rotation.RotateVector(RelPos), C.Rotation.RotateBy(RelRot)]) {}
+        A
+
+    # Remet un objet accroche exactement a sa place sur le chariot.
+    Replacer(A:attache_chariot)<transacts>:void =
+        C := Chariot.GetTransform()
+        if (A.Prop.TeleportTo[C.Translation + C.Rotation.RotateVector(A.RelPos), C.Rotation.RotateBy(A.RelRot)]) {}
 
     Detacher(A:attache_chariot):void =
         set Attaches = for (X : Attaches, X <> A) { X }

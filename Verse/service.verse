@@ -6,10 +6,16 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 
 # Flight Attendant Tycoon - le galley : prendre, porter, poser (comme la pizzeria).
 #
+#   CHARIOT : E sur un stockage avec le chariot en main (ou a moins de DistanceChargement cm) ->
+#   le produit se range TOUT SEUL dans la case libre suivante du plateau du chariot (les plats
+#   sur une assiette). TOUCHE en tenant un produit, chariot a cote -> il va aussi dans une case.
+#   Pour servir : le chariot a cote d'un passager qui commande, on le vise, TOUCHE de la feuille
+#   (feuille_mission) -> on choisit le produit du chariot sur l'ecran.
+#
 #   E sur un stockage (son bouton)  -> le produit apparait EN MAIN (1ere personne, a droite).
 #   E sur la pile d'assiettes      -> une assiette en main.
 #   TOUCHE (InputPoser) en tenant quelque chose :
-#       - assiette / boisson (eau, soda, cafe) : se pose sur un plan de travail ou sur le chariot,
+#       - assiette / boisson (eau, soda, cafe) : se pose sur un plan de travail,
 #         la ou est l'hologramme ;
 #       - plat (croissant, sandwich, burger, homard, caviar) : se pose UNIQUEMENT sur une
 #         assiette vide (l'hologramme apparait sur l'assiette visee).
@@ -29,7 +35,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   ModeleAssiette   : le modele de l'assiette ; BoutonAssiettes : le bouton sur la pile.
 #   InputPoser       : un Declencheur d'entree (la touche pour poser / reprendre).
 #   Planches         : des props plats (invisibles en jeu) sur les plans de travail du galley.
-#   Chariots         : tes chariot_device (avec leur Plateau rempli).
+#   Chariots         : tes chariot_device (avec leur Plateau rempli : le centre du dessus du chariot).
 #   MateriauEau      : ton materiau pour la bouteille d'eau.
 #   MateriauHologramme : le materiau de l'hologramme.
 
@@ -49,6 +55,8 @@ objet_service := class<unique>:
     # accroche au chariot (si pose dessus)
     var Attache:?attache_chariot = false
     var ChariotIndex:int = -1
+    # la case du plateau du chariot (-1 = pas sur un chariot)
+    var Casier:int = -1
 
 cible_pose := struct:
     Position:vector3
@@ -90,6 +98,15 @@ service_device := class(creative_device):
     @editable MateriauHologramme:?material = false
     @editable NombreSlotsHolo:int = 2
 
+    # ===== Le chariot =====
+    # Distance (cm) du chariot pour y charger un produit sans le tenir.
+    @editable DistanceChargement:float = 350.0
+    # Les cases du plateau : colonnes x rangees, espacees de EcartChariot cm, centrees sur le Plateau.
+    @editable ColonnesChariot:int = 3
+    @editable RangeesChariot:int = 2
+    @editable EcartChariot:float = 20.0
+    # Sans Plateau sur le chariot : hauteur du dessus du chariot au-dessus de son pivot (cm).
+    @editable HauteurChariot:float = 100.0
     # ===== Zone de pose (comme la pizzeria) =====
     # Taille du mesh de la planche a l'echelle 1 (cm) : vraie taille = TailleBase x Echelle du prop
     @editable TailleBasePlancheX:float = 100.0
@@ -179,7 +196,12 @@ service_device := class(creative_device):
 
     # ---------- prendre ----------
     ClicStockage(Agent:agent, Index:int):void =
-        if (P := player[Agent], MainsLibres[P], PeutAgir[P]):
+        ChariotProche := ChariotDe(Agent)
+        if (P := player[Agent], PeutAgir[P], I := ChariotProche?, Index >= 0, MainsLibres[P]):
+            # chariot a cote : le produit va directement dans une case du plateau
+            Marquer(P)
+            ChargerChariot(I, Index)
+        else if (P := player[Agent], MainsLibres[P], PeutAgir[P]):
             if (Index < 0):
                 Marquer(P)
                 CreerEnMain(P, -1)
@@ -277,9 +299,8 @@ service_device := class(creative_device):
     PointVise(CamPos:vector3, Avant:vector3)<transacts>:?point_planche =
         var Meilleur:?point_planche = false
         var MeilleurT:float = PorteeMax
-        var Surfaces:[]tuple(creative_prop, int) = for (Pl : Planches) { (Pl, -1) }
-        for (I -> Ch : Chariots, Pl := Ch.Plateau?):
-            set Surfaces += array{(Pl, I)}
+        # (le chariot n'est plus une surface : on y range dans des cases, voir ChargerChariot)
+        Surfaces:[]tuple(creative_prop, int) = for (Pl : Planches) { (Pl, -1) }
         for (S : Surfaces):
             Tr := S(0).GetTransform()
             H := Tr.Rotation.RotateVector(Haut())
@@ -350,8 +371,14 @@ service_device := class(creative_device):
 
     # ---------- touche ----------
     OnTouche(Agent:agent):void =
+        ChariotProche := ChariotDe(Agent)
         if (P := player[Agent], PeutAgir[P]):
-            if (T := EnMain[P]?):
+            if (T := EnMain[P]?, I := ChariotProche?, RangerSurChariot[I, T.Objet]):
+                Marquer(P)
+                if (set EnMain[P] = false) {}
+                # le dernier mouvement "en main" peut encore tourner : on le recale apres
+                spawn{RecalerSurChariot(T.Objet)}
+            else if (T := EnMain[P]?):
                 # on vise un passager qui attend ? -> on le sert, sinon on pose
                 O := T.Objet
                 DessusIndex := if (D := O.Dessus?) then D.Index else -99
@@ -412,3 +439,138 @@ service_device := class(creative_device):
                 Decrocher(O)
                 if (D := O.Dessus?) { Decrocher(D) }
                 MettreEnMain(P, O)
+
+    # ---------- le chariot : des cases fixes sur le plateau ----------
+    # Le chariot tenu par ce joueur, sinon le plus proche a moins de DistanceChargement cm.
+    ChariotDe(Agent:agent):?int =
+        var Meilleur:?int = false
+        var Dist:float = DistanceChargement
+        if (FC := Agent.GetFortCharacter[]):
+            Pos := FC.GetTransform().Translation
+            for (I -> Ch : Chariots):
+                if (Porteur := Ch.Porteur?, Porteur = Agent):
+                    return option{I}
+                D := Distance(Ch.Chariot.GetTransform().Translation, Pos)
+                if (D < Dist):
+                    set Dist = D
+                    set Meilleur = option{I}
+        Meilleur
+
+    NombreCases()<transacts>:int = Max(1, ColonnesChariot) * Max(1, RangeesChariot)
+
+    CaseOccupee(I:int, Casier:int)<transacts><decides>:void =
+        var Oui:logic = false
+        for (O : Poses, O.ChariotIndex = I, O.Casier = Casier) { set Oui = true }
+        Oui?
+
+    CaseLibre(I:int)<transacts>:?int =
+        for (C := 0..NombreCases() - 1, not CaseOccupee[I, C]):
+            return option{C}
+        false
+
+    # Position d'une case dans le repere du chariot (centre du plateau + decalage de la case).
+    PositionCase(Ch:chariot_device, Casier:int)<transacts>:vector3 =
+        Centre := if (C := Ch.CentrePlateau?) then C + vector3{Z := HauteurSurfacePlanche} else vector3{Z := HauteurChariot}
+        Col := if (C := Mod[Casier, Max(1, ColonnesChariot)]) then C else 0
+        Rang := if (R := Quotient[Casier, Max(1, ColonnesChariot)]) then R else 0
+        DX := (Col * 1.0 - (Max(1, ColonnesChariot) - 1) * 0.5) * EcartChariot
+        DY := (Rang * 1.0 - (Max(1, RangeesChariot) - 1) * 0.5) * EcartChariot
+        Centre + vector3{X := DX, Y := DY, Z := 0.0}
+
+    # Cree un objet (produit ou assiette) a sa taille, cache sous la carte le temps de l'accrocher.
+    CreerObjet(Index:int):?objet_service =
+        Loin := vector3{Z := -5000.0}
+        Resultat := SpawnProp(Modele(Index), transform{Translation := Loin, Rotation := IdentityRotation(), Scale := Echelle(Index)})
+        if (Prop := Resultat(0)?):
+            Placer(Prop, Index, Loin, IdentityRotation())
+            if (Index = 0, Mat := MateriauEau?) { Prop.SetMaterial(Mat) }
+            option{objet_service{Index := Index, Prop := Prop}}
+        else:
+            false
+
+    # Accroche un objet dans une case du chariot (hauteur en plus pour un plat sur son assiette).
+    MettreDansCase(O:objet_service, I:int, Casier:int, Hauteur:float):void =
+        if (Ch := Chariots[I]):
+            Rel := PositionCase(Ch, Casier) + vector3{Z := Hauteur}
+            Rot := MakeRotationFromYawPitchRollDegrees(if (O.Index >= 0) then RotationProduit(O.Index) else 0.0, 0.0, 0.0)
+            set O.Attache = option{Ch.AttacherRelatif(O.Prop, Rel, Rot)}
+            set O.ChariotIndex = I
+
+    # E sur un stockage, chariot a cote : un produit du stock va dans la case libre suivante.
+    ChargerChariot(I:int, Index:int):void =
+        if (Casier := CaseLibre(I)?):
+            if (M := Menu?, M.RetirerUn[Index]):
+                Cree := CreerObjet(Index)
+                if (Produit := Cree?):
+                    Ranger(Produit, I, Casier)
+            else:
+                Annoncer("Out of stock! Buy more on the PC.")
+        else:
+            Annoncer("Your trolley is full!")
+
+    # Range un objet dans une case : un plat va sur une assiette neuve (s'il y a un modele d'assiette).
+    Ranger(O:objet_service, I:int, Casier:int):void =
+        var SurAssiette:logic = false
+        if (O.Index >= 0, EstPlat[O.Index]):
+            Cree := CreerObjet(-1)
+            if (Assiette := Cree?):
+                set Assiette.Dessus = option{O}
+                set Assiette.Casier = Casier
+                set Poses += array{Assiette}
+                MettreDansCase(Assiette, I, Casier, 0.0)
+                MettreDansCase(O, I, Casier, HauteurAssiette + DecalagePose(O.Index))
+                set SurAssiette = true
+        if (not SurAssiette?):
+            set O.Casier = Casier
+            set Poses += array{O}
+            MettreDansCase(O, I, Casier, if (O.Index >= 0) then DecalagePose(O.Index) else 0.0)
+
+    # TOUCHE avec un objet en main et le chariot a cote : il va dans une case (produit, ou
+    # assiette garnie). Une assiette vide reste en main (false).
+    RangerSurChariot(I:int, O:objet_service)<transacts><decides>:void =
+        ProduitDe(O) >= 0
+        Casier := CaseLibre(I)?
+        set O.Casier = Casier
+        set Poses += array{O}
+        MettreDansCaseSur(O, I, Casier)
+
+    MettreDansCaseSur(O:objet_service, I:int, Casier:int)<transacts>:void =
+        if (Ch := Chariots[I]):
+            Base := PositionCase(Ch, Casier)
+            Rot := MakeRotationFromYawPitchRollDegrees(if (O.Index >= 0) then RotationProduit(O.Index) else 0.0, 0.0, 0.0)
+            Monte := if (O.Index >= 0) then DecalagePose(O.Index) else 0.0
+            set O.Attache = option{Ch.AttacherRelatif(O.Prop, Base + vector3{Z := Monte}, Rot)}
+            set O.ChariotIndex = I
+            if (D := O.Dessus?):
+                RotD := MakeRotationFromYawPitchRollDegrees(RotationProduit(D.Index), 0.0, 0.0)
+                set D.Attache = option{Ch.AttacherRelatif(D.Prop, Base + vector3{Z := HauteurAssiette + DecalagePose(D.Index)}, RotD)}
+                set D.ChariotIndex = I
+
+    # Combien de chaque produit (0..7) il y a sur le chariot I.
+    ContenuChariot(I:int)<transacts>:[]int =
+        for (K := 0..7):
+            Les := for (O : Poses, O.ChariotIndex = I, ProduitDe(O) = K) { O }
+            Les.Length
+
+    # Le produit d'un objet : lui-meme, ou le plat sur l'assiette (-1 = assiette vide).
+    ProduitDe(O:objet_service)<transacts>:int =
+        if (O.Index >= 0) then O.Index else if (D := O.Dessus?) then D.Index else -1
+
+    # Sert un produit : il est retire du chariot (avec son assiette). false s'il n'y en a pas.
+    RetirerDuChariot(I:int, Produit:int):logic =
+        for (O : Poses, O.ChariotIndex = I, ProduitDe(O) = Produit):
+            set Poses = for (X : Poses, X <> O) { X }
+            Decrocher(O)
+            if (D := O.Dessus?) { Decrocher(D) }
+            Detruire(O)
+            return true
+        false
+
+    RecalerSurChariot(O:objet_service)<suspends>:void =
+        Sleep(DureeLissage + 0.05)
+        if (Ch := Chariots[O.ChariotIndex]):
+            if (A := O.Attache?) { Ch.Replacer(A) }
+            if (D := O.Dessus?, AD := D.Attache?) { Ch.Replacer(AD) }
+
+    Annoncer(Texte:string):void =
+        if (D := Demandes?) then D.Message(Texte) else Print(Texte)

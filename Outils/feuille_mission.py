@@ -2,9 +2,11 @@
 
 Sortie (Textures/FeuilleMission) :
   FondFeuille.png   la feuille en gros plan (presse-papier), 1640 x 2000 -> 820 x 1000 a l'ecran
-  Billet.png        le billet d'embarquement (sans les valeurs : le Verse les ecrit), 1800 x 720
-                    -> 1200 x 480 a l'ecran. Les positions des valeurs sont dans BILLET plus bas
-                    (les memes que dans feuille_mission.verse).
+  Billet.png        le billet d'embarquement VIDE (le Verse ecrit les valeurs), 1800 x 720
+                    -> 900 x 360 a l'ecran. Positions des valeurs : BILLET plus bas.
+  Passeport.png     la page du passeport VIDE (le Verse ecrit les valeurs et met la photo),
+                    1260 x 1000 -> 630 x 500 a l'ecran. Positions des valeurs : PASSEPORT plus bas.
+                    (les memes positions que dans feuille_mission.verse)
   Case.png, CaseCochee.png, CaseRatee.png   les cases de la feuille
   TamponOk.png, TamponRefus.png             les tampons poses sur le billet
   Photo1.png ... Photo5.png  les photos des passagers (decoupees dans Modeles/personnages_apercu.png,
@@ -92,7 +94,7 @@ def feuille():
 BILLET = {
     "NOM": (60, 205), "DE": (60, 345), "VERS": (720, 345),
     "VOL": (60, 535), "PORTE": (320, 535), "SIEGE": (560, 535), "EMBARQ": (800, 535),
-    "PHOTO": (1050, 175, 230),  # x, y, cote
+    "DATE": (1050, 205), "SEQ": (1050, 345),
     "TALON_VOL": (1390, 205), "TALON_SIEGE": (1390, 345), "TALON_VERS": (1390, 455),
 }
 
@@ -114,17 +116,16 @@ def billet():
         d.ellipse((1323, y, 1337, y + 14), fill=(210, 214, 222, 255))
     e = police(ETIQ, 34)
     for cle, nom in [("NOM", "PASSENGER NAME"), ("DE", "FROM"), ("VERS", "TO"), ("VOL", "FLIGHT"),
-                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"),
+                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"), ("DATE", "DATE"), ("SEQ", "SEQ No."),
                      ("TALON_VOL", "FLIGHT"), ("TALON_SIEGE", "SEAT"), ("TALON_VERS", "TO")]:
         x, y = BILLET[cle][:2]
         d.text((x, y - 44), nom, font=e, fill=GRIS)
     # avion entre FROM et TO
     avion(d, 560, 380, 60, BLEU)
     d.line((440, 380, 480, 380), fill=BLEU, width=6)
-    # cadre photo
-    x, y, c = BILLET["PHOTO"]
-    d.rectangle((x - 6, y - 6, x + c + 6, y + c + 6), outline=(60, 64, 72, 255), width=4)
-    d.text((x, y + c + 14), "PHOTO ID", font=police(ETIQ, 30), fill=GRIS)
+    # petit logo de classe
+    d.rounded_rectangle((1050, 470, 1150, 570), 16, outline=BLEU, width=6)
+    centre(d, (1100, 520), "Y", police(TITRE, 60), BLEU)
     # codes-barres et symboles
     code_barre(d, 60, 620, 980, 690, 7)
     code_barre(d, 1390, 560, 1750, 690, 11)
@@ -132,6 +133,53 @@ def billet():
     d.rounded_rectangle((1010, 666, 1150, 696), 8, outline=GRIS, width=3)
     d.text((1028, 664), "CHECKED", font=police(ETIQ, 26), fill=GRIS)
     img.save(os.path.join(SORTIE, "Billet.png"))
+
+
+# ---------- le passeport ----------
+# Positions (pixels de Passeport.png) du coin haut-gauche de chaque VALEUR ecrite par le Verse.
+PASSEPORT = {
+    "PHOTO": (60, 190, 360),
+    "NOM": (470, 228), "NUMERO": (900, 228), "PRENOM": (470, 348),
+    "NATION": (470, 468), "SEXE": (900, 468), "NAISSANCE": (470, 588), "EXPIRE": (900, 588),
+    "MRZ1": (60, 800), "MRZ2": (60, 880),
+}
+
+
+def passeport():
+    W, H = 1260, 1000
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, W - 1, H - 1), 34, fill=(236, 240, 226, 255), outline=(120, 40, 50, 255), width=10)
+    # fond guilloche discret (dessine a part puis decoupe a l'interieur du cadre)
+    motif = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    dm = ImageDraw.Draw(motif)
+    for i in range(0, 60):
+        r = 40 + i * 18
+        dm.ellipse((W * 0.62 - r, H * 0.45 - r * 0.6, W * 0.62 + r, H * 0.45 + r * 0.6), outline=(214, 224, 204, 255), width=2)
+    masque = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(masque).rounded_rectangle((12, 12, W - 13, H - 13), 26, fill=255)
+    img.paste(motif, (0, 0), Image.composite(motif.getchannel("A"), Image.new("L", (W, H), 0), masque))
+    # bandeau
+    d.rounded_rectangle((0, 0, W - 1, 120), 34, fill=(120, 40, 50, 255))
+    d.rectangle((0, 70, W - 1, 120), fill=(120, 40, 50, 255))
+    d.ellipse((40, 22, 116, 98), outline=(230, 196, 120, 255), width=6)
+    avion(d, 78, 60, 26, (230, 196, 120, 255))
+    d.text((140, 26), "PASSPORT", font=police(TITRE, 60), fill=(240, 220, 170, 255))
+    d.text((560, 40), "PASSEPORT  /  PASAPORTE", font=police(ETIQ, 40), fill=(230, 196, 160, 255))
+    e = police(ETIQ, 32)
+    for cle, nom in [("NOM", "SURNAME"), ("NUMERO", "PASSPORT No."), ("PRENOM", "GIVEN NAMES"),
+                     ("NATION", "NATIONALITY"), ("SEXE", "SEX"), ("NAISSANCE", "DATE OF BIRTH"),
+                     ("EXPIRE", "DATE OF EXPIRY")]:
+        x, y = PASSEPORT[cle]
+        d.text((x, y - 42), nom, font=e, fill=(110, 116, 100, 255))
+    # cadre photo + signature
+    x, y, c = PASSEPORT["PHOTO"]
+    d.rectangle((x - 6, y - 6, x + c + 6, y + c + 6), fill=(200, 206, 192, 255), outline=(70, 74, 64, 255), width=4)
+    d.text((x, y + c + 26), "SIGNATURE", font=police(ETIQ, 28), fill=(110, 116, 100, 255))
+    d.line((x, y + c + 100, x + c, y + c + 100), fill=(110, 116, 100, 255), width=3)
+    # zone de lecture automatique (MRZ)
+    d.rectangle((30, 760, W - 30, 960), fill=(248, 250, 244, 255))
+    img.save(os.path.join(SORTIE, "Passeport.png"))
 
 
 # ---------- cases et tampons ----------
@@ -195,6 +243,7 @@ if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     t = feuille()
     billet()
+    passeport()
     cases()
     tampon("TamponOk", "VALID", (22, 150, 70, 235))
     tampon("TamponRefus", "REFUSED", (210, 34, 34, 235))

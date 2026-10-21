@@ -32,11 +32,15 @@ using { /UnrealEngine.com/Temporary/UI }
 #     - TURBULENCES : rejoindre SiegeEquipage en moins de DelaiTurbulence secondes
 #     - passager malade (photo + siège) : lui donner une bouteille d'eau (TOUCHE du galley)
 #
-# LE BILLET : viser un passager + InputBillet -> son billet d'embarquement en gros (nom, de / vers,
-# vol, porte, siège, embarquement, photo), à côté de son vrai visage et du vol en cours.
-# VALID ou REFUSE. Certains billets ont un problème (ChanceBilletFaux) : mauvaise destination,
-# mauvais numéro de vol ou la photo de quelqu'un d'autre. REFUSE sur un faux = fraudeur attrapé
-# (bonus, il quitte l'avion). REFUSE sur un vrai = plainte. VALID sur un faux = il voyage gratis.
+# LES PAPIERS : quand on vise un passager, "[F] CHECK PASSPORT & TICKET" s'affiche. La touche
+# ouvre ses papiers en gros : son vrai visage à gauche, son billet au milieu, son passeport à
+# droite, et en haut la date du jour + le vol en cours. Il faut vérifier que tout correspond, puis
+# cliquer VALID ou REFUSE (tampon). À la porte pendant l'embarquement, les passagers s'arrêtent
+# devant toi (poste de contrôle, device passagers) ; refusé, il repart par la passerelle.
+# Un "cerveau" (Fabriquer) fabrique les papiers et glisse parfois UNE erreur, de plus en plus
+# subtile avec les destinations et selon ta forme. REFUSE sur des faux = attrapé (bonus).
+# REFUSE sur des vrais = plainte. VALID sur des faux = il voyage gratis (et le cerveau s'en
+# souvient : ce type d'erreur reviendra).
 #
 # ARGENT : tout dépend de la VALEUR DU VOL (pc_destinations.ValeurVol : environ la moitié du prix
 # de la destination suivante). Au début ça rapporte un peu, avec les grosses destinations beaucoup.
@@ -44,7 +48,7 @@ using { /UnrealEngine.com/Temporary/UI }
 #   PartParfait x valeur ; billets (device passagers) = PartBillets x valeur x sièges occupés / sièges.
 #
 # Dans le Tiroir à contenu, dossier "FeuilleMission" : importe tout Textures/FeuilleMission
-# (FondFeuille, Billet, Case, CaseCochee, CaseRatee, TamponOk, TamponRefus, Photo1 ... Photo5).
+# (FondFeuille, Billet, Passeport, Case, CaseCochee, CaseRatee, TamponOk, TamponRefus, Photo1 ... Photo5).
 # Dans le device passagers, règle "Photo" de chaque modèle.
 
 point_inspection := class<concrete>:
@@ -52,16 +56,30 @@ point_inspection := class<concrete>:
     @editable Nom:string = "TOILETS"
     @editable Repere:creative_prop = creative_prop{}
 
-# Le billet d'un passager (créé la première fois qu'on le regarde).
+# Les papiers d'un passager : son billet + son passeport (fabriqués la première fois qu'on les
+# regarde, par Fabriquer dans feuille_mission).
 billet_passager := class<unique>:
     Passager:passager
-    Nom:string
-    Siege:string
-    # 0 bon ; 1 mauvaise destination ; 2 mauvais numéro de vol ; 3 photo de quelqu'un d'autre
-    Probleme:int
+    # le billet
+    NomBillet:string
     Vers:string
     Vol:string
+    DateBillet:string
+    Siege:string
+    Seq:string
+    # le passeport
+    Nom:string
+    Prenom:string
+    Pays:string
+    Sexe:string
+    Naissance:string
+    Numero:string
+    Expiration:string
     Photo:int
+    Mrz1:string
+    Mrz2:string
+    # 0 = papiers en règle, sinon l'erreur glissée dedans (voir Fabriquer)
+    Probleme:int
     # 0 pas encore décidé, 1 VALID, 2 REFUSE
     var Decision:int = 0
 
@@ -100,8 +118,10 @@ feuille_mission := class(creative_device):
     @editable Menu:?menu_pc = false
     # Un Appareil Bouton posé sur la feuille accrochée au mur (texte "Read").
     @editable BoutonFeuille:button_device = button_device{}
-    # Un Déclencheur d'entrée : la touche pour regarder le billet du passager visé.
+    # Un Déclencheur d'entrée : la touche pour regarder les papiers du passager visé,
+    # et le nom de cette touche (affiché à l'écran quand on vise un passager).
     @editable InputBillet:input_trigger_device = input_trigger_device{}
+    @editable NomTouche:string = "F"
     # (facultatif) Appareil Bouton sur le téléphone de cabine : l'annonce de bienvenue.
     @editable Interphone:?button_device = false
     @editable RepereDemo:?creative_prop = false
@@ -131,7 +151,7 @@ feuille_mission := class(creative_device):
     @editable ChanceObjetPerdu:int = 18
     @editable ChanceTurbulence:int = 15
     @editable ChanceMalade:int = 15
-    # Chance qu'un billet regardé ait un problème (en plus du faux billet de la surprise)
+    # Chance que des papiers regardés soient faux (+5 par niveau du cerveau ; en plus de la surprise)
     @editable ChanceBilletFaux:int = 10
     @editable BilletsMin:int = 2
     @editable BilletsMax:int = 4
@@ -162,12 +182,19 @@ feuille_mission := class(creative_device):
     FinsNom:[]string = array{"SSON", "OVA", "ELLI", "ANDEZ", "BERG", "OWSKI", "MANN", "IER", "AKIS", "ENKO", "AUD", "ESCU", "SEN", "OTTI", "ARD", "EIRA", "OGLU", "IC", "STEIN", "WOOD", "INI", "OS", "ANT", "EAU", "OV", "HOLM", "AZ", "ETTE", "UCCI", "ER"}
     AutresVilles:[]string = array{"PARIS", "LONDON", "TOKYO", "ROME", "DUBAI", "MIAMI", "OSLO", "LIMA", "SEOUL", "CAIRO", "SYDNEY", "MADRID"}
     Lettres:[]string = array{"A", "B", "C", "D", "E", "F", "G", "H", "J", "K"}
-    TextesTaches:[]string = array{"Close all overhead bins", "", "Greet passengers at the door", "Safety demonstration (front)", "Walk to the back of the cabin", "Welcome announcement (phone)", "", "", "Order supplies on the PC", "ALERT: passenger with a fake ticket", "A passenger lost something: find it", "TURBULENCE: go to your crew seat!", "Sick passenger: bring water"}
-    # Le billet à l'écran : Billet.png (1800 x 720) affiché en 1200 x 480.
-    # Les positions des valeurs sont celles de Outils/feuille_mission.py (pixels de l'image).
-    BilletX:float = 360.0
-    BilletY:float = 200.0
-    BilletK:float = 0.6667
+    TextesTaches:[]string = array{"Close all overhead bins", "", "Greet passengers at the door", "Safety demonstration (front)", "Walk to the back of the cabin", "Welcome announcement (phone)", "", "", "Order supplies on the PC", "ALERT: passenger with fake papers", "A passenger lost something: find it", "TURBULENCE: go to your crew seat!", "Sick passenger: bring water"}
+    PaysNoms:[]string = array{"FRANCE", "GERMANY", "ITALY", "SPAIN", "JAPAN", "BRAZIL", "CANADA", "EGYPT", "INDIA", "MEXICO", "NIGERIA", "POLAND", "TURKEY", "KOREA", "SWEDEN", "USA", "MOROCCO", "PORTUGAL"}
+    PaysCodes:[]string = array{"FRA", "DEU", "ITA", "ESP", "JPN", "BRA", "CAN", "EGY", "IND", "MEX", "NGA", "POL", "TUR", "KOR", "SWE", "USA", "MAR", "PRT"}
+    MoisNoms:[]string = array{"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
+    Raisons:[]string = array{"", "WRONG DESTINATION", "WRONG FLIGHT", "NOT THE SAME FACE", "WRONG DATE ON TICKET", "PASSPORT EXPIRED", "NAMES DON'T MATCH", "WRONG SEX ON PASSPORT", "PASSPORT No. DOESN'T MATCH", "NAME MISSPELLED"}
+    # Les papiers à l'écran : Billet.png (1800 x 720) en 900 x 360, Passeport.png (1260 x 1000)
+    # en 630 x 500. Les positions des valeurs sont celles de Outils/feuille_mission.py.
+    BilletX:float = 330.0
+    BilletY:float = 250.0
+    BilletK:float = 0.5
+    PassX:float = 1250.0
+    PassY:float = 190.0
+    PassK:float = 0.5
 
     var Taches:[]tache_feuille = array{}
     var Billets:[]billet_passager = array{}
@@ -184,6 +211,17 @@ feuille_mission := class(creative_device):
     var Rangs:[]int = array{}
     var PointPorte:?vector3 = false
     var PointFond:?vector3 = false
+    # La date du jour (un trajet = un jour)
+    var AujAn:int = 2026
+    var AujMois:int = 3
+    var AujJour:int = 2
+    # Le cerveau : la forme du joueur et, pour chaque erreur (1..9), combien il en a attrapé / raté
+    var Forme:int = 0
+    var Attrapes:[]int = array{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    var Rates:[]int = array{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+    # Le message quand on vise un passager
+    var Invite:?canvas = false
+    TexteInvite:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.9, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
 
     # L'écran ouvert : 0 rien, 1 la feuille, 2 un billet
     var Page:int = 0
@@ -201,6 +239,7 @@ feuille_mission := class(creative_device):
         BoutonFeuille.InteractedWithEvent.Subscribe(OnFeuille)
         InputBillet.PressedEvent.Subscribe(OnBillet)
         if (I := Interphone?) { I.InteractedWithEvent.Subscribe(OnInterphone) }
+        spawn{BoucleInvite()}
         var Avant:int = Passagers.EtatBouton
         loop:
             Sleep(0.2)
@@ -219,6 +258,7 @@ feuille_mission := class(creative_device):
 
     # ---------- une nouvelle feuille (START BOARDING) ----------
     NouvelleFeuille():void =
+        AvancerJour()
         set NumeroVol = NumeroAuHasard()
         LettrePorte := Choisir(Lettres)
         set Porte = "{LettrePorte}{GetRandomInt(1, 24)}"
@@ -371,7 +411,7 @@ feuille_mission := class(creative_device):
                     set Change = true
             else if (T.Genre = 1):
                 if (T.Compte >= T.Objectif):
-                    Reussir(T, "TICKETS CHECKED")
+                    Reussir(T, "PAPERS CHECKED")
                     set Change = true
             else if (T.Genre = 2):
                 if (Etat = 1, Pos := PointPorte?):
@@ -460,10 +500,10 @@ feuille_mission := class(creative_device):
             Inconnus := for (P : Assis, not ABillet[P]) { P }
             Choix := if (DejaFaux.Length > 0) then DejaFaux else Inconnus
             if (P := Choix[GetRandomInt(0, Choix.Length - 1)]):
-                if (not ABillet[P]) { NouveauBillet(P, true) }
+                if (not ABillet[P]) { Fabriquer(P, true) }
                 set T.Cible = option{P}
                 set T.Visible = true
-                Erreur("ALERT: a passenger has a fake ticket! See the briefing.")
+                Erreur("ALERT: a passenger has fake papers! See the briefing.")
             else:
                 set T.Rate = true
         else if (T.Genre = 10, O := ObjetsPerdus[T.Numero]):
@@ -513,7 +553,9 @@ feuille_mission := class(creative_device):
                 Reussir(T, "WELCOME ANNOUNCEMENT")
                 Rafraichir()
 
-    # ---------- les billets ----------
+    # ---------- les papiers (passeport + billet) ----------
+    # Viser un passager + la touche -> ses papiers en gros. Marche à la porte (le passager attend
+    # devant le poste de contrôle) comme une fois assis.
     OnBillet(Agent:agent):void =
         Vise := PassagerVise(Agent)
         if (Page = 0, EstProprio[Agent], P := Vise?, J := player[Agent]):
@@ -527,55 +569,207 @@ feuille_mission := class(creative_device):
         for (B : Billets, B.Passager = P) { set Oui = true }
         Oui?
 
+    DejaControle(P:passager)<transacts><decides>:void =
+        var Oui:logic = false
+        for (B : Billets, B.Passager = P, B.Decision > 0) { set Oui = true }
+        Oui?
+
     BilletDe(P:passager):billet_passager =
         for (B : Billets, B.Passager = P):
             return B
-        NouveauBillet(P, if (Chance[ChanceBilletFaux]) then true else false)
+        # plus on avance dans le jeu, plus il y a de faux papiers
+        Chances := ChanceBilletFaux + (NiveauActuel() - 1) * 5
+        Fabriquer(P, if (Chance[Chances]) then true else false)
 
-    NouveauBillet(P:passager, Faux:logic):billet_passager =
+    # ----- le cerveau des faux papiers -----
+    # Il fabrique des papiers cohérents (nom, sexe et âge qui vont avec le visage, passeport valide,
+    # billet pour CE vol, CE jour), puis, si ce sont des faux, il glisse UNE erreur dedans :
+    #   facile    1 mauvaise destination   2 mauvais numéro de vol   3 photo de quelqu'un d'autre
+    #   moyen     4 date du billet ≠ aujourd'hui   5 passeport expiré   6 prénoms différents
+    #             7 mauvais sexe sur le passeport
+    #   difficile 8 n° de passeport ≠ celui de la bande du bas   9 nom mal écrit sur le billet
+    # Le niveau dépend de la destination (les grosses destinations = erreurs plus subtiles) et de
+    # la forme du joueur (il réussit tout -> plus dur ; il se trompe -> plus facile). Il choisit
+    # surtout les erreurs que le joueur a déjà laissé passer ou qu'il n'a encore jamais vues.
+    Fabriquer(P:passager, Faux:logic):billet_passager =
         Vraie := P.Modele.Photo
-        Probleme := if (not Faux?) then 0 else if (Vraie > 0) then GetRandomInt(1, 3) else GetRandomInt(1, 2)
+        PhotoOk := if (Vraie > 0) then true else false
+        SexeVrai := if (Vraie = 1 or Vraie = 4) then "M" else if (Vraie >= 2 and Vraie <= 5) then "F" else if (GetRandomInt(0, 1) = 0) then "M" else "F"
+        Homme := if (SexeVrai = "M") then true else false
+        PrenomVrai := if (Homme?) then Choisir(PrenomsH) else Choisir(PrenomsF)
+        Titre := if (Homme?) then "MR" else if (GetRandomInt(0, 1) = 0) then "MS" else "MRS"
+        NomVrai := NomDeFamille()
+        IPays := GetRandomInt(0, PaysNoms.Length - 1)
+        PaysVrai := if (S := PaysNoms[IPays]) then S else "FRANCE"
+        Code := if (S := PaysCodes[IPays]) then S else "FRA"
+        AnNaiss := if (Vraie = 1 or Vraie = 3) then GetRandomInt(1938, 1958) else GetRandomInt(1960, 2005)
+        MoisNaiss := GetRandomInt(1, 12)
+        JourNaiss := GetRandomInt(1, 28)
+        L1 := Choisir(Lettres)
+        L2 := Choisir(Lettres)
+        Chiffres := GetRandomInt(1000000, 9999999)
+        NumeroVrai := "{L1}{L2}{Chiffres}"
+        # passeport valide (parfois il expire dans quelques mois : piège, il est encore bon)
+        var ExpA:int = AujAn + GetRandomInt(1, 9)
+        var ExpM:int = GetRandomInt(1, 12)
+        if (AujMois < 12, GetRandomInt(1, 100) <= 25):
+            set ExpA = AujAn
+            set ExpM = GetRandomInt(AujMois + 1, 12)
+        ExpJ := GetRandomInt(1, 28)
+        Defaut := if (Faux?) then ChoisirProbleme(PhotoOk) else 0
+        # les valeurs, puis l'erreur éventuelle
         Arrivee := VilleArrivee()
-        var Vers:string = Arrivee
-        if (Probleme = 1):
-            for (Essai := 1..10, Vers = Arrivee) { set Vers = Choisir(AutresVilles) }
-        var Vol:string = NumeroVol
-        if (Probleme = 2):
-            for (Essai := 1..10, Vol = NumeroVol) { set Vol = NumeroAuHasard() }
-        var Photo:int = Vraie
-        if (Probleme = 3):
-            for (Essai := 1..10, Photo = Vraie) { set Photo = GetRandomInt(1, PhotosPassagers.Length) }
-        B := billet_passager{Passager := P, Nom := NomAuHasard(Vraie), Siege := SiegeDe(P), Probleme := Probleme, Vers := Vers, Vol := Vol, Photo := Photo}
-        if (Probleme > 0) { set P.Fraudeur = true }
+        var VersB:string = Arrivee
+        var VolB:string = NumeroVol
+        var JourBillet:int = AujJour
+        var PhotoB:int = Vraie
+        var PrenomB:string = PrenomVrai
+        var NomB:string = NomVrai
+        var SexePasseport:string = SexeVrai
+        var NumeroBande:string = NumeroVrai
+        if (Defaut = 1):
+            for (Essai := 1..10, VersB = Arrivee) { set VersB = Choisir(AutresVilles) }
+        else if (Defaut = 2):
+            for (Essai := 1..10, VolB = NumeroVol) { set VolB = NumeroAuHasard() }
+        else if (Defaut = 3):
+            for (Essai := 1..10, PhotoB = Vraie) { set PhotoB = GetRandomInt(1, PhotosPassagers.Length) }
+        else if (Defaut = 4):
+            set JourBillet = if (AujJour > 3) then AujJour - GetRandomInt(1, 3) else AujJour + GetRandomInt(1, 3)
+        else if (Defaut = 5):
+            if (AujMois > 1, GetRandomInt(0, 1) = 0):
+                set ExpA = AujAn
+                set ExpM = GetRandomInt(1, AujMois - 1)
+            else:
+                set ExpA = AujAn - GetRandomInt(1, 4)
+        else if (Defaut = 6):
+            Liste := if (Homme?) then PrenomsH else PrenomsF
+            for (Essai := 1..10, PrenomB = PrenomVrai) { set PrenomB = Choisir(Liste) }
+        else if (Defaut = 7):
+            set SexePasseport = if (Homme?) then "F" else "M"
+        else if (Defaut = 8):
+            Autres := GetRandomInt(1000000, 9999999)
+            set NumeroBande = "{L1}{L2}{Autres}"
+        else if (Defaut = 9):
+            set NomB = SansUneLettre(NomVrai)
+        NaissMrz := DateMrz(JourNaiss, MoisNaiss, AnNaiss)
+        Expire := DateMrz(ExpJ, ExpM, ExpA)
+        SeqN := GetRandomInt(1, 189)
+        B := billet_passager:
+            Passager := P
+            NomBillet := "{NomB}/{PrenomB} {Titre}"
+            Vers := VersB
+            Vol := VolB
+            DateBillet := DateTexte(JourBillet, AujMois, AujAn)
+            Siege := SiegeDe(P)
+            Seq := "{SeqN}"
+            Nom := NomVrai
+            Prenom := PrenomVrai
+            Pays := PaysVrai
+            Sexe := SexePasseport
+            Naissance := DateTexte(JourNaiss, MoisNaiss, AnNaiss)
+            Numero := NumeroVrai
+            Expiration := DateTexte(ExpJ, ExpM, ExpA)
+            Photo := PhotoB
+            Mrz1 := Remplir("P<{Code}{NomVrai}<<{PrenomVrai}", 44)
+            Mrz2 := Remplir("{NumeroBande}<{Code}{NaissMrz}{SexePasseport}{Expire}", 44)
+            Probleme := Defaut
+        if (Defaut > 0) { set P.Fraudeur = true }
         set Billets += array{B}
         B
 
-    # Décision sur le billet ouvert : 1 VALID, 2 REFUSE.
+    # Le niveau des erreurs : 1 facile, 2 moyen, 3 difficile.
+    NiveauActuel():int =
+        var Base:int = 1
+        if (PC := DevicePC?):
+            if (PC.Active >= 7):
+                set Base = 3
+            else if (PC.Active >= 2):
+                set Base = 2
+        Bonus := if (Forme >= 6) then 1 else if (Forme <= -3) then -1 else 0
+        Max(1, Min(3, Base + Bonus))
+
+    NiveauDe(Code:int)<transacts>:int =
+        if (Code <= 3) then 1 else if (Code <= 7) then 2 else 3
+
+    ChoisirProbleme(PhotoOk:logic):int =
+        N := NiveauActuel()
+        var Codes:[]int = array{}
+        var Poids:[]float = array{}
+        for (C := 1..9, NiveauDe(C) <= N, (C <> 3 and C <> 7) or PhotoOk?):
+            Rate := if (R := Rates[C]) then R else 0
+            Vu := if (A := Attrapes[C]) then A else 0
+            # ce qu'il a laissé passer revient plus souvent ; ce qu'il attrape toujours, moins
+            var W:float = (1.0 + 2.0 * Rate) / (1.0 + Vu)
+            # les erreurs du niveau qu'il vient d'atteindre sont mises en avant
+            if (NiveauDe(C) = N) { set W *= 1.5 }
+            set Codes += array{C}
+            set Poids += array{W}
+        var Total:float = 0.0
+        for (W : Poids) { set Total += W }
+        var Tirage:float = GetRandomFloat(0.0, Total)
+        var Choix:int = 1
+        var Trouve:logic = false
+        for (I -> W : Poids, not Trouve?):
+            if (Tirage <= W, C := Codes[I]):
+                set Choix = C
+                set Trouve = true
+            else:
+                set Tirage -= W
+        if (not Trouve?, C := Codes[Codes.Length - 1]) { set Choix = C }
+        Choix
+
+    # Ce que le joueur a fait avec une erreur : attrapée ou ratée (le cerveau s'en souvient).
+    Noter(Code:int, Attrape:logic):void =
+        if (Attrape?):
+            if (A := Attrapes[Code], set Attrapes[Code] = A + 1) {}
+            set Forme = Min(10, Forme + 1)
+        else:
+            if (R := Rates[Code], set Rates[Code] = R + 1) {}
+            set Forme = Max(-6, Forme - 2)
+
+    # Décision sur les papiers ouverts : 1 VALID, 2 REFUSE.
     Decider(Choix:int):void =
         if (B := BilletOuvert?, B.Decision = 0):
             set B.Decision = Choix
             if (S := SonTampon?) { S.Play() }
             P := B.Passager
             if (Choix = 1):
-                # VALID : un vrai billet est contrôlé ; un faux passe sans qu'on le sache
+                # VALID : il entre (à la porte) ; un faux passe sans qu'on le sache
+                set P.Controle = 1
                 CompterBillet()
-                Message("Ticket accepted")
+                if (B.Probleme > 0):
+                    Noter(B.Probleme, false)
+                else:
+                    set Forme = Min(10, Forme + 1)
+                Message("Documents accepted")
             else if (B.Probleme > 0):
-                # REFUSE sur un faux billet : fraudeur attrapé, il quitte l'avion
+                # REFUSE sur de faux papiers : attrapé !
+                Noter(B.Probleme, true)
                 set P.Fraudeur = false
-                if (Corps := P.Corps?) { Corps.Dispose() }
-                if (Bagage := P.Bagage?) { Bagage.Dispose() }
-                set Passagers.EnCours = for (X : Passagers.EnCours, X <> P) { X }
                 CompterBillet()
                 for (T : Taches, T.Genre = 9, not T.Fait?, Q := T.Cible?, Q = P):
                     set T.Fait = true
-                Payer(Gain(PartFraudeur), "FAKE TICKET! FRAUDSTER REMOVED")
+                Raison := if (R := Raisons[B.Probleme]) then R else ""
+                Payer(Gain(PartFraudeur), "FAKE PAPERS: {Raison}")
+                Expulser(P)
             else:
-                # REFUSE sur un vrai billet : le passager se plaint
+                # REFUSE sur des papiers en règle : il se plaint (et à la porte, il s'en va)
                 set Plaintes += 1
-                Erreur("That ticket was valid! The passenger complains.")
+                set Forme = Max(-6, Forme - 2)
+                Erreur("Those documents were valid! The passenger complains.")
+                if (P.Etat <> 2) { set P.Controle = 2 }
             Afficher()
             spawn{FermerBilletApres(B)}
+
+    # Refusé : à la porte il repart par la passerelle (passagers s'en occupe) ;
+    # déjà assis, il est escorté hors de l'avion (il disparaît avec son bagage).
+    Expulser(P:passager):void =
+        if (P.Etat = 2):
+            if (Corps := P.Corps?) { Corps.Dispose() }
+            if (Bagage := P.Bagage?) { Bagage.Dispose() }
+            set Passagers.EnCours = for (X : Passagers.EnCours, X <> P) { X }
+        else:
+            set P.Controle = 2
 
     FermerBilletApres(B:billet_passager)<suspends>:void =
         Sleep(1.6)
@@ -593,7 +787,7 @@ feuille_mission := class(creative_device):
             CamPos := FC.GetViewLocation()
             Avant := FC.GetViewRotation().RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
             var Meilleur:float = RayonVisee
-            for (P : Passagers.EnCours, C := P.Corps?):
+            for (P : Passagers.EnCours, P.Controle <> 2, C := P.Corps?):
                 Pos := C.GetTransform().Translation + vector3{Z := 60.0}
                 D := Pos - CamPos
                 T := D.X * Avant.X + D.Y * Avant.Y + D.Z * Avant.Z
@@ -603,7 +797,28 @@ feuille_mission := class(creative_device):
                     set Vise = option{P}
         Vise
 
-    # ---------- le vol en cours ----------
+    # ----- le message quand on vise un passager -----
+    BoucleInvite()<suspends>:void =
+        loop:
+            Sleep(0.1)
+            if (Proprio := DeviceAvion.Proprio?, J := player[Proprio]):
+                if (not Invite?) { CreerInvite(J) }
+                Vise := if (Page = 0) then PassagerVise(Proprio) else false
+                if (P := Vise?):
+                    Texte := if (DejaControle[P]) then "DOCUMENTS CHECKED" else "[{NomTouche}]  CHECK PASSPORT & TICKET"
+                    TexteInvite.SetText(Msg(Texte))
+                    TexteInvite.SetVisibility(widget_visibility.Visible)
+                else:
+                    TexteInvite.SetVisibility(widget_visibility.Collapsed)
+
+    CreerInvite(J:player):void =
+        if (UI := GetPlayerUI[J]):
+            C := canvas{Slots := array{Bloc(TexteInvite, 560.0, 640.0, 800.0, 40.0, 0)}}
+            UI.AddWidget(C)
+            TexteInvite.SetVisibility(widget_visibility.Collapsed)
+            set Invite = option{C}
+
+    # ---------- le vol en cours, les dates, les noms ----------
     VilleDepart():string =
         if (PC := DevicePC?, D := PC.ListeDestinations[PC.Active]):
             if (PC.Retour?) then D.Ville2 else D.Ville1
@@ -616,14 +831,56 @@ feuille_mission := class(creative_device):
         else:
             "LONDON"
 
-    NomAuHasard(Photo:int):string =
-        Homme := if (Photo = 1 or Photo = 4) then true else if (Photo = 0, GetRandomInt(0, 1) = 0) then true else false
-        Prenom := if (Homme?) then Choisir(PrenomsH) else Choisir(PrenomsF)
-        Titre := if (Homme?) then "MR" else if (GetRandomInt(0, 1) = 0) then "MS" else "MRS"
-        Debut := Choisir(DebutsNom)
-        Fin := Choisir(FinsNom)
-        Famille := if (GetRandomInt(1, 100) <= 40) then "{Debut}{Fin}" else Choisir(NomsFamille)
-        "{Famille}/{Prenom} {Titre}"
+    # Chaque trajet = le jour suivant.
+    AvancerJour():void =
+        set AujJour += 1
+        if (AujJour > JoursDansMois(AujMois)):
+            set AujJour = 1
+            set AujMois += 1
+            if (AujMois > 12):
+                set AujMois = 1
+                set AujAn += 1
+
+    JoursDansMois(M:int):int =
+        if (M = 2) then 28 else if (M = 4 or M = 6 or M = 9 or M = 11) then 30 else 31
+
+    Aujourdhui():string = DateTexte(AujJour, AujMois, AujAn)
+
+    Deux(N:int):string = if (N < 10) then "0{N}" else "{N}"
+
+    # "05 APR 2027"
+    DateTexte(J:int, M:int, A:int):string =
+        NomMois := if (S := MoisNoms[M - 1]) then S else "JAN"
+        "{Deux(J)} {NomMois} {A}"
+
+    # "270405" (AAMMJJ, comme sur la bande du bas des passeports)
+    DateMrz(J:int, M:int, A:int):string =
+        AA := if (R := Mod[A, 100]) then R else 0
+        "{Deux(AA)}{Deux(M)}{Deux(J)}"
+
+    Remplir(S:string, N:int):string =
+        var R:string = S
+        loop:
+            if (R.Length >= N) { break }
+            set R += "<"
+        R
+
+    # Le même nom avec une lettre en moins (faute discrète).
+    SansUneLettre(S:string):string =
+        if (S.Length <= 3):
+            S
+        else:
+            K := GetRandomInt(1, S.Length - 2)
+            for (I -> C : S, I <> K) { C }
+
+    # Un nom de famille : de la liste, ou inventé (début + fin).
+    NomDeFamille():string =
+        if (GetRandomInt(1, 100) <= 40):
+            Debut := Choisir(DebutsNom)
+            Fin := Choisir(FinsNom)
+            "{Debut}{Fin}"
+        else:
+            Choisir(NomsFamille)
 
     NumeroAuHasard():string =
         N := GetRandomInt(100, 999)
@@ -794,9 +1051,9 @@ feuille_mission := class(creative_device):
         else:
             set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("CBD5E1"), DefaultOpacity := 1.0}, X, Y, 110.0, 110.0, 3)}
             set S += array{Bloc(Ecrit("?", "334155", text_justification.Center), X, Y + 36.0, 110.0, 40.0, 4)}
-        Titre := if (T.Genre = 9) then "FAKE TICKET!" else "SICK PASSENGER"
-        Ligne1 := if (T.Genre = 9) then "Check the ticket" else "Seat {SiegeDe(P)}"
-        Ligne2 := if (T.Genre = 9) then "and REFUSE it" else "Bring water"
+        Titre := if (T.Genre = 9) then "FAKE PAPERS!" else "SICK PASSENGER"
+        Ligne1 := if (T.Genre = 9) then "Find this face," else "Seat {SiegeDe(P)}"
+        Ligne2 := if (T.Genre = 9) then "check and REFUSE" else "Bring water"
         set S += array{Bloc(Ecrit(Titre, "B91C1C", text_justification.Left), X + 122.0, Y + 4.0, 210.0, 32.0, 3)}
         set S += array{Bloc(Ecrit(Ligne1, "1E293B", text_justification.Left), X + 122.0, Y + 40.0, 210.0, 30.0, 3)}
         set S += array{Bloc(Ecrit(Ligne2, "1E293B", text_justification.Left), X + 122.0, Y + 72.0, 210.0, 30.0, 3)}
@@ -818,50 +1075,67 @@ feuille_mission := class(creative_device):
         S
 
     TexteTache(T:tache_feuille):string =
-        if (T.Genre = 1) then "Check tickets {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (T.Genre = 6, P := Inspections[T.Numero]) then "Inspect the {P.Nom}" else if (T.Genre = 7) then "Put items on the trolley {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (Texte := TextesTaches[T.Genre]) then Texte else "?"
+        if (T.Genre = 1) then "Check passengers' papers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (T.Genre = 6, P := Inspections[T.Numero]) then "Inspect the {P.Nom}" else if (T.Genre = 7) then "Put items on the trolley {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (Texte := TextesTaches[T.Genre]) then Texte else "?"
 
-    # ---------- le billet en gros plan ----------
+    # ---------- les papiers en gros plan ----------
+    # À gauche le vrai visage du passager, au milieu le billet, à droite le passeport.
     PageBillet(B:billet_passager):[]canvas_slot =
         var S:[]canvas_slot = array{}
         P := B.Passager
-        set S += array{Bloc(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.6}, 0.0, 0.0, 1920.0, 1080.0, 0)}
-        # le vol en cours, pour comparer
-        set S += array{Bloc(Ecrit("THIS FLIGHT:   {NumeroVol}    {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), BilletX, 130.0, 1200.0, 40.0, 3)}
-        # le vrai visage du passager
-        set S += array{Bloc(Ecrit("PASSENGER", "E2E8F0", text_justification.Center), 60.0, 268.0, 260.0, 30.0, 3)}
+        set S += array{Bloc(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.65}, 0.0, 0.0, 1920.0, 1080.0, 0)}
+        # aujourd'hui et le vol en cours, pour comparer
+        set S += array{Bloc(Ecrit("TODAY  {Aujourdhui()}        FLIGHT  {NumeroVol}        {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), 0.0, 110.0, 1920.0, 40.0, 3)}
+        # le vrai visage
+        set S += array{Bloc(Ecrit("PASSENGER", "E2E8F0", text_justification.Center), 60.0, 215.0, 240.0, 30.0, 3)}
         if (Tex := PhotoDe[P.Modele.Photo]):
-            set S += array{Bloc(Vignette(Tex, 260.0, 260.0), 60.0, 305.0, 260.0, 260.0, 2)}
+            set S += array{Bloc(Vignette(Tex, 240.0, 240.0), 60.0, 250.0, 240.0, 240.0, 2)}
         else:
-            set S += array{Bloc(Ecrit("?", "FFFFFF", text_justification.Center), 60.0, 420.0, 260.0, 40.0, 3)}
-        # le billet + ce qui est écrit dessus
-        set S += array{Bloc(Vignette(FeuilleMission.Billet, 1200.0, 480.0), BilletX, BilletY, 1200.0, 480.0, 1)}
-        set S += array{SurBillet(B.Nom, 60.0, 205.0, 560.0)}
+            set S += array{Bloc(Ecrit("?", "FFFFFF", text_justification.Center), 60.0, 350.0, 240.0, 40.0, 3)}
+        # le billet
+        set S += array{Bloc(Vignette(FeuilleMission.Billet, 900.0, 360.0), BilletX, BilletY, 900.0, 360.0, 1)}
+        set S += array{SurBillet(B.NomBillet, 60.0, 205.0, 900.0)}
         set S += array{SurBillet(VilleDepart(), 60.0, 345.0, 360.0)}
-        set S += array{SurBillet(B.Vers, 720.0, 345.0, 300.0)}
+        set S += array{SurBillet(B.Vers, 720.0, 345.0, 320.0)}
+        set S += array{SurBillet(B.DateBillet, 1050.0, 205.0, 270.0)}
+        set S += array{SurBillet(B.Seq, 1050.0, 345.0, 200.0)}
         set S += array{SurBillet(B.Vol, 60.0, 535.0, 240.0)}
         set S += array{SurBillet(Porte, 320.0, 535.0, 220.0)}
         set S += array{SurBillet(B.Siege, 560.0, 535.0, 220.0)}
         set S += array{SurBillet(Embarquement, 800.0, 535.0, 220.0)}
-        set S += array{SurBillet(B.Vol, 1390.0, 205.0, 360.0)}
-        set S += array{SurBillet(B.Siege, 1390.0, 345.0, 360.0)}
-        set S += array{SurBillet(B.Vers, 1390.0, 455.0, 360.0)}
+        set S += array{SurBillet(B.Vol, 1390.0, 205.0, 380.0)}
+        set S += array{SurBillet(B.Siege, 1390.0, 345.0, 380.0)}
+        set S += array{SurBillet(B.Vers, 1390.0, 455.0, 380.0)}
+        # le passeport
+        set S += array{Bloc(Vignette(FeuilleMission.Passeport, 630.0, 500.0), PassX, PassY, 630.0, 500.0, 1)}
         if (Tex := PhotoDe[B.Photo]):
-            Cote := 230.0 * BilletK
-            set S += array{Bloc(Vignette(Tex, Cote, Cote), BilletX + 1050.0 * BilletK, BilletY + 175.0 * BilletK, Cote, Cote, 2)}
+            Cote := 360.0 * PassK
+            set S += array{Bloc(Vignette(Tex, Cote, Cote), PassX + 60.0 * PassK, PassY + 190.0 * PassK, Cote, Cote, 2)}
+        set S += array{SurPasseport(B.Nom, 470.0, 228.0, 420.0)}
+        set S += array{SurPasseport(B.Numero, 900.0, 228.0, 340.0)}
+        set S += array{SurPasseport(B.Prenom, 470.0, 348.0, 700.0)}
+        set S += array{SurPasseport(B.Pays, 470.0, 468.0, 420.0)}
+        set S += array{SurPasseport(B.Sexe, 900.0, 468.0, 200.0)}
+        set S += array{SurPasseport(B.Naissance, 470.0, 588.0, 420.0)}
+        set S += array{SurPasseport(B.Expiration, 900.0, 588.0, 340.0)}
+        set S += array{SurPasseport(B.Mrz1, 60.0, 800.0, 1140.0)}
+        set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1140.0)}
         # le tampon, ou les boutons
         if (B.Decision = 1):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 480.0, 273.0), 560.0, 303.0, 480.0, 273.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 400.0, 228.0), 460.0, 316.0, 400.0, 228.0, 6)}
         else if (B.Decision = 2):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 480.0, 273.0), 560.0, 303.0, 480.0, 273.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 400.0, 228.0), 460.0, 316.0, 400.0, 228.0, 6)}
         if (B.Decision = 0):
-            set S += BoutonEcran("VALID", "16A34A", 620.0, 720.0, 300.0, 70.0, 1)
-            set S += BoutonEcran("REFUSE", "DC2626", 1000.0, 720.0, 300.0, 70.0, 2)
-            set S += array{Bloc(Ecrit("Same flight? Same destination? Same face? Then VALID.", "CBD5E1", text_justification.Center), BilletX, 815.0, 1200.0, 30.0, 3)}
+            set S += BoutonEcran("VALID", "16A34A", 620.0, 760.0, 300.0, 70.0, 1)
+            set S += BoutonEcran("REFUSE", "DC2626", 1000.0, 760.0, 300.0, 70.0, 2)
+            set S += array{Bloc(Ecrit("Check: flight, destination, date, face, names, sex, expiry date, passport number.", "CBD5E1", text_justification.Center), 0.0, 855.0, 1920.0, 30.0, 3)}
         else:
-            set S += array{Bloc(Ecrit("Already checked.", "CBD5E1", text_justification.Center), BilletX, 740.0, 1200.0, 30.0, 3)}
-        set S += BoutonEcran("CLOSE", "374151", 1680.0, 40.0, 180.0, 48.0, 3)
+            set S += array{Bloc(Ecrit("Documents already checked.", "CBD5E1", text_justification.Center), 0.0, 780.0, 1920.0, 30.0, 3)}
+        set S += BoutonEcran("CLOSE", "374151", 1700.0, 30.0, 180.0, 48.0, 3)
         S
 
-    # Une valeur écrite sur le billet (X, Y en pixels de Billet.png).
+    # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).
     SurBillet(Texte:string, X:float, Y:float, L:float):canvas_slot =
-        Bloc(Ecrit(Texte, "111827", text_justification.Left), BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 34.0, 3)
+        Bloc(Ecrit(Texte, "111827", text_justification.Left), BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 30.0, 3)
+
+    SurPasseport(Texte:string, X:float, Y:float, L:float):canvas_slot =
+        Bloc(Ecrit(Texte, "1F2937", text_justification.Left), PassX + X * PassK, PassY + Y * PassK, L * PassK, 30.0, 3)

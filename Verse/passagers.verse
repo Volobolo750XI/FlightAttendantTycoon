@@ -105,8 +105,10 @@ passager := class<unique>:
     var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
     # Numéro de sa place (dans Places).
     var NumeroPlace:int = -1
-    # Faux billet (feuille de mission) : il ne paie pas à l'atterrissage.
+    # Faux papiers (feuille de mission) : il ne paie pas à l'atterrissage.
     var Fraudeur:logic = false
+    # Contrôle des papiers : 0 pas encore, 1 VALID (il entre), 2 REFUSE (il repart)
+    var Controle:int = 0
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
@@ -134,6 +136,13 @@ passagers := class(creative_device):
     @editable PrixBillet:int = 10
     # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
     @editable MessageHUD:?hud_message_device = false
+    # POSTE DE CONTRÔLE : si le proprio se tient à moins de RayonControle (cm) de la porte pendant
+    # l'embarquement, chaque passager s'arrête devant la porte (ArretControle cm avant) et attend
+    # qu'on contrôle ses papiers (feuille_mission) : VALID il entre, REFUSE il repart par la passerelle.
+    # Si le proprio n'est pas à la porte, ils entrent sans contrôle.
+    @editable ControlePorte:logic = true
+    @editable RayonControle:float = 400.0
+    @editable ArretControle:float = 80.0
     # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
     @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
@@ -356,7 +365,14 @@ passagers := class(creative_device):
             set EnCours += array{P}
             set NbEnRoute += 1
             Marcher(P, Route)
-            if (P.Annule?):
+            if (P.Controle = 2):
+                # papiers refusés à la porte : il fait demi-tour et repart, sa place se libère
+                Repartir(P, Route)
+                if (C := P.Corps?) { C.Dispose() }
+                if (B := P.Bagage?) { B.Dispose() }
+                set EnCours = for (X : EnCours, X <> P) { X }
+                if (set Occupees[Numero] = false) {}
+            else if (P.Annule?):
                 # STOP BOARDING alors qu'il était encore dehors : il disparaît, sa place se libère
                 if (C := P.Corps?) { C.Dispose() }
                 if (B := P.Bagage?) { B.Dispose() }
@@ -376,10 +392,16 @@ passagers := class(creative_device):
             if (Arret?, P.Avancee < P.LongDehors - 1.0):
                 set P.Annule = true
                 break
+            if (P.Controle = 2) { break }
             # pas plus loin que le passager de devant (moins l'espacement)
             var Limite:float = Total
             for (Autre : EnCours, Autre.DansAllee?, Autre.Avancee > P.Avancee):
                 set Limite = Min(Limite, Autre.Avancee - Espacement)
+            # poste de contrôle : il attend devant la porte qu'on regarde ses papiers
+            Arret0 := P.LongDehors - ArretControle
+            Porte := PointRoute(Route, P.LongDehors)
+            if (ControlePorte?, P.Controle = 0, P.Avancee <= Arret0 + 1.0, ProprioALaPorte[Porte]):
+                set Limite = Min(Limite, Arret0)
             Cible := Min(Limite, P.Avancee + VitesseMarche * Pas)
             if (Cible <= P.Avancee + 1.0):
                 Changer(P, 1, P.Modele.Attente)
@@ -390,6 +412,25 @@ passagers := class(creative_device):
                 Dir := DirectionRoute(Route, Cible)
                 DeplacerAvecBagage(P, Pos, Dir, (Cible - P.Avancee) / VitesseMarche)
                 set P.Avancee = Cible
+
+    # Le proprio est-il près de la porte (pour le poste de contrôle) ?
+    ProprioALaPorte(Porte:vector3)<transacts><decides>:void =
+        Joueur := DeviceAvion.Proprio?
+        Perso := Joueur.GetFortCharacter[]
+        Distance(Perso.GetTransform().Translation, Porte) < RayonControle
+
+    # Refusé : il fait demi-tour et marche jusqu'au début de la passerelle.
+    Repartir(P:passager, Route:[]vector3)<suspends>:void =
+        set P.DansAllee = false
+        Pas := 0.2
+        loop:
+            if (P.Avancee <= 1.0) { break }
+            Cible := Max(0.0, P.Avancee - VitesseMarche * Pas)
+            Changer(P, 0, Marche(P))
+            Pos := PointRoute(Route, Cible)
+            Dir := DirectionRoute(Route, Cible) * -1.0
+            DeplacerAvecBagage(P, Pos, Dir, (P.Avancee - Cible) / VitesseMarche)
+            set P.Avancee = Cible
 
     # ---------- coffre ----------
     RangerBagage(P:passager, Place:place_passager)<suspends>:void =

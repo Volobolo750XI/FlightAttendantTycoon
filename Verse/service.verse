@@ -501,8 +501,8 @@ service_device := class(creative_device):
         if (Casier := CaseLibre(I)?):
             if (M := Menu?, M.RetirerUn[Index]):
                 Cree := CreerObjet(Index)
-                if (Produit := Cree?):
-                    Ranger(Produit, I, Casier)
+                if (Article := Cree?):
+                    Ranger(Article, I, Casier)
             else:
                 Annoncer("Out of stock! Buy more on the PC.")
         else:
@@ -557,8 +557,8 @@ service_device := class(creative_device):
         if (O.Index >= 0) then O.Index else if (D := O.Dessus?) then D.Index else -1
 
     # Sert un produit : il est retire du chariot (avec son assiette). false s'il n'y en a pas.
-    RetirerDuChariot(I:int, Produit:int):logic =
-        for (O : Poses, O.ChariotIndex = I, ProduitDe(O) = Produit):
+    RetirerDuChariot(I:int, Article:int):logic =
+        for (O : Poses, O.ChariotIndex = I, ProduitDe(O) = Article):
             set Poses = for (X : Poses, X <> O) { X }
             Decrocher(O)
             if (D := O.Dessus?) { Decrocher(D) }

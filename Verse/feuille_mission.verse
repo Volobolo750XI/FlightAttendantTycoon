@@ -360,10 +360,10 @@ feuille_mission := class(creative_device):
         Afficher()
 
     # Clic sur un produit du chariot.
-    ServirProduit(Produit:int):void =
+    ServirProduit(Article:int):void =
         if (D := CommandeOuverte?, Dem := Demandes?, S := Service?):
-            if (Produit = D.Choix):
-                Retire := S.RetirerDuChariot(ChariotOuvert, Produit)
+            if (Article = D.Choix):
+                Retire := S.RetirerDuChariot(ChariotOuvert, Article)
                 if (Retire?):
                     Dem.Payer(D)
                     Fermer()

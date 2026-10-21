@@ -14,7 +14,7 @@ from trimesh.visual.material import PBRMaterial
 RACINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SORTIE = os.path.join(RACINE, "Modeles", "Fleche")
 
-VERT = (40, 210, 70, 255)
+VERT = (0, 255, 0, 255)
 
 
 def fleche():
@@ -34,7 +34,7 @@ def fleche():
         m.apply_translation((0, -m.vertices[:, 1].min(), 0))
     m.visual = trimesh.visual.TextureVisuals(
         uv=np.full((len(m.vertices), 2), 0.5),
-        material=PBRMaterial(baseColorFactor=VERT, emissiveFactor=(0.1, 0.8, 0.2), roughnessFactor=0.4, metallicFactor=0.0))
+        material=PBRMaterial(baseColorFactor=VERT, emissiveFactor=(0.0, 1.0, 0.0), roughnessFactor=0.4, metallicFactor=0.0))
     return m
 
 

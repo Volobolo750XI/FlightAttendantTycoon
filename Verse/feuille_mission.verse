@@ -153,9 +153,13 @@ feuille_mission := class(creative_device):
     @editable ValeurSansPC:float = 100.0
 
     PhotosPassagers:[]texture = array{FeuilleMission.Photo1, FeuilleMission.Photo2, FeuilleMission.Photo3, FeuilleMission.Photo4, FeuilleMission.Photo5}
-    PrenomsH:[]string = array{"JAMES", "LUCAS", "OMAR", "HUGO", "ARTHUR", "DAVID", "MARCO", "LEO", "SAMUEL", "VICTOR"}
-    PrenomsF:[]string = array{"EMMA", "SOFIA", "CLARA", "MARIA", "LINA", "JULIA", "ROSE", "NORA", "ALICE", "MAYA"}
-    NomsFamille:[]string = array{"SMITH", "MARTIN", "GARCIA", "ROSSI", "MULLER", "DUBOIS", "SILVA", "NOVAK", "TANAKA", "JOHNSON", "LOPEZ", "PETIT"}
+    # Noms des billets : un prénom au hasard + un nom de famille, soit pris dans la liste, soit
+    # inventé (un début + une fin de nom : des centaines de noms différents à chaque vol).
+    PrenomsH:[]string = array{"JAMES", "LUCAS", "OMAR", "HUGO", "ARTHUR", "DAVID", "MARCO", "LEO", "SAMUEL", "VICTOR", "NOAH", "ETHAN", "KARIM", "IVAN", "MATEO", "YUKI", "LIAM", "FELIX", "PABLO", "ANDRE", "THEO", "ADAM", "RAFAEL", "MILO", "OSCAR", "JONAS", "AMIR", "LORENZO", "ERIK", "BRUNO", "KENJI", "DIEGO", "SACHA", "MALIK", "TOM", "NICO", "HENRI", "PIOTR", "AXEL", "JULES"}
+    PrenomsF:[]string = array{"EMMA", "SOFIA", "CLARA", "MARIA", "LINA", "JULIA", "ROSE", "NORA", "ALICE", "MAYA", "CHLOE", "INES", "LEA", "ZOE", "AMIRA", "HANA", "ELENA", "MIA", "LUNA", "OLIVIA", "SARA", "YASMINE", "ANNA", "LUCIE", "CAMILA", "AIKO", "NADIA", "EVA", "LOLA", "IRIS", "PAULA", "MARGOT", "ELSA", "LAYLA", "AGATHE", "VERA", "NINA", "JADE", "SELMA", "OLGA"}
+    NomsFamille:[]string = array{"SMITH", "MARTIN", "GARCIA", "ROSSI", "MULLER", "DUBOIS", "SILVA", "NOVAK", "TANAKA", "JOHNSON", "LOPEZ", "PETIT", "NGUYEN", "KOWALSKI", "FERREIRA", "SCHMIDT", "MORENO", "BROWN", "LAURENT", "YILMAZ", "IVANOV", "KIM", "OKAFOR", "HANSEN", "BIANCHI", "MENDES", "WILSON", "SATO", "KHAN", "DIALLO", "FISCHER", "ROUX", "COSTA", "PATEL", "LEROY", "JANSEN", "ORTEGA", "WEBER", "HAMDI", "CHEN"}
+    DebutsNom:[]string = array{"BER", "KAL", "MOR", "SAN", "VAL", "DOR", "LAR", "MAL", "TOR", "RIV", "GAR", "SOL", "FER", "LIND", "HAR", "BEL", "CAS", "NOV", "OST", "WIL", "MAR", "ROS", "BRAN", "KOV", "DEL", "AND", "PET", "STRO", "VAN", "MON"}
+    FinsNom:[]string = array{"SSON", "OVA", "ELLI", "ANDEZ", "BERG", "OWSKI", "MANN", "IER", "AKIS", "ENKO", "AUD", "ESCU", "SEN", "OTTI", "ARD", "EIRA", "OGLU", "IC", "STEIN", "WOOD", "INI", "OS", "ANT", "EAU", "OV", "HOLM", "AZ", "ETTE", "UCCI", "ER"}
     AutresVilles:[]string = array{"PARIS", "LONDON", "TOKYO", "ROME", "DUBAI", "MIAMI", "OSLO", "LIMA", "SEOUL", "CAIRO", "SYDNEY", "MADRID"}
     Lettres:[]string = array{"A", "B", "C", "D", "E", "F", "G", "H", "J", "K"}
     TextesTaches:[]string = array{"Close all overhead bins", "", "Greet passengers at the door", "Safety demonstration (front)", "Walk to the back of the cabin", "Welcome announcement (phone)", "", "", "Order supplies on the PC", "ALERT: passenger with a fake ticket", "A passenger lost something: find it", "TURBULENCE: go to your crew seat!", "Sick passenger: bring water"}
@@ -615,7 +619,11 @@ feuille_mission := class(creative_device):
     NomAuHasard(Photo:int):string =
         Homme := if (Photo = 1 or Photo = 4) then true else if (Photo = 0, GetRandomInt(0, 1) = 0) then true else false
         Prenom := if (Homme?) then Choisir(PrenomsH) else Choisir(PrenomsF)
-        "{Choisir(NomsFamille)}/{Prenom}"
+        Titre := if (Homme?) then "MR" else if (GetRandomInt(0, 1) = 0) then "MS" else "MRS"
+        Debut := Choisir(DebutsNom)
+        Fin := Choisir(FinsNom)
+        Famille := if (GetRandomInt(1, 100) <= 40) then "{Debut}{Fin}" else Choisir(NomsFamille)
+        "{Famille}/{Prenom} {Titre}"
 
     NumeroAuHasard():string =
         N := GetRandomInt(100, 999)
@@ -842,9 +850,9 @@ feuille_mission := class(creative_device):
             set S += array{Bloc(Vignette(Tex, Cote, Cote), BilletX + 1050.0 * BilletK, BilletY + 175.0 * BilletK, Cote, Cote, 2)}
         # le tampon, ou les boutons
         if (B.Decision = 1):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 400.0, 230.0), 700.0, 330.0, 400.0, 230.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 480.0, 273.0), 560.0, 303.0, 480.0, 273.0, 6)}
         else if (B.Decision = 2):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 400.0, 230.0), 700.0, 330.0, 400.0, 230.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 480.0, 273.0), 560.0, 303.0, 480.0, 273.0, 6)}
         if (B.Decision = 0):
             set S += BoutonEcran("VALID", "16A34A", 620.0, 720.0, 300.0, 70.0, 1)
             set S += BoutonEcran("REFUSE", "DC2626", 1000.0, 720.0, 300.0, 70.0, 2)

@@ -35,8 +35,9 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   Les repères sont cachés automatiquement au lancement de la partie.
 #
 # Le trajet : TAKE OFF -> le vol dure le temps du trajet choisi sur le PC (DevicePC) -> atterrissage :
-# chaque passager assis paie son billet (PrixBillet x multiplicateur de la destination), puis ils
-# descendent tous, les coffres se rouvrent et le bouton redevient START BOARDING (nouveau trajet).
+# les billets sont payés (PartBillets x valeur du vol x sièges occupés / nombre de Places : plus
+# l'avion est plein et la destination chère, plus ça rapporte), puis tout le monde descend, les
+# coffres se rouvrent et le bouton redevient START BOARDING (nouveau trajet).
 
 modele_passager := class<concrete>:
     @editable MarcheValise:creative_prop_asset = DefaultCreativePropAsset
@@ -102,7 +103,9 @@ passager := class<unique>:
     var LongDehors:float = 0.0
     var Annule:logic = false
     var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
-    # Voyage sans billet (choisi par la feuille de mission) : il ne paie pas à l'atterrissage.
+    # Numéro de sa place (dans Places).
+    var NumeroPlace:int = -1
+    # Faux billet (feuille de mission) : il ne paie pas à l'atterrissage.
     var Fraudeur:logic = false
 
 passagers := class(creative_device):
@@ -121,11 +124,13 @@ passagers := class(creative_device):
     @editable PortePassagers:?porte_passager = false
     # Le device cinématique : lancé quand on appuie sur TAKE OFF.
     @editable DeviceCinematique:?cinematique_decollage = false
-    # Le PC des destinations : donne la durée du vol et le multiplicateur du billet.
+    # Le PC des destinations : donne la durée du vol et la valeur du vol.
     @editable DevicePC:?pc_destinations = false
     # Durée du vol (secondes) si aucun DevicePC n'est rempli.
     @editable DureeVolSansPC:float = 300.0
-    # Prix d'un billet (par siège occupé), multiplié par le multiplicateur de la destination.
+    # Part de la valeur du vol payée par les billets quand l'avion est PLEIN (0.5 = la moitié).
+    @editable PartBillets:float = 0.5
+    # Sans DevicePC : prix fixe d'un billet.
     @editable PrixBillet:int = 10
     # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
     @editable MessageHUD:?hud_message_device = false
@@ -297,8 +302,8 @@ passagers := class(creative_device):
     # Chaque passager assis (sauf un fraudeur) paie son billet.
     PayerBillets():void =
         Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
-        Multi := if (PC := DevicePC?) then PC.MultiplicateurActif() else 1.0
-        Gain := if (G := Round[PrixBillet * Payants.Length * Multi]) then G else 0
+        ParSiege := if (PC := DevicePC?) then PC.ValeurVol() * PartBillets / Max(1.0, Places.Length * 1.0) else PrixBillet * 1.0
+        Gain := if (G := Round[ParSiege * Payants.Length]) then G else 0
         set DerniersPayants = Payants.Length
         set DernierGainBillets = Gain
         if (Gain > 0):
@@ -337,6 +342,7 @@ passagers := class(creative_device):
         Liste := if (Valise?) then Valises else Sacs
         if (Modele := Modeles[GetRandomInt(0, Modeles.Length - 1)], Sac := Liste[GetRandomInt(0, Liste.Length - 1)]):
             P := passager{Modele := Modele, Valise := Valise, Sac := Sac}
+            set P.NumeroPlace = Numero
             Debut := for (R : Chemin) { R.GetTransform().Translation }
             Route := Debut + array{Place.Allee.GetTransform().Translation}
             set P.LongDehors = LongueurRoute(Debut)

@@ -62,6 +62,9 @@ pc_destinations := class(creative_device):
     @editable MessageHUD:hud_message_device = hud_message_device{}
     # (facultatif) le device menu_pc : le PC ouvre alors le menu des 3 cartes.
     @editable Menu:?menu_pc = false
+    # Économie : valeur d'un vol = PartPrixSuivant x prix de la destination suivante (minimum ValeurVolMin).
+    @editable PartPrixSuivant:float = 0.5
+    @editable ValeurVolMin:float = 100.0
 
     # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
     # avec 1960, la liste + la carte prennent toute la largeur.
@@ -284,6 +287,16 @@ pc_destinations := class(creative_device):
         if (Numero = NumeroMessage):
             set MessageErreur = ""
             Afficher()
+
+    # Valeur d'un vol pour le trajet actif : tout ce que rapporte un trajet (billets + missions
+    # de la feuille) en dépend. = PartPrixSuivant x prix de la destination suivante (la dernière :
+    # 1.7 x son prix), jamais moins que ValeurVolMin. Avec 0.5, un bon vol (avion plein, missions
+    # faites) paie environ la destination suivante en 2 vols : au début des petites sommes, avec
+    # les grosses destinations des milliards.
+    ValeurVol():float =
+        I := Max(0, Active)
+        Suivant := if (D := ListeDestinations[I + 1]) then D.Prix * 1.0 else if (D := ListeDestinations[I]) then D.Prix * 1.7 else 0.0
+        Max(ValeurVolMin, Suivant * PartPrixSuivant)
 
     # Multiplicateur et durée du trajet actif (pour la suite : revenu et vol).
     MultiplicateurActif():float = if (D := ListeDestinations[Active]) then D.Multiplicateur else 1.0

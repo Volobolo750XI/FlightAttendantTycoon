@@ -132,16 +132,16 @@ feuille_mission := class(creative_device):
     PaysCodes:[]string = array{"FRA", "DEU", "ITA", "ESP", "JPN", "BRA", "CAN", "EGY", "IND", "MEX", "NGA", "POL", "TUR", "KOR", "SWE", "USA", "MAR", "PRT"}
     MoisNoms:[]string = array{"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
     Raisons:[]string = array{"", "WRONG DESTINATION", "WRONG FLIGHT", "NOT THE SAME FACE", "WRONG DATE ON TICKET", "PASSPORT EXPIRED", "NAMES DON'T MATCH", "WRONG SEX ON PASSPORT", "PASSPORT No. DOESN'T MATCH", "NAME MISSPELLED"}
-    # Les papiers à l'écran : le dessin du billet (1800 x 720) en 1080 x 432, celui du passeport
-    # (1260 x 1000) en 731 x 580 (assez grand pour la taille du texte de Fortnite). Les images sont en puissance de 2 avec du vide autour : on les
+    # Les papiers à l'écran : le dessin du billet (1800 x 720) en 1116 x 446, celui du passeport
+    # (1260 x 1000) en 756 x 600 (assez grand pour la taille du texte de Fortnite). Les images sont en puissance de 2 avec du vide autour : on les
     # affiche donc plus grandes et décalées pour que le dessin tombe ici.
     # Les positions des valeurs sont celles de Outils/feuille_mission.py.
-    BilletX:float = 40.0
+    BilletX:float = 20.0
     BilletY:float = 165.0
-    BilletK:float = 0.6
-    PassX:float = 1150.0
+    BilletK:float = 0.62
+    PassX:float = 1144.0
     PassY:float = 165.0
-    PassK:float = 0.58
+    PassK:float = 0.6
 
     TextesTaches:[]string = array{"Close the overhead bins", "", ""}
 
@@ -407,7 +407,7 @@ feuille_mission := class(creative_device):
             NomBillet := "{NomB}/{PrenomB} {Titre}"
             Vers := VersB
             Vol := VolB
-            DateBillet := DateTexte(JourBillet, AujMois, AujAn)
+            DateBillet := DateCourte(JourBillet, AujMois)
             Siege := SiegeDe(P)
             Seq := "{SeqN}"
             Nom := NomVrai
@@ -599,6 +599,11 @@ feuille_mission := class(creative_device):
     DateTexte(J:int, M:int, A:int):string =
         NomMois := if (S := MoisNoms[M - 1]) then S else "JAN"
         "{Deux(J)} {NomMois} {A}"
+
+    # "05 APR" (date courte, comme sur les vrais billets)
+    DateCourte(J:int, M:int):string =
+        NomMois := if (S := MoisNoms[M - 1]) then S else "JAN"
+        "{Deux(J)} {NomMois}"
 
     # "270405" (AAMMJJ, comme sur la bande du bas des passeports)
     DateMrz(J:int, M:int, A:int):string =
@@ -819,40 +824,43 @@ feuille_mission := class(creative_device):
         set S += array{Bloc(Ecrit("TODAY  {Aujourdhui()}      FLIGHT  {NumeroVol}      {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), 0.0, 95.0, 1920.0, 44.0, 3)}
         # le billet (image en puissance de 2 : affichée plus grande et décalée)
         set S += array{Bloc(Vignette(FeuilleMission.Billet, 2048.0 * BilletK, 1024.0 * BilletK), BilletX - 124.0 * BilletK, BilletY - 152.0 * BilletK, 2048.0 * BilletK, 1024.0 * BilletK, 1)}
-        set S += array{SurBillet(B.NomBillet, 60.0, 200.0, 1200.0)}
-        set S += array{SurBillet(VilleDepart(), 60.0, 340.0, 520.0)}
-        set S += array{SurBillet(B.Vers, 780.0, 340.0, 520.0)}
-        set S += array{SurBillet(B.Vol, 60.0, 520.0, 220.0)}
-        set S += array{SurBillet(B.DateBillet, 290.0, 520.0, 400.0)}
-        set S += array{SurBillet(Porte, 700.0, 520.0, 170.0)}
-        set S += array{SurBillet(B.Siege, 880.0, 520.0, 170.0)}
-        set S += array{SurBillet(Embarquement, 1060.0, 520.0, 220.0)}
-        set S += array{SurBillet(B.Vol, 1380.0, 200.0, 380.0)}
-        set S += array{SurBillet(B.Siege, 1380.0, 340.0, 380.0)}
-        set S += array{SurBillet(Porte, 1380.0, 480.0, 380.0)}
+        # on cache le petit avion et l'étiquette "SEQ No." de l'image pour laisser la place aux villes
+        set S += array{CacheBillet(430.0, 330.0, 220.0, 100.0)}
+        set S += array{CacheBillet(1040.0, 290.0, 260.0, 120.0)}
+        set S += array{SurBillet(B.NomBillet, 60.0, 205.0, 980.0)}
+        set S += array{SurBillet(B.DateBillet, 1050.0, 205.0, 260.0)}
+        set S += array{SurBillet(VilleDepart(), 60.0, 345.0, 640.0)}
+        set S += array{SurBillet(B.Vers, 720.0, 345.0, 590.0)}
+        set S += array{SurBillet(B.Vol, 60.0, 535.0, 250.0)}
+        set S += array{SurBillet(Porte, 320.0, 535.0, 230.0)}
+        set S += array{SurBillet(B.Siege, 560.0, 535.0, 230.0)}
+        set S += array{SurBillet(Embarquement, 800.0, 535.0, 240.0)}
+        set S += array{SurBillet(B.Vol, 1390.0, 205.0, 410.0)}
+        set S += array{SurBillet(B.Siege, 1390.0, 345.0, 410.0)}
+        set S += array{SurBillet(B.Vers, 1390.0, 455.0, 410.0)}
         # le passeport
         set S += array{Bloc(Vignette(FeuilleMission.Passeport, 2048.0 * PassK, 1024.0 * PassK), PassX - 394.0 * PassK, PassY - 12.0 * PassK, 2048.0 * PassK, 1024.0 * PassK, 1)}
         if (Tex := PhotoDe[B.Photo]):
-            Cote := 340.0 * PassK
-            set S += array{Bloc(Vignette(Tex, Cote, Cote), PassX + 50.0 * PassK, PassY + 190.0 * PassK, Cote, Cote, 2)}
-        set S += array{SurPasseport(B.Nom, 440.0, 220.0, 400.0)}
-        set S += array{SurPasseport(B.Numero, 850.0, 220.0, 380.0)}
-        set S += array{SurPasseport(B.Prenom, 440.0, 340.0, 790.0)}
-        set S += array{SurPasseport(B.Pays, 440.0, 460.0, 400.0)}
-        set S += array{SurPasseport(B.Sexe, 850.0, 460.0, 380.0)}
-        set S += array{SurPasseport(B.Naissance, 440.0, 580.0, 400.0)}
-        set S += array{SurPasseport(B.Expiration, 850.0, 580.0, 380.0)}
-        set S += array{SurPasseport(B.Mrz1, 60.0, 790.0, 1140.0)}
-        set S += array{SurPasseport(B.Mrz2, 60.0, 870.0, 1140.0)}
+            Cote := 360.0 * PassK
+            set S += array{Bloc(Vignette(Tex, Cote, Cote), PassX + 60.0 * PassK, PassY + 190.0 * PassK, Cote, Cote, 2)}
+        set S += array{SurPasseport(B.Nom, 470.0, 228.0, 430.0)}
+        set S += array{SurPasseport(B.Numero, 900.0, 228.0, 340.0)}
+        set S += array{SurPasseport(B.Prenom, 470.0, 348.0, 760.0)}
+        set S += array{SurPasseport(B.Pays, 470.0, 468.0, 430.0)}
+        set S += array{SurPasseport(B.Sexe, 900.0, 468.0, 340.0)}
+        set S += array{SurPasseport(B.Naissance, 470.0, 588.0, 430.0)}
+        set S += array{SurPasseport(B.Expiration, 900.0, 588.0, 340.0)}
+        set S += array{SurPasseport(B.Mrz1, 60.0, 800.0, 1170.0)}
+        set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1170.0)}
         # le vrai visage du passager
-        set S += array{Bloc(Ecrit("PASSENGER", "E2E8F0", text_justification.Left), 40.0, 612.0, 240.0, 36.0, 3)}
+        set S += array{Bloc(Ecrit("PASSENGER", "E2E8F0", text_justification.Left), 20.0, 622.0, 240.0, 36.0, 3)}
         if (Tex := PhotoDe[PhotoPassager(P)]):
-            set S += array{Bloc(Vignette(Tex, 190.0, 190.0), 40.0, 650.0, 190.0, 190.0, 2)}
+            set S += array{Bloc(Vignette(Tex, 180.0, 180.0), 20.0, 660.0, 180.0, 180.0, 2)}
         # le tampon, ou les boutons
         if (B.Decision = 1):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 600.0, 300.0), 136.0, 231.0, 600.0, 300.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
         else if (B.Decision = 2):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 600.0, 300.0), 136.0, 231.0, 600.0, 300.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
         if (B.Decision = 0):
             set S += BoutonEcran("VALID", "15803D", 300.0, 652.0, 330.0, 76.0, 1)
             set S += BoutonEcran("REFUSE", "B91C1C", 690.0, 652.0, 330.0, 76.0, 2)
@@ -887,6 +895,10 @@ feuille_mission := class(creative_device):
     # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).
     SurBillet(Texte:string, X:float, Y:float, L:float):canvas_slot =
         Bloc(Ecrit(Texte, "111827", text_justification.Left), BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 40.0, 3)
+
+    # Un rectangle blanc posé sur le billet (cache une partie de l'image).
+    CacheBillet(X:float, Y:float, L:float, H:float):canvas_slot =
+        Bloc(color_block{DefaultColor := NamedColors.White, DefaultOpacity := 1.0}, BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, H * BilletK, 2)
 
     SurPasseport(Texte:string, X:float, Y:float, L:float):canvas_slot =
         Bloc(Ecrit(Texte, "1F2937", text_justification.Left), PassX + X * PassK, PassY + Y * PassK, L * PassK, 40.0, 3)

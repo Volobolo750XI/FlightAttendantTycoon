@@ -94,11 +94,11 @@ def feuille():
 
 # ---------- le billet ----------
 # Positions (pixels de Billet.png) du coin haut-gauche de chaque VALEUR ecrite par le Verse.
-# Prevu pour le texte de Fortnite (environ 32 px de large par lettre a l'echelle de l'image).
 BILLET = {
-    "NOM": (60, 200), "DE": (60, 340), "VERS": (780, 340),
-    "VOL": (60, 520), "DATE": (290, 520), "PORTE": (700, 520), "SIEGE": (880, 520), "EMBARQ": (1060, 520),
-    "TALON_VOL": (1380, 200), "TALON_SIEGE": (1380, 340), "TALON_PORTE": (1380, 480),
+    "NOM": (60, 205), "DE": (60, 345), "VERS": (720, 345),
+    "VOL": (60, 535), "PORTE": (320, 535), "SIEGE": (560, 535), "EMBARQ": (800, 535),
+    "DATE": (1050, 205), "SEQ": (1050, 345),
+    "TALON_VOL": (1390, 205), "TALON_SIEGE": (1390, 345), "TALON_VERS": (1390, 455),
 }
 
 
@@ -119,13 +119,16 @@ def billet():
         d.ellipse((1323, y, 1337, y + 14), fill=(210, 214, 222, 255))
     e = police(ETIQ, 34)
     for cle, nom in [("NOM", "PASSENGER NAME"), ("DE", "FROM"), ("VERS", "TO"), ("VOL", "FLIGHT"),
-                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"), ("DATE", "DATE"),
-                     ("TALON_VOL", "FLIGHT"), ("TALON_SIEGE", "SEAT"), ("TALON_PORTE", "GATE")]:
+                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"), ("DATE", "DATE"), ("SEQ", "SEQ No."),
+                     ("TALON_VOL", "FLIGHT"), ("TALON_SIEGE", "SEAT"), ("TALON_VERS", "TO")]:
         x, y = BILLET[cle][:2]
         d.text((x, y - 44), nom, font=e, fill=GRIS)
     # avion entre FROM et TO
-    avion(d, 680, 370, 50, BLEU)
-    d.line((580, 370, 615, 370), fill=BLEU, width=6)
+    avion(d, 560, 380, 60, BLEU)
+    d.line((440, 380, 480, 380), fill=BLEU, width=6)
+    # petit logo de classe
+    d.rounded_rectangle((1050, 470, 1150, 570), 16, outline=BLEU, width=6)
+    centre(d, (1100, 520), "Y", police(TITRE, 60), BLEU)
     # codes-barres et symboles
     code_barre(d, 60, 620, 980, 690, 7)
     code_barre(d, 1390, 560, 1750, 690, 11)
@@ -137,12 +140,11 @@ def billet():
 
 # ---------- le passeport ----------
 # Positions (pixels de Passeport.png) du coin haut-gauche de chaque VALEUR ecrite par le Verse.
-# Prevu pour le texte de Fortnite (environ 33 px de large par lettre a l'echelle de l'image).
 PASSEPORT = {
-    "PHOTO": (50, 190, 340),
-    "NOM": (440, 220), "NUMERO": (850, 220), "PRENOM": (440, 340),
-    "NATION": (440, 460), "SEXE": (850, 460), "NAISSANCE": (440, 580), "EXPIRE": (850, 580),
-    "MRZ1": (60, 790), "MRZ2": (60, 870),
+    "PHOTO": (60, 190, 360),
+    "NOM": (470, 228), "NUMERO": (900, 228), "PRENOM": (470, 348),
+    "NATION": (470, 468), "SEXE": (900, 468), "NAISSANCE": (470, 588), "EXPIRE": (900, 588),
+    "MRZ1": (60, 800), "MRZ2": (60, 880),
 }
 
 

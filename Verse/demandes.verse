@@ -58,8 +58,8 @@ demandes_device := class(creative_device):
     @editable Vol:?vol_device = false
     @editable DeviceAvion:?avion_tycoon = false
     @editable DevicePC:?pc_destinations = false
-    # EN PAUSE : coche pour que les passagers recommencent à commander.
-    @editable Actif:logic = false
+    # Décoche pour mettre les commandes des passagers en pause.
+    @editable Actif:logic = true
 
     @editable Bulles:[]creative_prop = array{}
     @editable MateriauxBulle:[]material = array{}
@@ -102,6 +102,8 @@ demandes_device := class(creative_device):
     Repas:[]int = array{2, 3, 5, 6, 7}
 
     var Actives:[]demande = array{}
+    # Nombre total de passagers servis (lu par la feuille de mission : "servir N passagers").
+    var NbServis:int = 0
     var Profils:[]profil_passager = array{}
     var DebutVol:float = -1.0
     var DerniereCommande:float = -100.0
@@ -320,6 +322,7 @@ demandes_device := class(creative_device):
         Oui?
 
     Payer(D:demande):void =
+        set NbServis += 1
         Reste := 1.0 - (GetSimulationElapsedTime() - D.Debut) / Max(1.0, D.Patience)
         Bonus := if (Reste > 0.6) then 1.5 else if (Reste > 0.25) then 1.0 else 0.5
         Multi := if (Dest := DevicePC?) then Dest.MultiplicateurActif() else 1.0

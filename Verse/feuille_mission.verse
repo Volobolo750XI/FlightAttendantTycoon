@@ -8,35 +8,28 @@ using { /Verse.org/Assets }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 using { /UnrealEngine.com/Temporary/UI }
 
-# Flight Attendant Tycoon - la feuille de mission (une nouvelle à chaque trajet) et les billets.
+# Flight Attendant Tycoon - la feuille de mission (une nouvelle à chaque trajet) et les papiers.
 #
 # LA FEUILLE : elle est accrochée au mur (Modeles/Feuille/FeuilleMur.glb + un bouton dessus).
-# E dessus -> elle s'ouvre en gros plan : tout ce qu'il y a à faire, cases cochées, ce que ça
-# rapporte, bouton CLOSE. À chaque START BOARDING, une nouvelle feuille est tirée au hasard
-# (MaxMissions au maximum) :
-#   AVANT LE DÉCOLLAGE (ratées si pas faites au TAKE OFF)
-#     - fermer tous les coffres à bagages (après l'embarquement)
-#     - accueillir les passagers à la porte (rester près de la porte pendant l'embarquement)
-#     - tour de cabine : aller au fond de l'allée une fois tout le monde assis
-#     - contrôler N billets (possible jusqu'à l'atterrissage)
-#   EN VOL (ratées si pas faites à l'atterrissage)
-#     - mettre N objets sur le chariot (galley)
-#     - commander des fournitures sur le PC (SUPPLIES)
-#   SURPRISES (rares, au milieu du vol)
-#     - FAUX BILLET : la photo du fraudeur apparaît sur la feuille -> le trouver, regarder son
-#       billet, REFUSE
-#     - TURBULENCES : rejoindre SiegeEquipage en moins de DelaiTurbulence secondes
-#     - passager malade (photo + siège) : lui donner une bouteille d'eau (TOUCHE du galley)
+# E dessus -> elle s'ouvre en gros plan : ce qu'il y a à faire, cases cochées, ce que ça rapporte,
+# bouton CLOSE. À chaque START BOARDING, une nouvelle feuille (3 missions) :
+#   AVANT LE DÉCOLLAGE
+#     - fermer tous les coffres à bagages (une fois tout le monde assis ; ratée si pas faite au TAKE OFF)
+#     - contrôler les papiers de N passagers (possible jusqu'à l'atterrissage)
+#   EN VOL
+#     - servir N passagers (leurs commandes, device demandes)
 #
 # LES PAPIERS : quand on vise un passager, "[F] CHECK PASSPORT & TICKET" s'affiche. La touche
 # ouvre ses papiers en gros : son vrai visage à gauche, son billet au milieu, son passeport à
 # droite, et en haut la date du jour + le vol en cours. Il faut vérifier que tout correspond, puis
 # cliquer VALID ou REFUSE (tampon). À la porte pendant l'embarquement, les passagers s'arrêtent
 # devant toi (poste de contrôle, device passagers) ; refusé, il repart par la passerelle.
-# Un "cerveau" (Fabriquer) fabrique les papiers et glisse parfois UNE erreur, de plus en plus
-# subtile avec les destinations et selon ta forme. REFUSE sur des faux = attrapé (bonus).
-# REFUSE sur des vrais = plainte. VALID sur des faux = il voyage gratis (et le cerveau s'en
-# souvient : ce type d'erreur reviendra).
+# La plupart des papiers sont bons. Un "cerveau" (Fabriquer) glisse parfois UNE erreur
+# (ChanceBilletFaux, rare), de plus en plus subtile avec les destinations et selon ta forme.
+#   REFUSE sur des faux  = fraudeur attrapé, tu gagnes de l'argent.
+#   VALID sur des vrais  = c'est bon (compte pour la mission).
+#   REFUSE sur des vrais = plainte (le passager s'en va si c'est à la porte).
+#   VALID sur des faux   = il voyage gratis (le cerveau s'en souvient : cette erreur reviendra).
 #
 # ARGENT : tout dépend de la VALEUR DU VOL (pc_destinations.ValeurVol : environ la moitié du prix
 # de la destination suivante). Au début ça rapporte un peu, avec les grosses destinations beaucoup.
@@ -76,22 +69,14 @@ billet_passager := class<unique>:
 
 # Une ligne de la feuille.
 tache_feuille := class<unique>:
-    # 0 coffres, 1 billets, 2 accueil, 4 tour de cabine, 7 chariot, 8 fournitures,
-    # 9 faux billet, 11 turbulences, 12 malade (3, 5, 6, 10 : missions retirées)
+    # 0 fermer les coffres, 1 contrôler les papiers, 2 servir les passagers
     Genre:int
     var Fait:logic = false
     var Rate:logic = false
-    var Visible:logic = true
     var Compte:int = 0
     var Objectif:int = 1
-    # temps passé sur place
-    var Chrono:float = 0.0
-    # surprise : secondes après le décollage où elle arrive
-    var Apparition:float = -1.0
-    # turbulences : heure limite
-    var Limite:float = 0.0
-    # fraudeur / malade
-    var Cible:?passager = false
+    # servir : nombre de passagers déjà servis (compteur du device demandes) au début du trajet
+    var Depart:int = 0
 
 clic_feuille := class:
     Feuille:feuille_mission
@@ -102,47 +87,32 @@ feuille_mission := class(creative_device):
     @editable Passagers:passagers = passagers{}
     @editable DeviceAvion:avion_tycoon = avion_tycoon{}
     @editable DevicePC:?pc_destinations = false
-    @editable Service:?service_device = false
-    @editable Menu:?menu_pc = false
+    # Le device des commandes des passagers (mission "servir").
+    @editable Demandes:?demandes_device = false
     # Un Appareil Bouton posé sur la feuille accrochée au mur (texte "Read").
     @editable BoutonFeuille:button_device = button_device{}
     # Un Déclencheur d'entrée : la touche pour regarder les papiers du passager visé,
     # et le nom de cette touche (affiché à l'écran quand on vise un passager).
     @editable InputBillet:input_trigger_device = input_trigger_device{}
     @editable NomTouche:string = "F"
-    @editable SiegeEquipage:?creative_prop = false
     @editable MessageHUD:?hud_message_device = false
     @editable SonMission:?audio_player_device = false
     @editable SonErreur:?audio_player_device = false
-    @editable SonTurbulence:?audio_player_device = false
     @editable SonTampon:?audio_player_device = false
 
-    # ===== Le hasard de la feuille (chances en %) =====
-    @editable MaxMissions:int = 6
-    @editable ChanceCoffres:int = 90
-    @editable ChanceBillets:int = 85
-    @editable ChanceAccueil:int = 55
-    @editable ChanceTourCabine:int = 45
-    @editable ChanceChariot:int = 35
-    @editable ChanceFournitures:int = 30
-    @editable ChanceFraudeur:int = 15
-    @editable ChanceTurbulence:int = 15
-    @editable ChanceMalade:int = 15
-    # Chance que des papiers regardés soient faux (+5 par niveau du cerveau ; en plus de la surprise)
-    @editable ChanceBilletFaux:int = 10
-    @editable BilletsMin:int = 2
-    @editable BilletsMax:int = 4
-    @editable ObjetsChariotMin:int = 2
-    @editable ObjetsChariotMax:int = 4
-    # Temps à rester à la porte (accueil), et distance (cm) pour compter qu'on est à un endroit
-    @editable DureeAccueil:float = 8.0
-    @editable RayonSurPlace:float = 200.0
-    @editable DelaiTurbulence:float = 25.0
+    # Chance (%) que des papiers soient faux. Peu : la plupart des passagers sont en règle.
+    # +2 par niveau du cerveau (grosses destinations).
+    @editable ChanceBilletFaux:int = 8
+    # Nombre de passagers à contrôler / à servir (au hasard entre les deux)
+    @editable BilletsMin:int = 3
+    @editable BilletsMax:int = 6
+    @editable ServisMin:int = 2
+    @editable ServisMax:int = 5
     # Viser un passager : précision (cm) et portée (cm)
     @editable RayonVisee:float = 70.0
     @editable PorteeVisee:float = 450.0
     # ===== Gains (part de la valeur du vol) =====
-    @editable PartMission:float = 0.07
+    @editable PartMission:float = 0.1
     @editable PartFraudeur:float = 0.12
     @editable PartParfait:float = 0.1
     # Valeur du vol s'il n'y a pas de DevicePC
@@ -158,7 +128,6 @@ feuille_mission := class(creative_device):
     FinsNom:[]string = array{"SSON", "OVA", "ELLI", "ANDEZ", "BERG", "OWSKI", "MANN", "IER", "AKIS", "ENKO", "AUD", "ESCU", "SEN", "OTTI", "ARD", "EIRA", "OGLU", "IC", "STEIN", "WOOD", "INI", "OS", "ANT", "EAU", "OV", "HOLM", "AZ", "ETTE", "UCCI", "ER"}
     AutresVilles:[]string = array{"PARIS", "LONDON", "TOKYO", "ROME", "DUBAI", "MIAMI", "OSLO", "LIMA", "SEOUL", "CAIRO", "SYDNEY", "MADRID"}
     Lettres:[]string = array{"A", "B", "C", "D", "E", "F", "G", "H", "J", "K"}
-    TextesTaches:[]string = array{"Close all overhead bins", "", "Greet passengers at the door", "Safety demonstration (front)", "Walk to the back of the cabin", "Welcome announcement (phone)", "", "", "Order supplies on the PC", "ALERT: passenger with fake papers", "A passenger lost something: find it", "TURBULENCE: go to your crew seat!", "Sick passenger: bring water"}
     PaysNoms:[]string = array{"FRANCE", "GERMANY", "ITALY", "SPAIN", "JAPAN", "BRAZIL", "CANADA", "EGYPT", "INDIA", "MEXICO", "NIGERIA", "POLAND", "TURKEY", "KOREA", "SWEDEN", "USA", "MOROCCO", "PORTUGAL"}
     PaysCodes:[]string = array{"FRA", "DEU", "ITA", "ESP", "JPN", "BRA", "CAN", "EGY", "IND", "MEX", "NGA", "POL", "TUR", "KOR", "SWE", "USA", "MAR", "PRT"}
     MoisNoms:[]string = array{"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
@@ -174,11 +143,12 @@ feuille_mission := class(creative_device):
     PassY:float = 190.0
     PassK:float = 0.5
 
+    TextesTaches:[]string = array{"Close all overhead bins", "", ""}
+
     var Taches:[]tache_feuille = array{}
     var Billets:[]billet_passager = array{}
     var EnCours:logic = false
     var Bilan:logic = false
-    var DebutVol:float = -1.0
     var DebutTrajet:float = 0.0
     var NumeroVol:string = ""
     var Porte:string = ""
@@ -187,8 +157,6 @@ feuille_mission := class(creative_device):
     var FraudeursRates:int = 0
     var Plaintes:int = 0
     var Rangs:[]int = array{}
-    var PointPorte:?vector3 = false
-    var PointFond:?vector3 = false
     # La date du jour (un trajet = un jour)
     var AujAn:int = 2026
     var AujMois:int = 3
@@ -201,7 +169,7 @@ feuille_mission := class(creative_device):
     var Invite:?canvas = false
     TexteInvite:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.9, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
 
-    # L'écran ouvert : 0 rien, 1 la feuille, 2 un billet
+    # L'écran ouvert : 0 rien, 1 la feuille, 2 des papiers
     var Page:int = 0
     var Joueur:?player = false
     var Base:?canvas = false
@@ -226,7 +194,7 @@ feuille_mission := class(creative_device):
                     Decollage()
                 set Avant = Etat
             if (EnCours?):
-                Verifier(0.2)
+                Verifier()
 
     # ---------- une nouvelle feuille (START BOARDING) ----------
     NouvelleFeuille():void =
@@ -242,69 +210,25 @@ feuille_mission := class(creative_device):
         set FraudeursRates = 0
         set Plaintes = 0
         set Bilan = false
-        set DebutVol = -1.0
         set DebutTrajet = GetSimulationElapsedTime()
-        MesurerCabine()
-        # 1. on tire les missions du jour, puis on en garde MaxMissions au hasard
+        set Rangs = for (P : Passagers.Places) { RangDe(P) }
         var Liste:[]tache_feuille = array{}
-        if (Passagers.PortesCoffres.Length > 0, Chance[ChanceCoffres]):
+        if (Passagers.PortesCoffres.Length > 0):
             set Liste += array{tache_feuille{Genre := 0}}
-        if (PointPorte?, Chance[ChanceAccueil]):
-            set Liste += array{tache_feuille{Genre := 2}}
-        if (PointFond?, Chance[ChanceTourCabine]):
-            set Liste += array{tache_feuille{Genre := 4}}
-        if (Chance[ChanceBillets]):
-            T := tache_feuille{Genre := 1}
-            set T.Objectif = GetRandomInt(Max(1, BilletsMin), Max(BilletsMin, BilletsMax))
-            set Liste += array{T}
-        if (Service?, Chance[ChanceChariot]):
-            T := tache_feuille{Genre := 7}
-            set T.Objectif = GetRandomInt(Max(1, ObjetsChariotMin), Max(ObjetsChariotMin, ObjetsChariotMax))
-            set Liste += array{T}
-        if (Menu?, Chance[ChanceFournitures]):
-            T := tache_feuille{Genre := 8}
-            set T.Compte = SommeStock()
-            set Liste += array{T}
-        set Liste = GarderAuHasard(Liste, Max(1, MaxMissions))
-        # 2. les surprises (rares) : entre 15 % et 60 % du vol
-        var Surprises:[]int = array{}
-        if (Chance[ChanceFraudeur]) { set Surprises += array{9} }
-        if (SiegeEquipage?, Chance[ChanceTurbulence]) { set Surprises += array{11} }
-        if (Service?, Chance[ChanceMalade]) { set Surprises += array{12} }
-        Duree := DureeVolPrevue()
-        for (G : Surprises):
-            T := tache_feuille{Genre := G}
-            set T.Visible = false
-            set T.Apparition = Duree * GetRandomFloat(0.15, 0.6)
-            set Liste += array{T}
+        Papiers := tache_feuille{Genre := 1}
+        set Papiers.Objectif = GetRandomInt(Max(1, BilletsMin), Max(BilletsMin, BilletsMax))
+        set Liste += array{Papiers}
+        if (D := Demandes?):
+            Servir := tache_feuille{Genre := 2}
+            set Servir.Objectif = GetRandomInt(Max(1, ServisMin), Max(ServisMin, ServisMax))
+            set Servir.Depart = D.NbServis
+            set Liste += array{Servir}
         set Taches = Liste
         set EnCours = true
         Message("New flight briefing on the wall!")
         Rafraichir()
 
-    GarderAuHasard(Liste:[]tache_feuille, N:int):[]tache_feuille =
-        var Reste:[]tache_feuille = Liste
-        loop:
-            if (Reste.Length <= N) { break }
-            Retire := GetRandomInt(0, Reste.Length - 1)
-            set Reste = for (I -> T : Reste, I <> Retire) { T }
-        Reste
-
-    # La porte (bout du chemin, dans l'allée), le fond de la cabine (place la plus loin)
-    # et le rang de chaque place (le siège le plus proche dans les rangées du device avion).
-    MesurerCabine():void =
-        if (Fin := Passagers.Chemin[Passagers.Chemin.Length - 1]):
-            Depart := Fin.GetTransform().Translation
-            set PointPorte = option{Depart}
-            var Loin:float = 0.0
-            for (P : Passagers.Places):
-                A := P.Allee.GetTransform().Translation
-                D := Distance(A, Depart)
-                if (D > Loin):
-                    set Loin = D
-                    set PointFond = option{A}
-        set Rangs = for (P : Passagers.Places) { RangDe(P) }
-
+    # Le rang de chaque place (le siège le plus proche dans les rangées du device avion).
     RangDe(Place:place_passager):int =
         Pos := Place.Siege.GetTransform().Translation
         var Meilleur:float = 1000000.0
@@ -328,8 +252,8 @@ feuille_mission := class(creative_device):
 
     # ---------- décollage / atterrissage ----------
     Decollage():void =
-        set DebutVol = GetSimulationElapsedTime()
-        for (T : Taches, not T.Fait?, T.Genre = 0 or T.Genre = 2 or T.Genre = 4):
+        # les coffres, c'était avant le décollage
+        for (T : Taches, not T.Fait?, T.Genre = 0):
             set T.Rate = true
         Rafraichir()
 
@@ -338,9 +262,8 @@ feuille_mission := class(creative_device):
             set EnCours = false
             for (T : Taches, not T.Fait?):
                 set T.Rate = true
-            Visibles := for (T : Taches, T.Visible?) { T }
-            Reussies := for (T : Visibles, T.Fait?) { T }
-            if (Visibles.Length > 0, Reussies.Length = Visibles.Length):
+            Reussies := for (T : Taches, T.Fait?) { T }
+            if (Taches.Length > 0, Reussies.Length = Taches.Length):
                 Payer(Gain(PartParfait), "PERFECT FLIGHT!")
             Passes := for (B : Billets, B.Probleme > 0, B.Decision <> 2) { B }
             set FraudeursRates = Passes.Length
@@ -355,17 +278,11 @@ feuille_mission := class(creative_device):
             Rafraichir()
 
     # ---------- vérifications (toutes les 0.2 s) ----------
-    Verifier(Pas:float):void =
+    Verifier():void =
         Etat := Passagers.EtatBouton
-        Maintenant := GetSimulationElapsedTime()
-        Ecoule := Maintenant - DebutVol
         var Change:logic = false
         for (T : Taches, not T.Fait?, not T.Rate?):
-            if (not T.Visible?):
-                if (DebutVol >= 0.0, Ecoule >= T.Apparition):
-                    Surprise(T)
-                    set Change = true
-            else if (T.Genre = 0):
+            if (T.Genre = 0):
                 Ouverts := for (O : Passagers.CoffresOuverts, O?) { O }
                 if (Etat >= 2, Ouverts.Length = 0):
                     Reussir(T, "BINS CLOSED")
@@ -375,114 +292,14 @@ feuille_mission := class(creative_device):
                     Reussir(T, "PAPERS CHECKED")
                     set Change = true
             else if (T.Genre = 2):
-                if (Etat = 1, Pos := PointPorte?):
-                    Ok := SurPlace(T, Pos, DureeAccueil, Pas)
-                    if (Ok?):
-                        Reussir(T, "PASSENGERS WELCOMED")
-                        set Change = true
-            else if (T.Genre = 4):
-                if (Etat >= 2, Pos := PointFond?):
-                    Ok := SurPlace(T, Pos, 0.4, Pas)
-                    if (Ok?):
-                        Reussir(T, "CABIN CHECKED")
-                        set Change = true
-            else if (T.Genre = 7):
-                N := ObjetsSurChariot()
+                N := if (D := Demandes?) then D.NbServis - T.Depart else 0
                 if (N <> T.Compte):
                     set T.Compte = N
                     set Change = true
                 if (N >= T.Objectif):
-                    Reussir(T, "TROLLEY READY")
-                    set Change = true
-            else if (T.Genre = 8):
-                Stock := SommeStock()
-                if (Stock > T.Compte):
-                    Reussir(T, "SUPPLIES ORDERED")
-                    set Change = true
-            else if (T.Genre = 11):
-                if (R := SiegeEquipage?, Proche[R.GetTransform().Translation, RayonSurPlace]):
-                    Reussir(T, "SAFE DURING TURBULENCE")
-                    set Change = true
-                else if (Maintenant > T.Limite):
-                    set T.Rate = true
-                    Erreur("Too late! A passenger got hurt.")
+                    Reussir(T, "PASSENGERS SERVED")
                     set Change = true
         if (Change?) { Rafraichir() }
-
-    # true quand le proprio est resté Duree secondes près du point
-    # (le chrono repart à 0 s'il s'en va). À appeler HORS d'une condition (sinon le chrono est annulé).
-    SurPlace(T:tache_feuille, Position:vector3, Duree:float, Pas:float):logic =
-        if (Proche[Position, RayonSurPlace]):
-            set T.Chrono += Pas
-        else:
-            set T.Chrono = 0.0
-        if (T.Chrono >= Duree) then true else false
-
-    Proche(Position:vector3, Rayon:float)<transacts><decides>:void =
-        Proprio := DeviceAvion.Proprio?
-        Perso := Proprio.GetFortCharacter[]
-        Distance(Perso.GetTransform().Translation, Position) < Rayon
-
-    ObjetsSurChariot():int =
-        if (S := Service?):
-            Sur := for (O : S.Poses, O.ChariotIndex >= 0) { O }
-            Sur.Length
-        else:
-            0
-
-    SommeStock():int =
-        var Total:int = 0
-        if (M := Menu?):
-            for (N : M.Stock) { set Total += N }
-        Total
-
-    # ---------- les surprises en vol ----------
-    Surprise(T:tache_feuille):void =
-        Assis := for (P : Passagers.EnCours, P.Etat = 2, P.Corps?) { P }
-        if (T.Genre = 9):
-            # de préférence quelqu'un qui a déjà un faux billet pas encore vu, sinon un inconnu
-            DejaFaux := for (B : Billets, B.Probleme > 0, B.Decision = 0, B.Passager.Etat = 2) { B.Passager }
-            Inconnus := for (P : Assis, not ABillet[P]) { P }
-            Choix := if (DejaFaux.Length > 0) then DejaFaux else Inconnus
-            if (P := Choix[GetRandomInt(0, Choix.Length - 1)]):
-                if (not ABillet[P]) { Fabriquer(P, true) }
-                set T.Cible = option{P}
-                set T.Visible = true
-                Erreur("ALERT: a passenger has fake papers! See the briefing.")
-            else:
-                set T.Rate = true
-        else if (T.Genre = 11):
-            set T.Limite = GetSimulationElapsedTime() + DelaiTurbulence
-            set T.Visible = true
-            if (S := SonTurbulence?) { S.Play() }
-            Erreur("TURBULENCE! Go to your crew seat!")
-        else if (T.Genre = 12):
-            Libres := for (P : Assis, not EstCible[P]) { P }
-            if (P := Libres[GetRandomInt(0, Libres.Length - 1)]):
-                set T.Cible = option{P}
-                set T.Visible = true
-                Siege := SiegeDe(P)
-                Erreur("A passenger feels sick at seat {Siege}! Bring water.")
-            else:
-                set T.Rate = true
-        else:
-            set T.Rate = true
-
-    EstCible(P:passager)<transacts><decides>:void =
-        var Oui:logic = false
-        for (T : Taches, C := T.Cible?, C = P) { set Oui = true }
-        Oui?
-
-    # ---------- l'eau pour le malade (appelé par le service_device) ----------
-    # true = on a donné l'objet tenu (il disparaît de la main).
-    Donner(Agent:agent, Index:int):logic =
-        Vise := PassagerVise(Agent)
-        if (Index = 0, P := Vise?):
-            for (T : Taches, T.Genre = 12, T.Visible?, not T.Fait?, not T.Rate?, C := T.Cible?, C = P):
-                Reussir(T, "PASSENGER FEELS BETTER")
-                Rafraichir()
-                return true
-        false
 
     # ---------- les papiers (passeport + billet) ----------
     # Viser un passager + la touche -> ses papiers en gros. Marche à la porte (le passager attend
@@ -509,7 +326,7 @@ feuille_mission := class(creative_device):
         for (B : Billets, B.Passager = P):
             return B
         # plus on avance dans le jeu, plus il y a de faux papiers
-        Chances := ChanceBilletFaux + (NiveauActuel() - 1) * 5
+        Chances := ChanceBilletFaux + (NiveauActuel() - 1) * 2
         Fabriquer(P, if (Chance[Chances]) then true else false)
 
     # ----- le cerveau des faux papiers -----
@@ -678,8 +495,6 @@ feuille_mission := class(creative_device):
                 Noter(B.Probleme, true)
                 set P.Fraudeur = false
                 CompterBillet()
-                for (T : Taches, T.Genre = 9, not T.Fait?, Q := T.Cible?, Q = P):
-                    set T.Fait = true
                 Raison := if (R := Raisons[B.Probleme]) then R else ""
                 Payer(Gain(PartFraudeur), "FAKE PAPERS: {Raison}")
                 Expulser(P)
@@ -829,7 +644,7 @@ feuille_mission := class(creative_device):
         V := ValeurDuVol()
         if (G := Round[V * Part]) then Max(1, G) else 1
 
-    GainTache(T:tache_feuille):int = Gain(if (T.Genre = 9) then PartFraudeur else PartMission)
+    GainTache(T:tache_feuille):int = Gain(PartMission)
 
     Reussir(T:tache_feuille, Texte:string):void =
         set T.Fait = true
@@ -859,9 +674,6 @@ feuille_mission := class(creative_device):
     EstProprio(Agent:agent)<transacts><decides>:void =
         Proprio := DeviceAvion.Proprio?
         Proprio = Agent
-
-    DureeVolPrevue():float =
-        if (Ordi := DevicePC?) then Ordi.DureeVolActive() else Passagers.DureeVolSansPC
 
     PhotoDe(N:int)<transacts><decides>:texture = PhotosPassagers[N - 1]
 
@@ -942,7 +754,7 @@ feuille_mission := class(creative_device):
         if (Taches.Length = 0):
             set S += array{Bloc(Ecrit("No flight yet: press START BOARDING.", "334155", text_justification.Center), 600.0, 400.0, 720.0, 40.0, 3)}
             return S
-        Visibles := for (T : Taches, T.Visible?) { T }
+        Visibles := Taches
         Faites := for (T : Visibles, T.Fait?) { T }
         set S += array{Bloc(Ecrit("FLIGHT {NumeroVol}   {VilleDepart()} > {VilleArrivee()}", "1E293B", text_justification.Left), 640.0, 205.0, 520.0, 36.0, 3)}
         set S += array{Bloc(Ecrit("{Faites.Length}/{Visibles.Length}", "244A8C", text_justification.Right), 1160.0, 205.0, 140.0, 36.0, 3)}
@@ -955,7 +767,7 @@ feuille_mission := class(creative_device):
                 set Y += 40.0
                 for (T : Liste):
                     Coche := if (T.Fait?) then FeuilleMission.CaseCochee else if (T.Rate?) then FeuilleMission.CaseRatee else FeuilleMission.Case
-                    Couleur := if (T.Rate?) then "9CA3AF" else if (T.Genre >= 9) then "B91C1C" else "111827"
+                    Couleur := if (T.Rate?) then "9CA3AF" else "111827"
                     CouleurPrix := if (T.Rate?) then "9CA3AF" else "16A34A"
                     set S += array{Bloc(Vignette(Coche, 38.0, 38.0), 640.0, Y, 38.0, 38.0, 3)}
                     set S += array{Bloc(Ecrit(TexteTache(T), Couleur, text_justification.Left), 692.0, Y + 4.0, 470.0, 34.0, 3)}
@@ -964,32 +776,12 @@ feuille_mission := class(creative_device):
                 set Y += 8.0
         if (Bilan?):
             set S += PageBilan()
-        else:
-            # les avis de recherche : faux billet et malade, avec la photo
-            var X:float = 640.0
-            for (T : Visibles, not T.Fait?, not T.Rate?, T.Genre = 9 or T.Genre = 12, P := T.Cible?):
-                set S += Alerte(T, P, X, 800.0)
-                set X += 340.0
         S
 
     DansSection(T:tache_feuille, Section:int)<transacts><decides>:void =
-        Avant := if (T.Genre <= 4) then 0 else 1
+        # coffres et papiers : avant le décollage ; servir : en vol
+        Avant := if (T.Genre <= 1) then 0 else 1
         Avant = Section
-
-    Alerte(T:tache_feuille, P:passager, X:float, Y:float):[]canvas_slot =
-        var S:[]canvas_slot = array{}
-        if (Tex := PhotoDe[P.Modele.Photo]):
-            set S += array{Bloc(Vignette(Tex, 110.0, 110.0), X, Y, 110.0, 110.0, 3)}
-        else:
-            set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("CBD5E1"), DefaultOpacity := 1.0}, X, Y, 110.0, 110.0, 3)}
-            set S += array{Bloc(Ecrit("?", "334155", text_justification.Center), X, Y + 36.0, 110.0, 40.0, 4)}
-        Titre := if (T.Genre = 9) then "FAKE PAPERS!" else "SICK PASSENGER"
-        Ligne1 := if (T.Genre = 9) then "Find this face," else "Seat {SiegeDe(P)}"
-        Ligne2 := if (T.Genre = 9) then "check and REFUSE" else "Bring water"
-        set S += array{Bloc(Ecrit(Titre, "B91C1C", text_justification.Left), X + 122.0, Y + 4.0, 210.0, 32.0, 3)}
-        set S += array{Bloc(Ecrit(Ligne1, "1E293B", text_justification.Left), X + 122.0, Y + 40.0, 210.0, 30.0, 3)}
-        set S += array{Bloc(Ecrit(Ligne2, "1E293B", text_justification.Left), X + 122.0, Y + 72.0, 210.0, 30.0, 3)}
-        S
 
     PageBilan():[]canvas_slot =
         GainBillets := Passagers.DernierGainBillets
@@ -1007,7 +799,7 @@ feuille_mission := class(creative_device):
         S
 
     TexteTache(T:tache_feuille):string =
-        if (T.Genre = 1) then "Check passengers' papers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (T.Genre = 7) then "Put items on the trolley {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (Texte := TextesTaches[T.Genre]) then Texte else "?"
+        if (T.Genre = 1) then "Check passengers' papers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (T.Genre = 2) then "Serve passengers {Min(T.Compte, T.Objectif)}/{T.Objectif}" else if (Texte := TextesTaches[T.Genre]) then Texte else "?"
 
     # ---------- les papiers en gros plan ----------
     # À gauche le vrai visage du passager, au milieu le billet, à droite le passeport.

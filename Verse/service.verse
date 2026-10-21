@@ -86,8 +86,6 @@ service_device := class(creative_device):
     @editable Chariots:[]chariot_device = array{}
     # Le device des demandes : viser un passager qui attend avec le bon objet = le servir.
     @editable Demandes:?demandes_device = false
-    # (facultatif) la feuille de mission : pour donner de l'eau au passager malade.
-    @editable Feuille:?feuille_mission = false
     @editable MateriauEau:?material = false
     @editable MateriauHologramme:?material = false
     @editable NombreSlotsHolo:int = 2
@@ -357,9 +355,7 @@ service_device := class(creative_device):
                 # on vise un passager qui attend ? -> on le sert, sinon on pose
                 O := T.Objet
                 DessusIndex := if (D := O.Dessus?) then D.Index else -99
-                # de l'eau pour le passager malade de la feuille de mission ?
-                Donne := if (F := Feuille?) then F.Donner(P, O.Index) else false
-                Resultat := if (Donne?) then 1 else if (Dem := Demandes?) then Dem.Servir(P, O.Index, DessusIndex) else 0
+                Resultat := if (Dem := Demandes?) then Dem.Servir(P, O.Index, DessusIndex) else 0
                 if (Resultat = 1):
                     Marquer(P)
                     if (set EnMain[P] = false) {}

@@ -446,7 +446,8 @@ feuille_mission := class(creative_device):
                     Reussir(T, "TROLLEY READY")
                     set Change = true
             else if (T.Genre = 8):
-                if (SommeStock() > T.Compte):
+                Stock := SommeStock()
+                if (Stock > T.Compte):
                     Reussir(T, "SUPPLIES ORDERED")
                     set Change = true
             else if (T.Genre = 10):
@@ -679,14 +680,14 @@ feuille_mission := class(creative_device):
 
     # Le niveau des erreurs : 1 facile, 2 moyen, 3 difficile.
     NiveauActuel():int =
-        var Base:int = 1
-        if (PC := DevicePC?):
-            if (PC.Active >= 7):
-                set Base = 3
-            else if (PC.Active >= 2):
-                set Base = 2
+        var NiveauBase:int = 1
+        if (Ordi := DevicePC?):
+            if (Ordi.Active >= 7):
+                set NiveauBase = 3
+            else if (Ordi.Active >= 2):
+                set NiveauBase = 2
         Bonus := if (Forme >= 6) then 1 else if (Forme <= -3) then -1 else 0
-        Max(1, Min(3, Base + Bonus))
+        Max(1, Min(3, NiveauBase + Bonus))
 
     NiveauDe(Code:int)<transacts>:int =
         if (Code <= 3) then 1 else if (Code <= 7) then 2 else 3
@@ -699,7 +700,7 @@ feuille_mission := class(creative_device):
             Rate := if (R := Rates[C]) then R else 0
             Vu := if (A := Attrapes[C]) then A else 0
             # ce qu'il a laissé passer revient plus souvent ; ce qu'il attrape toujours, moins
-            var W:float = (1.0 + 2.0 * Rate) / (1.0 + Vu)
+            var W:float = (1.0 + 2.0 * Rate) / (1.0 + Vu * 1.0)
             # les erreurs du niveau qu'il vient d'atteindre sont mises en avant
             if (NiveauDe(C) = N) { set W *= 1.5 }
             set Codes += array{C}
@@ -803,7 +804,8 @@ feuille_mission := class(creative_device):
             Sleep(0.1)
             if (Proprio := DeviceAvion.Proprio?, J := player[Proprio]):
                 if (not Invite?) { CreerInvite(J) }
-                Vise := if (Page = 0) then PassagerVise(Proprio) else false
+                var Vise:?passager = false
+                if (Page = 0) { set Vise = PassagerVise(Proprio) }
                 if (P := Vise?):
                     Texte := if (DejaControle[P]) then "DOCUMENTS CHECKED" else "[{NomTouche}]  CHECK PASSPORT & TICKET"
                     TexteInvite.SetText(Msg(Texte))
@@ -820,14 +822,14 @@ feuille_mission := class(creative_device):
 
     # ---------- le vol en cours, les dates, les noms ----------
     VilleDepart():string =
-        if (PC := DevicePC?, D := PC.ListeDestinations[PC.Active]):
-            if (PC.Retour?) then D.Ville2 else D.Ville1
+        if (Ordi := DevicePC?, D := Ordi.ListeDestinations[Ordi.Active]):
+            if (Ordi.Retour?) then D.Ville2 else D.Ville1
         else:
             "PARIS"
 
     VilleArrivee():string =
-        if (PC := DevicePC?, D := PC.ListeDestinations[PC.Active]):
-            if (PC.Retour?) then D.Ville1 else D.Ville2
+        if (Ordi := DevicePC?, D := Ordi.ListeDestinations[Ordi.Active]):
+            if (Ordi.Retour?) then D.Ville1 else D.Ville2
         else:
             "LONDON"
 
@@ -841,7 +843,7 @@ feuille_mission := class(creative_device):
                 set AujMois = 1
                 set AujAn += 1
 
-    JoursDansMois(M:int):int =
+    JoursDansMois(M:int)<transacts>:int =
         if (M = 2) then 28 else if (M = 4 or M = 6 or M = 9 or M = 11) then 30 else 31
 
     Aujourdhui():string = DateTexte(AujJour, AujMois, AujAn)
@@ -891,7 +893,7 @@ feuille_mission := class(creative_device):
 
     # ---------- argent ----------
     # Valeur du vol : ce que rapporte un trajet (dépend de la destination, voir pc_destinations).
-    ValeurDuVol():float = if (PC := DevicePC?) then PC.ValeurVol() else ValeurSansPC
+    ValeurDuVol():float = if (Ordi := DevicePC?) then Ordi.ValeurVol() else ValeurSansPC
 
     Gain(Part:float):int =
         V := ValeurDuVol()
@@ -929,7 +931,7 @@ feuille_mission := class(creative_device):
         Proprio = Agent
 
     DureeVolPrevue():float =
-        if (PC := DevicePC?) then PC.DureeVolActive() else Passagers.DureeVolSansPC
+        if (Ordi := DevicePC?) then Ordi.DureeVolActive() else Passagers.DureeVolSansPC
 
     PhotoDe(N:int)<transacts><decides>:texture = PhotosPassagers[N - 1]
 

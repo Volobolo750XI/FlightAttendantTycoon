@@ -298,9 +298,9 @@ passagers := class(creative_device):
     # ---------- vol, atterrissage, débarquement ----------
     VolPuisAtterrissage()<suspends>:void =
         var Duree:float = DureeVolSansPC
-        if (PC := DevicePC?):
-            if (not PC.EnVol[]) { PC.Decollage() }
-            set Duree = PC.DureeVol * (1.0 - PC.Progression())
+        if (Ordi := DevicePC?):
+            if (not Ordi.EnVol[]) { Ordi.Decollage() }
+            set Duree = Ordi.DureeVol * (1.0 - Ordi.Progression())
         Sleep(Max(5.0, Duree))
         if (C := DeviceCinematique?):
             C.Atterrissage()
@@ -311,7 +311,7 @@ passagers := class(creative_device):
     # Chaque passager assis (sauf un fraudeur) paie son billet.
     PayerBillets():void =
         Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
-        ParSiege := if (PC := DevicePC?) then PC.ValeurVol() * PartBillets / Max(1.0, Places.Length * 1.0) else PrixBillet * 1.0
+        ParSiege := if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartBillets / Max(1.0, Places.Length * 1.0) else PrixBillet * 1.0
         Gain := if (G := Round[ParSiege * Payants.Length]) then G else 0
         set DerniersPayants = Payants.Length
         set DernierGainBillets = Gain

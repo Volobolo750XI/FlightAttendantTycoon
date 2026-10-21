@@ -1,4 +1,4 @@
-"""Fleche au-dessus des passagers qui commandent (1 static mesh, 1 materiau jaune lumineux).
+"""Fleche au-dessus des passagers qui commandent (1 static mesh, 1 materiau vert lumineux).
 
 Fichier : Modeles/Fleche/Fleche.glb
 Y vers le haut, la pointe en BAS. PIVOT = la pointe (le code la place au-dessus de la tete).
@@ -14,7 +14,7 @@ from trimesh.visual.material import PBRMaterial
 RACINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SORTIE = os.path.join(RACINE, "Modeles", "Fleche")
 
-JAUNE = (255, 196, 20, 255)
+VERT = (40, 210, 70, 255)
 
 
 def fleche():
@@ -34,7 +34,7 @@ def fleche():
         m.apply_translation((0, -m.vertices[:, 1].min(), 0))
     m.visual = trimesh.visual.TextureVisuals(
         uv=np.full((len(m.vertices), 2), 0.5),
-        material=PBRMaterial(baseColorFactor=JAUNE, emissiveFactor=(1.0, 0.7, 0.05), roughnessFactor=0.4, metallicFactor=0.0))
+        material=PBRMaterial(baseColorFactor=VERT, emissiveFactor=(0.1, 0.8, 0.2), roughnessFactor=0.4, metallicFactor=0.0))
     return m
 
 

@@ -16,7 +16,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   - quand quelqu'un commande, ses voisins ont plus de chances de commander aussi ;
 #   - il ne demande que ce qui est debloque, et surtout ce qui est en stock.
 #
-# Au-dessus du passager qui commande : une FLECHE jaune qui flotte et tourne (Fleches). Si
+# Au-dessus du passager qui commande : une FLECHE verte qui flotte et tourne (Fleches). Si
 # FlecheAvecChariot est coche, on ne la voit que quand on tient le chariot. (Sans fleches, ce
 # sont les anciennes bulles.) Patience invisible : s'il attend trop longtemps, il part fache.
 #

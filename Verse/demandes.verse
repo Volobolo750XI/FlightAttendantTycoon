@@ -2,6 +2,7 @@ using { /Fortnite.com/Devices }
 using { /Fortnite.com/Characters }
 using { /Verse.org/Simulation }
 using { /Verse.org/Random }
+using { /Verse.org/Assets }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 
 # Flight Attendant Tycoon - les demandes des passagers (pendant le vol).
@@ -27,7 +28,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   (barre verte x1.5, jaune / orange x1, rouge x0.5). Trop tard : il part fache, 0 $.
 #
 # Dans l'editeur :
-#   Passagers, Service, Menu, Vol, Avion, Destinations : tes devices.
+#   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
 #   ModeleBulle       : le prop (asset) de la bulle.
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
@@ -38,7 +39,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 
 demande := class<unique>:
     Passager:passager
-    Produit:int
+    Choix:int
     Debut:float
     Patience:float
     Bulle:?creative_prop
@@ -58,8 +59,8 @@ demandes_device := class(creative_device):
     @editable Service:?service_device = false
     @editable Menu:?menu_pc = false
     @editable Vol:?vol_device = false
-    @editable Avion:?avion_tycoon = false
-    @editable Destinations:?pc_destinations = false
+    @editable DeviceAvion:?avion_tycoon = false
+    @editable DevicePC:?pc_destinations = false
 
     @editable ModeleBulle:creative_prop_asset = DefaultCreativePropAsset
     @editable MateriauxBulle:[]material = array{}
@@ -172,8 +173,8 @@ demandes_device := class(creative_device):
                 set Poids += array{W}
         if (Choisi := TirerPondere(Poids)?, P := Candidats[Choisi]):
             Pr := Profil(P)
-            if (Produit := ChoisirProduit(Pr, Ecoule)?):
-                Commander(P, Produit)
+            if (Choix := ChoisirProduit(Pr, Ecoule)?):
+                Commander(P, Choix)
                 set Pr.Commandes += 1
                 set DerniereCommande = Maintenant
                 if (C := P.Corps?) { set DernierePosition = option{C.GetTransform().Translation} }
@@ -217,23 +218,23 @@ demandes_device := class(creative_device):
             set Poids += array{if (EnStock[I]) then 4.0 else 1.0}
         if (K := TirerPondere(Poids)?, I := Ids[K]) then option{I} else false
 
-    Commander(P:passager, Produit:int):void =
+    Commander(P:passager, Choix:int):void =
         if (C := P.Corps?):
             Base := C.GetTransform().Translation + vector3{Z := HauteurBulle}
             var Bulle:?creative_prop = false
             var Barre:?creative_prop = false
             if (B := SpawnProp(ModeleBulle, transform{Translation := Base, Rotation := IdentityRotation(), Scale := Uniforme(EchelleBulle)})(0)?):
-                if (Mat := MateriauxBulle[Produit]) { B.SetMaterial(Mat) }
+                if (Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
                 set Bulle = option{B}
             if (B := SpawnProp(ModeleBarre, transform{Translation := Base - vector3{Z := EcartBarre}, Rotation := IdentityRotation(), Scale := Uniforme(EchelleBarre)})(0)?):
                 set Barre = option{B}
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
-            D := demande{Passager := P, Produit := Produit, Debut := GetSimulationElapsedTime(), Patience := Pat, Bulle := Bulle, Barre := Barre}
+            D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Bulle := Bulle, Barre := Barre}
             set Actives += array{D}
             Placer(D)
             if (S := SonCommande?) { S.Play() }
 
-    Uniforme(E:float):vector3 = vector3{X := E, Y := E, Z := E}
+    Uniforme(E:float)<transacts>:vector3 = vector3{X := E, Y := E, Z := E}
 
     # ---------- affichage ----------
     MettreAJour():void =
@@ -310,14 +311,14 @@ demandes_device := class(creative_device):
                         set MeilleurEcart = Ecart
                         set Visee = option{D}
             if (D := Visee?):
-                Boisson := if (Index = D.Produit, not EstRepas[D.Produit]) then true else false
-                Plat := if (Index < 0, DessusIndex = D.Produit, EstRepas[D.Produit]) then true else false
+                Boisson := if (Index = D.Choix, not EstRepas[D.Choix]) then true else false
+                Plat := if (Index < 0, DessusIndex = D.Choix, EstRepas[D.Choix]) then true else false
                 Bon := if (Boisson? or Plat?) then true else false
                 if (Bon?):
                     Payer(D)
                     return 1
                 if (S := SonErreur?) { S.Play() }
-                Message(if (EstRepas[D.Produit], Index >= 0) then "Put it on a plate!" else "Wrong order!")
+                Message(if (EstRepas[D.Choix], Index >= 0) then "Put it on a plate!" else "Wrong order!")
                 return 2
         0
 
@@ -329,16 +330,16 @@ demandes_device := class(creative_device):
     Payer(D:demande):void =
         Reste := 1.0 - (GetSimulationElapsedTime() - D.Debut) / Max(1.0, D.Patience)
         Bonus := if (Reste > 0.6) then 1.5 else if (Reste > 0.25) then 1.0 else 0.5
-        Multi := if (Dest := Destinations?) then Dest.MultiplicateurActif() else 1.0
+        Multi := if (Dest := DevicePC?) then Dest.MultiplicateurActif() else 1.0
         var Unite:float = 1.0
-        if (M := Menu?, P := M.ListeProduits[D.Produit]):
+        if (M := Menu?, P := M.ListeProduits[D.Choix]):
             set Unite = (P.PrixLot * 1.0) / (Max(1, P.Lot) * 1.0)
         Gain := if (G := Round[Unite * Marge * Multi * Bonus]) then Max(1, G) else 1
-        if (A := Avion?):
+        if (A := DeviceAvion?):
             set A.Argent += Gain
             A.MettreAJourUI()
             Message("+${A.Abreger(Gain)}")
         Pr := Profil(D.Passager)
-        if (not EstRepas[D.Produit]) { set Pr.ABu = true }
+        if (not EstRepas[D.Choix]) { set Pr.ABu = true }
         Retirer(D)
         if (S := SonServi?) { S.Play() }

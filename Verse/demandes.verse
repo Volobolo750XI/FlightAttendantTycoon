@@ -58,6 +58,8 @@ demandes_device := class(creative_device):
     @editable Vol:?vol_device = false
     @editable DeviceAvion:?avion_tycoon = false
     @editable DevicePC:?pc_destinations = false
+    # EN PAUSE : coche pour que les passagers recommencent à commander.
+    @editable Actif:logic = false
 
     @editable Bulles:[]creative_prop = array{}
     @editable MateriauxBulle:[]material = array{}
@@ -109,7 +111,7 @@ demandes_device := class(creative_device):
         for (I -> B : Bulles) { Ranger(I) }
         loop:
             Sleep(0.1)
-            if (EnVol[]):
+            if (Actif?, EnVol[]):
                 if (DebutVol < 0.0):
                     set DebutVol = GetSimulationElapsedTime()
                     set Profils = array{}

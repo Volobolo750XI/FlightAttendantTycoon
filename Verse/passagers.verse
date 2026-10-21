@@ -33,6 +33,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #                        ouvertes dès le départ.
 #   BoutonsCoffres     : un bouton par porte (même ordre) pour que le joueur les referme.
 #   Les repères sont cachés automatiquement au lancement de la partie.
+#
+# Le trajet : TAKE OFF -> le vol dure le temps du trajet choisi sur le PC (DevicePC) -> atterrissage :
+# chaque passager assis paie son billet (PrixBillet x multiplicateur de la destination), puis ils
+# descendent tous, les coffres se rouvrent et le bouton redevient START BOARDING (nouveau trajet).
 
 modele_passager := class<concrete>:
     @editable MarcheValise:creative_prop_asset = DefaultCreativePropAsset
@@ -46,6 +50,9 @@ modele_passager := class<concrete>:
     # Où se trouve le haut des bretelles du sac (cm) : hauteur, avant (+) / arrière (-).
     @editable DosHauteur:float = 110.0
     @editable DosAvant:float = -12.0
+    # Sa photo sur la feuille de mission (ligne "fraudeur") : 1 vieux monsieur, 2 femme veste
+    # orange, 3 grand-mère, 4 homme barbu, 5 femme blouson noir. 0 = pas de photo.
+    @editable Photo:int = 0
 
 bagage := class<concrete>:
     # EnMain : porté (valise poignée sortie / sac). Rangee : posé dans le coffre.
@@ -95,6 +102,8 @@ passager := class<unique>:
     var LongDehors:float = 0.0
     var Annule:logic = false
     var DerniereDir:vector3 = vector3{X := 1.0, Y := 0.0, Z := 0.0}
+    # Voyage sans billet (choisi par la feuille de mission) : il ne paie pas à l'atterrissage.
+    var Fraudeur:logic = false
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
@@ -112,6 +121,14 @@ passagers := class(creative_device):
     @editable PortePassagers:?porte_passager = false
     # Le device cinématique : lancé quand on appuie sur TAKE OFF.
     @editable DeviceCinematique:?cinematique_decollage = false
+    # Le PC des destinations : donne la durée du vol et le multiplicateur du billet.
+    @editable DevicePC:?pc_destinations = false
+    # Durée du vol (secondes) si aucun DevicePC n'est rempli.
+    @editable DureeVolSansPC:float = 300.0
+    # Prix d'un billet (par siège occupé), multiplié par le multiplicateur de la destination.
+    @editable PrixBillet:int = 10
+    # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
+    @editable MessageHUD:?hud_message_device = false
     # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
     @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
@@ -185,6 +202,9 @@ passagers := class(creative_device):
     var RelAssis:?relatif = false
     var RelValiseRangee:?relatif = false
     var RelSacRange:?relatif = false
+    # Dernier atterrissage : passagers qui ont payé et argent gagné (lu par la feuille de mission).
+    var DerniersPayants:int = 0
+    var DernierGainBillets:int = 0
 
     OnBegin<override>()<suspends>:void =
         MesurerExemples()
@@ -221,6 +241,7 @@ passagers := class(creative_device):
                 # TAKE OFF : écran noir en fondu puis la cinématique
                 set EtatBouton = 3
                 if (C := DeviceCinematique?) { spawn{C.Jouer(Joueur)} }
+                spawn{VolPuisAtterrissage()}
 
     # ---------- l'embarquement complet ----------
     Embarquer()<suspends>:void =
@@ -259,6 +280,45 @@ passagers := class(creative_device):
             set EtatBouton = 2
             AfficherCapuchon(2)
             if (Porte := PortePassagers?) { spawn{Porte.FermerApresEmbarquement()} }
+
+    # ---------- vol, atterrissage, débarquement ----------
+    VolPuisAtterrissage()<suspends>:void =
+        var Duree:float = DureeVolSansPC
+        if (PC := DevicePC?):
+            if (not PC.EnVol[]) { PC.Decollage() }
+            set Duree = PC.DureeVol * (1.0 - PC.Progression())
+        Sleep(Max(5.0, Duree))
+        if (C := DeviceCinematique?):
+            C.Atterrissage()
+            if (V := C.Vol?) { V.Atterrir() }
+        PayerBillets()
+        Debarquer()
+
+    # Chaque passager assis (sauf un fraudeur) paie son billet.
+    PayerBillets():void =
+        Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
+        Multi := if (PC := DevicePC?) then PC.MultiplicateurActif() else 1.0
+        Gain := if (G := Round[PrixBillet * Payants.Length * Multi]) then G else 0
+        set DerniersPayants = Payants.Length
+        set DernierGainBillets = Gain
+        if (Gain > 0):
+            set DeviceAvion.Argent += Gain
+            DeviceAvion.MettreAJourUI()
+            if (M := MessageHUD?):
+                M.SetText(Msg("LANDED! {Payants.Length} passengers  +${DeviceAvion.Abreger(Gain)}"))
+                for (J : GetPlayspace().GetPlayers()) { M.Show(J) }
+
+    # Tout le monde descend : passagers et bagages disparaissent, les places se libèrent,
+    # les coffres se rouvrent et le bouton redevient START BOARDING.
+    Debarquer():void =
+        for (P : EnCours):
+            if (C := P.Corps?) { C.Dispose() }
+            if (B := P.Bagage?) { B.Dispose() }
+        set EnCours = array{}
+        set Occupees = for (P : Places) { false }
+        for (I -> Porte : PortesCoffres) { spawn{OuvrirCoffre(I)} }
+        set EtatBouton = 0
+        AfficherCapuchon(0)
 
     # Montre seulement le capuchon de l'état demandé.
     AfficherCapuchon(Etat:int):void =

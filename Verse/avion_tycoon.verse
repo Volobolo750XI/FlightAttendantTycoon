@@ -18,8 +18,9 @@ using { /UnrealEngine.com/Temporary/UI }
 # 3. INTERFACE : importe tes 3 images dans un dossier "Interface" du Tiroir à contenu
 #              et nomme-les FondArgent, FondRevenu, FondRebirth.
 #
-# L'argent n'est pas encore branché : on démarre à 0 $, donc mets Prix = 0
-# sur la 1re rangée (panneau "FREE").
+# Argent : on démarre à 0 $ (mets Prix = 0 sur la 1re rangée, panneau "FREE").
+# On gagne à chaque atterrissage (un billet par siège occupé, device passagers)
+# et avec les missions de la feuille du trajet (device feuille_mission).
 
 Msg<localizes>(Texte:string):message = "{Texte}"
 
@@ -68,7 +69,7 @@ avion_tycoon := class(creative_device):
     # Son joué à chaque achat de rangée (même gratuite) : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
     # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
-    @editable ArgentInfini:logic = false
+    @editable TestArgentInfini:logic = false
 
     var Proprio:?agent = false
     var Argent:int = 0
@@ -96,7 +97,7 @@ avion_tycoon := class(creative_device):
                 Joueur := AttendreSurPlaque(Claim.Plaque, false)
                 set Proprio = option{Joueur}
                 Print("Avion : claim OK")
-                if (ArgentInfini?) { set Argent = 1000000000000000 }
+                if (TestArgentInfini?) { set Argent = 1000000000000000 }
             SuivreRegard(Claim.Panneau)
         Claim.Panneau.Hide()
         if (Joueur := Proprio?):

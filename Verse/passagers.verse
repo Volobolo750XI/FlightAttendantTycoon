@@ -111,6 +111,8 @@ passager := class<unique>:
     var Fraudeur:logic = false
     # Contrôle des papiers : 0 pas encore, 1 VALID (il entre), 2 REFUSE (il repart)
     var Controle:int = 0
+    # Temps passé à attendre devant la porte sans que le proprio soit là
+    var AttentePorte:float = 0.0
 
 passagers := class(creative_device):
     @editable BoutonEmbarquement:button_device = button_device{}
@@ -138,13 +140,16 @@ passagers := class(creative_device):
     @editable PrixBillet:int = 10
     # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
     @editable MessageHUD:?hud_message_device = false
-    # POSTE DE CONTRÔLE : si le proprio se tient à moins de RayonControle (cm) de la porte pendant
-    # l'embarquement, chaque passager s'arrête devant la porte (ArretControle cm avant) et attend
-    # qu'on contrôle ses papiers (feuille_mission) : VALID il entre, REFUSE il repart par la passerelle.
-    # Si le proprio n'est pas à la porte, ils entrent sans contrôle.
+    # POSTE DE CONTRÔLE : pendant l'embarquement, chaque passager s'arrête devant la porte
+    # (ArretControle cm avant) et attend qu'on contrôle ses papiers (feuille_mission) :
+    # VALID il entre, REFUSE il repart par la passerelle. Les suivants font la queue derrière.
+    # Si le proprio n'est pas près de la porte (RayonControle cm) pendant AttenteMax secondes,
+    # le passager finit par entrer sans contrôle (pour ne pas bloquer l'embarquement).
+    # AttenteMax = 0 : il attend pour toujours.
     @editable ControlePorte:logic = true
-    @editable RayonControle:float = 400.0
+    @editable RayonControle:float = 600.0
     @editable ArretControle:float = 80.0
+    @editable AttenteMax:float = 30.0
     # Son de bouton quand on appuie sur START BOARDING : un Appareil Lecteur audio.
     @editable SonBouton:?audio_player_device = false
     @editable EnfoncementBouton:float = 4.0
@@ -403,9 +408,16 @@ passagers := class(creative_device):
                 set Limite = Min(Limite, Autre.Avancee - Espacement)
             # poste de contrôle : il attend devant la porte qu'on regarde ses papiers
             Arret0 := P.LongDehors - ArretControle
-            Porte := PointRoute(Route, P.LongDehors)
-            if (ControlePorte?, P.Controle = 0, P.Avancee <= Arret0 + 1.0, ProprioALaPorte[Porte]):
+            if (ControlePorte?, P.Controle = 0, P.Avancee <= Arret0 + 1.0):
                 set Limite = Min(Limite, Arret0)
+                # arrivé à la porte : si le proprio n'est pas là depuis trop longtemps, il entre seul
+                if (P.Avancee >= Arret0 - 5.0, AttenteMax > 0.0):
+                    Porte := PointRoute(Route, P.LongDehors)
+                    if (ProprioALaPorte[Porte]):
+                        set P.AttentePorte = 0.0
+                    else:
+                        set P.AttentePorte += Pas
+                        if (P.AttentePorte >= AttenteMax) { set P.Controle = 1 }
             Cible := Min(Limite, P.Avancee + VitesseMarche * Pas)
             if (Cible <= P.Avancee + 1.0):
                 Changer(P, 1, P.Modele.Attente)

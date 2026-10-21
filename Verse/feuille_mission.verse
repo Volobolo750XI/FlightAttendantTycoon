@@ -528,20 +528,21 @@ feuille_mission := class(creative_device):
         for (T : Taches, T.Genre = 1, not T.Fait?, not T.Rate?):
             set T.Compte += 1
 
-    # Le passager que le joueur vise (son corps), à portée.
+    # Le passager que le joueur vise (son corps), à portée. Si plusieurs sont dans la visée
+    # (une file d'attente), c'est le PLUS PROCHE du joueur qui compte (celui de devant).
     PassagerVise(Agent:agent):?passager =
         var Vise:?passager = false
         if (FC := Agent.GetFortCharacter[]):
             CamPos := FC.GetViewLocation()
             Avant := FC.GetViewRotation().RotateVector(vector3{X := 1.0, Y := 0.0, Z := 0.0})
-            var Meilleur:float = RayonVisee
+            var PlusProche:float = PorteeVisee
             for (P : Passagers.EnCours, P.Controle <> 2, C := P.Corps?):
                 Pos := C.GetTransform().Translation + vector3{Z := 60.0}
                 D := Pos - CamPos
                 T := D.X * Avant.X + D.Y * Avant.Y + D.Z * Avant.Z
                 Ecart := Distance(CamPos + Avant * T, Pos)
-                if (T > 0.0, T < PorteeVisee, Ecart < Meilleur):
-                    set Meilleur = Ecart
+                if (T > 0.0, T < PlusProche, Ecart < RayonVisee):
+                    set PlusProche = T
                     set Vise = option{P}
         Vise
 

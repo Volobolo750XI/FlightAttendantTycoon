@@ -233,9 +233,8 @@ feuille_mission := class(creative_device):
     var BilletOuvert:?billet_passager = false
 
     OnBegin<override>()<suspends>:void =
-        if (R := RepereDemo?) { R.Hide() }
-        if (R := SiegeEquipage?) { R.Hide() }
-        for (P : Inspections) { P.Repere.Hide() }
+        # RepereDemo, SiegeEquipage et les repères d'inspection restent visibles : ça peut être de
+        # vrais objets (un siège, les toilettes...). Seuls les objets perdus et les cachettes sont cachés.
         for (O : ObjetsPerdus) { O.Hide() }
         for (C : Cachettes) { C.Hide() }
         BoutonFeuille.InteractedWithEvent.Subscribe(OnFeuille)

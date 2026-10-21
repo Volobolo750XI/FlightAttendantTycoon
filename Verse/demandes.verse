@@ -62,7 +62,9 @@ demandes_device := class(creative_device):
     @editable Bulles:[]creative_prop = array{}
     @editable MateriauxBulle:[]material = array{}
     # Ou est la bulle : hauteur au-dessus du pivot du passager assis (cm)
-    @editable HauteurBulle:float = 150.0
+    @editable HauteurBulle:float = 200.0
+    # Taille de la bulle (1 = taille du prop a l'echelle 1)
+    @editable EchelleBulle:float = 0.4
     # Si la bulle ne fait pas face au joueur, essaie 90, -90 ou 180
     @editable RotationBulle:float = 0.0
 
@@ -250,7 +252,7 @@ demandes_device := class(creative_device):
                     set Vers = Plat / Plat.Length()
             Face := MakeShortestRotationBetween(vector3{X := 1.0, Y := 0.0, Z := 0.0}, Vers).RotateBy(MakeRotationFromYawPitchRollDegrees(RotationBulle, 0.0, 0.0))
             if (B := Bulles[D.Emplacement]):
-                if (B.TeleportTo[Base, Face]) {}
+                if (B.TeleportTo[transform{Translation := Base, Rotation := Face, Scale := vector3{X := EchelleBulle, Y := EchelleBulle, Z := EchelleBulle}}]) {}
 
     Effacer(D:demande):void =
         Ranger(D.Emplacement)

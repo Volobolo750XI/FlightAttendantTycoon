@@ -187,8 +187,10 @@ feuille_mission := class(creative_device):
     PaysCodes:[]string = array{"FRA", "DEU", "ITA", "ESP", "JPN", "BRA", "CAN", "EGY", "IND", "MEX", "NGA", "POL", "TUR", "KOR", "SWE", "USA", "MAR", "PRT"}
     MoisNoms:[]string = array{"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"}
     Raisons:[]string = array{"", "WRONG DESTINATION", "WRONG FLIGHT", "NOT THE SAME FACE", "WRONG DATE ON TICKET", "PASSPORT EXPIRED", "NAMES DON'T MATCH", "WRONG SEX ON PASSPORT", "PASSPORT No. DOESN'T MATCH", "NAME MISSPELLED"}
-    # Les papiers à l'écran : Billet.png (1800 x 720) en 900 x 360, Passeport.png (1260 x 1000)
-    # en 630 x 500. Les positions des valeurs sont celles de Outils/feuille_mission.py.
+    # Les papiers à l'écran : le dessin du billet (1800 x 720) en 900 x 360, celui du passeport
+    # (1260 x 1000) en 630 x 500. Les images sont en puissance de 2 avec du vide autour : on les
+    # affiche donc plus grandes et décalées pour que le dessin tombe ici.
+    # Les positions des valeurs sont celles de Outils/feuille_mission.py.
     BilletX:float = 330.0
     BilletY:float = 250.0
     BilletK:float = 0.5
@@ -1007,7 +1009,7 @@ feuille_mission := class(creative_device):
     PageFeuille():[]canvas_slot =
         var S:[]canvas_slot = array{}
         set S += array{Bloc(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.45}, 0.0, 0.0, 1920.0, 1080.0, 0)}
-        set S += array{Bloc(Vignette(FeuilleMission.FondFeuille, 820.0, 1000.0), 550.0, 40.0, 820.0, 1000.0, 1)}
+        set S += array{Bloc(Vignette(FeuilleMission.FondFeuille, 1024.0, 1024.0), 448.0, 28.0, 1024.0, 1024.0, 1)}
         set S += BoutonEcran("CLOSE", "374151", 1170.0, 950.0, 150.0, 42.0, 10)
         if (Taches.Length = 0):
             set S += array{Bloc(Ecrit("No flight yet: press START BOARDING.", "334155", text_justification.Center), 600.0, 400.0, 720.0, 40.0, 3)}
@@ -1094,7 +1096,7 @@ feuille_mission := class(creative_device):
         else:
             set S += array{Bloc(Ecrit("?", "FFFFFF", text_justification.Center), 60.0, 350.0, 240.0, 40.0, 3)}
         # le billet
-        set S += array{Bloc(Vignette(FeuilleMission.Billet, 900.0, 360.0), BilletX, BilletY, 900.0, 360.0, 1)}
+        set S += array{Bloc(Vignette(FeuilleMission.Billet, 1024.0, 512.0), BilletX - 62.0, BilletY - 76.0, 1024.0, 512.0, 1)}
         set S += array{SurBillet(B.NomBillet, 60.0, 205.0, 900.0)}
         set S += array{SurBillet(VilleDepart(), 60.0, 345.0, 360.0)}
         set S += array{SurBillet(B.Vers, 720.0, 345.0, 320.0)}
@@ -1108,7 +1110,7 @@ feuille_mission := class(creative_device):
         set S += array{SurBillet(B.Siege, 1390.0, 345.0, 380.0)}
         set S += array{SurBillet(B.Vers, 1390.0, 455.0, 380.0)}
         # le passeport
-        set S += array{Bloc(Vignette(FeuilleMission.Passeport, 630.0, 500.0), PassX, PassY, 630.0, 500.0, 1)}
+        set S += array{Bloc(Vignette(FeuilleMission.Passeport, 1024.0, 512.0), PassX - 197.0, PassY - 6.0, 1024.0, 512.0, 1)}
         if (Tex := PhotoDe[B.Photo]):
             Cote := 360.0 * PassK
             set S += array{Bloc(Vignette(Tex, Cote, Cote), PassX + 60.0 * PassK, PassY + 190.0 * PassK, Cote, Cote, 2)}
@@ -1123,9 +1125,9 @@ feuille_mission := class(creative_device):
         set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1140.0)}
         # le tampon, ou les boutons
         if (B.Decision = 1):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 400.0, 228.0), 460.0, 316.0, 400.0, 228.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 600.0, 300.0), 360.0, 280.0, 600.0, 300.0, 6)}
         else if (B.Decision = 2):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 400.0, 228.0), 460.0, 316.0, 400.0, 228.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 600.0, 300.0), 360.0, 280.0, 600.0, 300.0, 6)}
         if (B.Decision = 0):
             set S += BoutonEcran("VALID", "16A34A", 620.0, 760.0, 300.0, 70.0, 1)
             set S += BoutonEcran("REFUSE", "DC2626", 1000.0, 760.0, 300.0, 70.0, 2)

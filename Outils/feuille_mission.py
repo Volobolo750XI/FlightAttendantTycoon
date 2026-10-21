@@ -12,6 +12,9 @@ Sortie (Textures/FeuilleMission) :
   Photo1.png ... Photo5.png  les photos des passagers (decoupees dans Modeles/personnages_apercu.png,
                     de gauche a droite : 1 vieux monsieur, 2 femme veste orange, 3 grand-mere,
                     4 homme barbu, 5 femme blouson noir)
+Les grandes images sont ensuite centrees dans un carre / rectangle en puissance de 2 (vide
+transparent autour) pour UEFN : FondFeuille 2048 x 2048, Billet 2048 x 1024, Passeport 2048 x 1024,
+tampons 1024 x 512. Le Verse les affiche plus grandes d'autant (le dessin tombe au meme endroit).
 Et Modeles/Feuille/FeuilleMur.glb : le presse-papier a accrocher au mur (texture = FondFeuille).
 
 Usage : python3 feuille_mission.py
@@ -239,6 +242,17 @@ def modele_mur(tex):
     trimesh.Scene([avant, bois]).export(os.path.join(MODELES, "FeuilleMur.glb"))
 
 
+def puissance2(nom):
+    """Centre l'image dans la puissance de 2 superieure (vide transparent autour)."""
+    chemin = os.path.join(SORTIE, nom + ".png")
+    img = Image.open(chemin).convert("RGBA")
+    p2 = lambda n: 1 << (n - 1).bit_length()
+    W, H = p2(img.width), p2(img.height)
+    fond = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    fond.paste(img, ((W - img.width) // 2, (H - img.height) // 2))
+    fond.save(chemin)
+
+
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     t = feuille()
@@ -249,4 +263,6 @@ if __name__ == "__main__":
     tampon("TamponRefus", "REFUSED", (210, 34, 34, 235))
     photos()
     modele_mur(t)
+    for n in ["FondFeuille", "Billet", "Passeport", "TamponOk", "TamponRefus"]:
+        puissance2(n)
     print("ok :", SORTIE)

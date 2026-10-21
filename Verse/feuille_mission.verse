@@ -1127,10 +1127,34 @@ feuille_mission := class(creative_device):
         if (B.Decision = 0):
             set S += BoutonEcran("VALID", "16A34A", 620.0, 760.0, 300.0, 70.0, 1)
             set S += BoutonEcran("REFUSE", "DC2626", 1000.0, 760.0, 300.0, 70.0, 2)
-            set S += array{Bloc(Ecrit("Check: flight, destination, date, face, names, sex, expiry date, passport number.", "CBD5E1", text_justification.Center), 0.0, 855.0, 1920.0, 30.0, 3)}
+            set S += Regles()
         else:
             set S += array{Bloc(Ecrit("Documents already checked.", "CBD5E1", text_justification.Center), 0.0, 780.0, 1920.0, 30.0, 3)}
         set S += BoutonEcran("CLOSE", "374151", 1700.0, 30.0, 180.0, 48.0, 3)
+        S
+
+    # Le règlement affiché sous les boutons : ce qu'il faut comparer. Seules les règles du niveau
+    # actuel du cerveau sont montrées (au début : visage, vol, destination).
+    Regles():[]canvas_slot =
+        N := NiveauActuel()
+        Toutes := array:
+            "1. FACE: passport photo = the passenger"
+            "2. FLIGHT: ticket flight = this flight"
+            "3. DESTINATION: ticket TO = this flight"
+            "4. DATE: ticket date = today"
+            "5. NAMES: ticket name = passport name"
+            "6. PASSPORT: not expired, right sex"
+            "7. PASSPORT No. = number in the bottom strip"
+        Niveaux := array{1, 1, 1, 2, 2, 2, 3}
+        Visibles := for (I -> R : Toutes, Nv := Niveaux[I], Nv <= N) { R }
+        var S:[]canvas_slot = array{}
+        Rangees := if (Q := Quotient[Visibles.Length + 1, 2]) then Q * 1.0 else 1.0
+        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("0F172A"), DefaultOpacity := 0.85}, 460.0, 850.0, 1000.0, 50.0 + Rangees * 30.0, 1)}
+        set S += array{Bloc(Ecrit("CHECK THAT EVERYTHING MATCHES - ONE MISTAKE = REFUSE", "FBBF24", text_justification.Center), 460.0, 856.0, 1000.0, 30.0, 3)}
+        for (I -> R : Visibles):
+            Colonne := if (Mod[I, 2] = 0) then 0.0 else 500.0
+            Ligne := if (L := Quotient[I, 2]) then L * 1.0 else 0.0
+            set S += array{Bloc(Ecrit(R, "E2E8F0", text_justification.Left), 490.0 + Colonne, 890.0 + Ligne * 30.0, 480.0, 30.0, 3)}
         S
 
     # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).

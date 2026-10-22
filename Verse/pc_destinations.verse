@@ -98,7 +98,7 @@ pc_destinations := class(creative_device):
         ville_reseau{Nom := "CAIRO", Pays := "EGYPT", Description := "The pyramids are waiting.", U := 0.6729, V := 0.4708, Image := Villes.Cairo}
         ville_reseau{Nom := "NEW YORK", Pays := "USA", Description := "The city that never sleeps.", U := 0.4585, V := 0.4443, Image := Villes.NewYork}
         ville_reseau{Nom := "DUBAI", Pays := "UAE", Description := "Gold, sand and the tallest tower.", U := 0.7218, V := 0.4822, Image := Villes.Dubai}
-        ville_reseau{Nom := "RIO DE JANEIRO", Pays := "BRAZIL", Description := "Beaches, samba and sunshine.", U := 0.5213, V := 0.5891, Image := Villes.Rio}
+        ville_reseau{Nom := "RIO", Pays := "BRAZIL", Description := "Beaches, samba and sunshine.", U := 0.5213, V := 0.5891, Image := Villes.Rio}
         ville_reseau{Nom := "MEXICO CITY", Pays := "MEXICO", Description := "Tacos, colors and old pyramids.", U := 0.4074, V := 0.4954, Image := Villes.MexicoCity}
         ville_reseau{Nom := "LOS ANGELES", Pays := "USA", Description := "Palm trees and movie stars.", U := 0.3684, V := 0.4611, Image := Villes.LosAngeles}
         ville_reseau{Nom := "DELHI", Pays := "INDIA", Description := "Spices, palaces and busy streets.", U := 0.7665, V := 0.4742, Image := Villes.Delhi}
@@ -165,7 +165,11 @@ pc_destinations := class(creative_device):
     var Dynamiques:[]widget = array{}
     var NumeroAnimation:int = 0
     # La ligne dont la fiche est ouverte (-1 = aucune).
+    # trajet ouvert dans la fiche (-1 = aucune) ; un trajet = une ligne dans un sens :
+    # trajet 2*R = de A vers B, trajet 2*R+1 = de B vers A
     var Selection:int = -1
+    # page de la liste des trajets (on fait défiler avec PREV / NEXT)
+    var Page:int = 0
     var MessageErreur:string = ""
     var NumeroMessage:int = 0
 
@@ -213,6 +217,22 @@ pc_destinations := class(creative_device):
         for (R : RoutesDe(Position), Achetee[R]):
             return R
         -1
+
+    # ---------- les trajets (chaque ligne dans les 2 sens) ----------
+    RouteDe(T:int)<transacts>:int = if (Q := Quotient[T, 2]) then Q else -1
+    DepartDe(T:int)<transacts>:int =
+        if (Rt := Routes[RouteDe(T)]) then (if (Mod[T, 2] = 0) then Rt.A else Rt.B) else -1
+    ArriveeDe(T:int)<transacts>:int = Autre(RouteDe(T), DepartDe(T))
+
+    # Tous les trajets : d'abord ceux qui partent d'ici, puis les autres du moins cher au plus cher.
+    Trajets()<transacts>:[]int =
+        var Liste:[]int = for (T := 0..Routes.Length * 2 - 1, DepartDe(T) = Position) { T }
+        for (Niv := 1..8):
+            set Liste += for (T := 0..Routes.Length * 2 - 1, DepartDe(T) <> Position, Palier(RouteDe(T)) = Niv) { T }
+        Liste
+
+    ParPage:int = 6
+    NbPages()<transacts>:int = if (Q := Quotient[Trajets().Length + ParPage - 1, ParPage]) then Max(1, Q) else 1
 
     Palier(R:int)<transacts>:int = if (Rt := Routes[R]) then Rt.Palier else 1
     PrixRoute(R:int)<transacts>:int = if (P := PrixPalier[Palier(R) - 1]) then P else 0
@@ -287,6 +307,7 @@ pc_destinations := class(creative_device):
     Ouvrir(P:player):void =
         Fermer()
         set EcranJoueur = option{P}
+        set Page = 0
         Afficher()
 
     Fermer():void =
@@ -298,16 +319,23 @@ pc_destinations := class(creative_device):
         set Selection = -1
 
     # ---------- les clics ----------
-    # 1 ouvrir la fiche d'une ligne, 2 acheter, 3 prochain vol, 4 fermer la fiche, 5 fermer le PC
+    # 1 ouvrir la fiche d'un trajet, 2 acheter, 3 prochain vol, 4 fermer la fiche, 5 fermer le PC,
+    # 6 page précédente, 7 page suivante
     Agir(Action:int, Index:int):void =
         if (Action = 1):
             set Selection = Index
             set MessageErreur = ""
             Afficher()
         else if (Action = 2):
-            Acheter(Selection)
+            Acheter(RouteDe(Selection))
         else if (Action = 3):
-            Choisir(Selection)
+            Choisir(RouteDe(Selection))
+        else if (Action = 6):
+            set Page = Max(0, Page - 1)
+            Afficher()
+        else if (Action = 7):
+            set Page = Min(NbPages() - 1, Page + 1)
+            Afficher()
         else if (Action = 4):
             set Selection = -1
             Afficher()
@@ -320,15 +348,15 @@ pc_destinations := class(creative_device):
                 M.Ouvrir(P, Self)
 
     Acheter(R:int):void =
-        if (Touche[R, Position], not Achetee[R]):
+        if (Routes[R], not Achetee[R]):
             Prix := PrixRoute(R)
             if (AvionTycoon.Argent >= Prix):
                 set AvionTycoon.Argent -= Prix
                 AvionTycoon.MettreAJourUI()
                 if (S := SonAchat?) { S.Play() }
                 if (set Achetees[R] = true) {}
-                # la nouvelle ligne devient le prochain vol (au sol)
-                if (not EnVol[]) { set Choisie = R }
+                # si elle part d'ici, la nouvelle ligne devient le prochain vol (au sol)
+                if (not EnVol[], Touche[R, Position]) { set Choisie = R }
                 set MessageErreur = ""
                 Afficher()
             else:
@@ -452,7 +480,7 @@ pc_destinations := class(creative_device):
             if (MessageErreur <> ""):
                 set Slots += array{Bloc(Rect("7F1D1D", 0.95), 610.0, 170.0, 700.0, 50.0, 25)}
                 set Slots += array{Bloc(Ecrit(MessageErreur, "FFFFFF", text_justification.Center), 610.0, 175.0, 700.0, 40.0, 26)}
-            if (Routes[Selection]):
+            if (Routes[RouteDe(Selection)]):
                 set Slots += Fiche(Selection)
             set Slots += BoutonEcran("CLOSE", "374151", 1720.0, 20.0, 170.0, 50.0, 5, 0)
             for (S : Slots) { Toile.AddWidget(S) }
@@ -460,31 +488,48 @@ pc_destinations := class(creative_device):
             if (EnVol[], IconeAvion := Carte(1)?):
                 spawn{AnimerAvion(NumeroAnimation, Toile, IconeAvion)}
 
-    # À gauche : la ville où on est et les lignes qui en partent.
+    # À gauche : tous les trajets, dans les 2 sens, 6 par page (PREV / NEXT pour défiler).
+    # Ceux qui partent de la ville où est l'avion sont en premier.
     ListeLignes():[]canvas_slot =
         var S:[]canvas_slot = array{}
         UL := (ListeGauche + ListeDroite) / 2.0
         Largeur := (ListeDroite - ListeGauche) * TailleCarte * 0.94
-        Ici := if (Ville := LesVilles[Position]) then Ville.Nom else "?"
+        Ici := NomVille(Position)
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {Ici}"
         set S += array{PlaceC(Ecrit(Titre, "FBBF24", text_justification.Center), UL, ListeHaut, 0.0, 10.0, Largeur, 40.0, 6)}
-        set S += array{PlaceC(Ecrit("ROUTES FROM {Ici}", "94A3B8", text_justification.Center), UL, ListeHaut, 0.0, 50.0, Largeur, 40.0, 6)}
-        Pas := 150.0
-        for (N -> R : RoutesDe(Position), Ville := LesVilles[Autre(R, Position)]):
-            DY := 140.0 + N * Pas
+        set S += array{PlaceC(Ecrit("ALL ROUTES - BOTH WAYS", "94A3B8", text_justification.Center), UL, ListeHaut, 0.0, 50.0, Largeur, 40.0, 6)}
+        Tous := Trajets()
+        set Page = Max(0, Min(Page, NbPages() - 1))
+        Pas := 115.0
+        for (N := 0..ParPage - 1, T := Tous[Page * ParPage + N], Ville := LesVilles[ArriveeDe(T)]):
+            R := RouteDe(T)
+            DY := 150.0 + N * Pas
             Achat := if (Achetee[R]) then true else false
-            Prochain := if (R = Choisie, not EnVol[]) then true else false
-            Bord := if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else "FBBF24"
+            DIci := if (DepartDe(T) = Position) then true else false
+            Prochain := if (R = Choisie, DIci?, not EnVol[]) then true else false
+            Bord := if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else if (DIci?) then "FBBF24" else "64748B"
             Statut := if (Prochain?) then "NEXT FLIGHT" else if (Achat?) then "OWNED" else "${Abreger(PrixRoute(R))}"
-            Minutes := MinutesRoute(R)
-            Duree := if (M := Round[Minutes]) then M else 5
-            set S += array{PlaceC(Rect(Bord, 1.0), UL, ListeHaut, 0.0, DY, Largeur, Pas - 12.0, 6)}
-            set S += array{PlaceC(Rect("0B1620", 1.0), UL, ListeHaut, 0.0, DY, Largeur - 6.0, Pas - 18.0, 7)}
-            set S += array{PlaceC(Vignette(Ville.Image, 140.0, 70.0), UL, ListeHaut, -Largeur / 2.0 + 80.0, DY, 140.0, 70.0, 8)}
-            set S += array{PlaceC(Ecrit(Ville.Nom, "FFFFFF", text_justification.Left), UL, ListeHaut, 75.0, DY - 38.0, Largeur - 170.0, 38.0, 8)}
-            set S += array{PlaceC(Ecrit("{Duree} MIN - LV {Palier(R)}", "94A3B8", text_justification.Left), UL, ListeHaut, 75.0, DY, Largeur - 170.0, 38.0, 8)}
-            set S += array{PlaceC(Ecrit(Statut, Bord, text_justification.Left), UL, ListeHaut, 75.0, DY + 38.0, Largeur - 170.0, 38.0, 8)}
-            set S += array{PlaceC(Zone(1, R), UL, ListeHaut, 0.0, DY, Largeur, Pas - 12.0, 30)}
+            Duree := if (M := Round[MinutesRoute(R)]) then M else 5
+            CouleurDepart := if (DIci?) then "FBBF24" else "94A3B8"
+            set S += array{PlaceC(Rect(Bord, 1.0), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 6)}
+            set S += array{PlaceC(Rect("0B1620", 1.0), UL, ListeHaut, 0.0, DY, Largeur - 6.0, Pas - 16.0, 7)}
+            set S += array{PlaceC(Vignette(Ville.Image, 120.0, 60.0), UL, ListeHaut, -Largeur / 2.0 + 70.0, DY, 120.0, 60.0, 8)}
+            set S += array{PlaceC(Ecrit("TO {Ville.Nom}", "FFFFFF", text_justification.Left), UL, ListeHaut, 70.0, DY - 32.0, Largeur - 150.0, 34.0, 8)}
+            set S += array{PlaceC(Ecrit("FROM {NomVille(DepartDe(T))}", CouleurDepart, text_justification.Left), UL, ListeHaut, 70.0, DY, Largeur - 150.0, 34.0, 8)}
+            set S += array{PlaceC(Ecrit("{Statut}  -  {Duree} MIN", Bord, text_justification.Left), UL, ListeHaut, 70.0, DY + 32.0, Largeur - 150.0, 34.0, 8)}
+            set S += array{PlaceC(Zone(1, T), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 30)}
+        # défilement
+        DYP := 150.0 + ParPage * Pas
+        Bouton := (Largeur - 20.0) / 3.0
+        if (Page > 0):
+            set S += array{PlaceC(Rect("334155", 1.0), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 60.0, 6)}
+            set S += array{PlaceC(Ecrit("< PREV", "FFFFFF", text_justification.Center), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 40.0, 8)}
+            set S += array{PlaceC(Zone(6, 0), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 60.0, 30)}
+        set S += array{PlaceC(Ecrit("{Page + 1} / {NbPages()}", "E2E8F0", text_justification.Center), UL, ListeHaut, 0.0, DYP, Bouton, 40.0, 8)}
+        if (Page < NbPages() - 1):
+            set S += array{PlaceC(Rect("334155", 1.0), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 60.0, 6)}
+            set S += array{PlaceC(Ecrit("NEXT >", "FFFFFF", text_justification.Center), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 40.0, 8)}
+            set S += array{PlaceC(Zone(7, 0), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 60.0, 30)}
         S
 
     # À droite : toutes les lignes en pointillés, les villes, l'avion.
@@ -528,12 +573,14 @@ pc_destinations := class(creative_device):
             Toile.AddWidget(PlaceC(Img, Pt.X, Pt.Y, 0.0, -18.0, 44.0, 44.0, 9))
 
     # La fiche d'une ligne : illustration de la ville, description, infos, boutons.
-    Fiche(R:int):[]canvas_slot =
+    Fiche(T:int):[]canvas_slot =
         var S:[]canvas_slot = array{}
-        Arrivee := Autre(R, Position)
-        if (Ville := LesVilles[Arrivee]):
+        R := RouteDe(T)
+        Depart := DepartDe(T)
+        if (Ville := LesVilles[ArriveeDe(T)]):
             Achat := if (Achetee[R]) then true else false
-            Prochain := if (R = Choisie, not EnVol[]) then true else false
+            DIci := if (Depart = Position) then true else false
+            Prochain := if (R = Choisie, DIci?, not EnVol[]) then true else false
             Bord := if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else "FBBF24"
             set S += array{Bloc(Rect("000000", 0.6), 0.0, 0.0, 1920.0, 1080.0, 11)}
             set S += array{Bloc(Rect(Bord, 1.0), 554.0, 164.0, 812.0, 892.0, 12)}
@@ -548,21 +595,25 @@ pc_destinations := class(creative_device):
             MultiTexte := if (M := Round[Multi]) then M else 1
             Valeur := if (V := ValeurPalier[Palier(R) - 1], Arrondi := Round[V]) then Arrondi else 0
             set S += array{Bloc(Ecrit(Ville.Description, "CBD5E1", text_justification.Center), 580.0, 584.0, 760.0, 40.0, 16)}
-            set S += Info("ROUTE", "{NomVille(Position)}  >  {Ville.Nom}", 636.0)
+            set S += Info("ROUTE", "{NomVille(Depart)}  >  {Ville.Nom}", 636.0)
             set S += Info("FLIGHT TIME", "{Minutes} MIN", 678.0)
             set S += Info("LEVEL", "{Palier(R)}  (ORDERS x{MultiTexte})", 720.0)
             set S += Info("FLIGHT VALUE", "${Abreger(Valeur)}", 762.0)
-            set S += Info("PRICE", if (Achat?) then "OWNED" else "${Abreger(PrixRoute(R))}", 804.0)
+            Prix := if (Achat?) then "OWNED" else "${Abreger(PrixRoute(R))}"
+            set S += Info("PRICE", Prix, 804.0)
             # les boutons
             if (not Achat?):
-                set S += BoutonEcran("BUY  ${Abreger(PrixRoute(R))}", "15803D", 600.0, 900.0, 380.0, 120.0, 2, R)
+                set S += BoutonEcran("BUY  ${Abreger(PrixRoute(R))}", "15803D", 600.0, 900.0, 380.0, 120.0, 2, T)
             else if (EnVol[]):
                 set S += array{Bloc(Ecrit("WAIT FOR LANDING", "94A3B8", text_justification.Center), 600.0, 940.0, 380.0, 40.0, 16)}
             else if (Prochain?):
                 set S += array{Bloc(Ecrit("NEXT FLIGHT", "22C55E", text_justification.Center), 600.0, 940.0, 380.0, 40.0, 16)}
+            else if (not DIci?):
+                set S += array{Bloc(Ecrit("DEPARTS FROM", "94A3B8", text_justification.Center), 600.0, 915.0, 380.0, 40.0, 16)}
+                set S += array{Bloc(Ecrit(NomVille(Depart), "FBBF24", text_justification.Center), 600.0, 960.0, 380.0, 40.0, 16)}
             else:
-                set S += BoutonEcran("FLY HERE NEXT", "0369A1", 600.0, 900.0, 380.0, 120.0, 3, R)
-            set S += BoutonEcran("CLOSE", "374151", 1000.0, 900.0, 320.0, 120.0, 4, R)
+                set S += BoutonEcran("FLY HERE NEXT", "0369A1", 600.0, 900.0, 380.0, 120.0, 3, T)
+            set S += BoutonEcran("CLOSE", "374151", 1000.0, 900.0, 320.0, 120.0, 4, T)
         S
 
     # Une ligne d'info de la fiche : intitulé gris à gauche, valeur blanche à droite.

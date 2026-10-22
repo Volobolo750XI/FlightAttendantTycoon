@@ -476,19 +476,22 @@ pc_destinations := class(creative_device):
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
 
-    # Zone cliquable invisible (toujours au-dessus de tout).
-    Zone(Action:int, Index:int):button_quiet =
-        B := button_quiet{DefaultText := Msg("")}
-        B.OnClick().Subscribe(clic_pc{Ordinateur := Self, Action := Action, Index := Index}.Clique)
-        B
+    # Un vrai bouton Fortnite (déjà arrondi, sa zone de clic a exactement sa forme : rien à
+    # importer). Fort = le gros bouton jaune (button_loud), sinon le bouton normal.
+    BoutonJeu(Texte:string, Fort:logic, Action:int, Index:int):widget =
+        Clic := clic_pc{Ordinateur := Self, Action := Action, Index := Index}
+        if (Fort?):
+            B := button_loud{DefaultText := Msg(Texte)}
+            B.OnClick().Subscribe(Clic.Clique)
+            B
+        else:
+            B := button_regular{DefaultText := Msg(Texte)}
+            B.OnClick().Subscribe(Clic.Clique)
+            B
 
-    # Un bouton arrondi (image BoutonsPC) + son texte + la zone cliquable exactement par-dessus
-    # (écran 1920 x 1080). Le bouton et la zone ont la même forme : pas de formes bizarres.
-    BoutonImage(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
-        array:
-            Bloc(Vignette(Img, L, H), X, Y, L, H, 16)
-            Bloc(Etiquette(Texte, "FFFFFF"), X, Y + H / 2.0 - 22.0, L, 40.0, 17)
-            Bloc(Zone(Action, Index), X, Y, L, H, 30)
+    # Un bouton placé sur l'écran 1920 x 1080 (toujours tout au-dessus).
+    PlaceBouton(Texte:string, Fort:logic, X:float, Y:float, L:float, H:float, Action:int, Index:int):canvas_slot =
+        Bloc(BoutonJeu(Texte, Fort, Action, Index), X, Y, L, H, 30)
 
     Abreger(N:int):string = AvionTycoon.Abreger(N)
 
@@ -546,7 +549,7 @@ pc_destinations := class(creative_device):
             if (MessageErreur <> ""):
                 set Slots += array{Bloc(Rect("7F1D1D", 0.95), 610.0, 170.0, 700.0, 50.0, 25)}
                 set Slots += array{Bloc(Ecrit(MessageErreur, "FFFFFF", text_justification.Center), 610.0, 175.0, 700.0, 40.0, 26)}
-            set Slots += BoutonImage("CLOSE", BoutonsPC.OngletSombre, 1680.0, 8.0, 220.0, 55.0, 5, 0)
+            set Slots += array{PlaceBouton("CLOSE", false, 1700.0, 10.0, 200.0, 56.0, 5, 0)}
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
             if (EnVol[], IconeAvion := IconeVol?):
@@ -606,27 +609,28 @@ pc_destinations := class(creative_device):
         set S += array{Bloc(Etiquette(Ville.Pays, "94A3B8"), X, Y + 220.0, L, 34.0, 9)}
         set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "E2E8F0"), X, Y + 280.0, L, 36.0, 9)}
         set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "FDE047"), X, Y + 322.0, L, 36.0, 9)}
-        # le gros bouton arrondi (seul le bouton est cliquable, pile à sa forme)
-        Texte := if (Choisi?) then "NEXT FLIGHT" else if (Achat?) then "FLY HERE" else "BUY  -  {TextePrix(Prix)}"
-        ImageBouton := if (Choisi?) then BoutonsPC.Vert else if (Achat?) then BoutonsPC.Bleu else if (Assez?) then BoutonsPC.Jaune else BoutonsPC.Gris
-        LB := L - 32.0
-        HB := LB / 2.0
-        YB := Y + H - HB - 16.0
-        set S += array{Bloc(Vignette(ImageBouton, LB, HB), X + 16.0, YB, LB, HB, 9)}
-        if (not Achat?, not Assez?):
-            set S += array{Bloc(Etiquette(Texte, "FFFFFF"), X + 16.0, YB + HB / 2.0 - 40.0, LB, 40.0, 10)}
-            set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FECACA"), X + 16.0, YB + HB / 2.0 + 4.0, LB, 34.0, 10)}
+        # le bouton : prochain vol = bandeau vert (rien à cliquer) ; sinon un vrai bouton Fortnite
+        Texte := if (Achat?) then "FLY HERE" else "BUY  -  {TextePrix(Prix)}"
+        YB := Y + H - 116.0
+        if (Choisi?):
+            set S += array{Bloc(Rect("16A34A", 1.0), X + 16.0, YB, L - 32.0, 96.0, 9)}
+            set S += array{Bloc(Etiquette("NEXT FLIGHT", "FFFFFF"), X + 16.0, YB + 28.0, L - 32.0, 40.0, 10)}
         else:
-            set S += array{Bloc(Etiquette(Texte, "FFFFFF"), X + 16.0, YB + HB / 2.0 - 22.0, LB, 40.0, 10)}
-        if (not Choisi?):
-            set S += array{Bloc(Zone(12, R), X + 16.0, YB, LB, HB, 30)}
+            if (not Achat?, not Assez?):
+                set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FCA5A5"), X, YB - 42.0, L, 34.0, 10)}
+            # acheter = gros bouton jaune ; déjà à nous = bouton normal
+            Fort := if (Achat?) then false else true
+            set S += array{PlaceBouton(Texte, Fort, X + 16.0, YB, L - 32.0, 96.0, 12, R)}
         S
 
     # Les 2 onglets en haut à gauche : FLIGHTS (les vols d'ici) et WORLD MAP (la carte).
     Onglets():[]canvas_slot =
-        Vols0 := if (Vue = 0) then BoutonsPC.OngletBleu else BoutonsPC.OngletSombre
-        Carte1 := if (Vue = 1) then BoutonsPC.OngletBleu else BoutonsPC.OngletSombre
-        BoutonImage("FLIGHTS", Vols0, 40.0, 8.0, 220.0, 55.0, 9, 0) + BoutonImage("WORLD MAP", Carte1, 275.0, 8.0, 220.0, 55.0, 9, 1)
+        # l'onglet ouvert est en gros bouton jaune, l'autre en bouton normal
+        Vols0 := if (Vue = 0) then true else false
+        Carte1 := if (Vue = 1) then true else false
+        array:
+            PlaceBouton("FLIGHTS", Vols0, 40.0, 10.0, 220.0, 56.0, 9, 0)
+            PlaceBouton("WORLD MAP", Carte1, 275.0, 10.0, 240.0, 56.0, 9, 1)
 
     Couvrir(Hex:string, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
         canvas_slot:

@@ -923,7 +923,7 @@ feuille_mission := class(creative_device):
             LargeurCartes := Presents.Length * Largeur + Max(0, Presents.Length - 1) * Ecart
             Bandeau := Max(1400.0, LargeurCartes + 60.0)
             set S += array{Bloc(Rect("0F172A"), 960.0 - Bandeau / 2.0, 770.0, Bandeau, 280.0, 1)}
-            set S += array{Bloc(Ecrit("YOUR TROLLEY  -  CLICK WHAT THE PASSENGER WANTS", "FBBF24", text_justification.Center), 260.0, 780.0, 1400.0, 44.0, 3)}
+            set S += array{Bloc(Ecrit("YOUR TROLLEY  -  CLICK WHAT THE PASSENGER WANTS", "86EFAC", text_justification.Center), 260.0, 780.0, 1400.0, 44.0, 3)}
             if (Presents.Length = 0):
                 set S += array{Bloc(Ecrit("Your trolley is empty. Load it at the galley (E on the storage).", "E2E8F0", text_justification.Center), 260.0, 910.0, 1400.0, 44.0, 3)}
             else:
@@ -1008,7 +1008,7 @@ feuille_mission := class(creative_device):
         Toutes := array{"1. FLIGHT No. = this flight", "2. TO = this flight's city", "3. NAME: ticket = passport"}
         var S:[]canvas_slot = array{}
         set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("0F172A"), DefaultOpacity := 0.95}, 150.0, 850.0, 1620.0, 110.0, 1)}
-        set S += array{Bloc(Ecrit("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "FBBF24", text_justification.Center), 150.0, 858.0, 1620.0, 40.0, 3)}
+        set S += array{Bloc(Ecrit("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "86EFAC", text_justification.Center), 150.0, 858.0, 1620.0, 40.0, 3)}
         for (I -> R : Toutes):
             set S += array{Bloc(Ecrit(R, "E2E8F0", text_justification.Center), 150.0 + I * 540.0, 906.0, 540.0, 40.0, 3)}
         S

@@ -11,8 +11,8 @@ SORTIE = os.path.join(ICI, "..", "Textures", "JaugeVol")
 K = 4  # dessin 4 fois plus grand puis réduit : bords bien lisses
 
 CONTOUR = (27, 37, 65, 255)
-JAUNE = (255, 184, 28, 255)
-JAUNE_CLAIR = (255, 222, 110, 255)
+JAUNE = (34, 197, 94, 255)        # (le remplissage est vert maintenant)
+JAUNE_CLAIR = (134, 239, 172, 255)
 
 
 def reduire(im, l, h):
@@ -123,5 +123,5 @@ if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     fond()
     rond()
-    avion()
+    # avion() : l'avion vient de Gemini (Textures/JaugeVol/Avion.png), on ne le redessine pas
     print("ok")

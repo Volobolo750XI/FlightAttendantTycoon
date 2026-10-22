@@ -206,7 +206,7 @@ pc_destinations := class(creative_device):
     var BarreMobile:[]widget = array{}
     TexteDepart:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Right, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
     TexteArrivee:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Left, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
-    TexteTemps:text_block = text_block{DefaultTextColor := MakeColorFromHex("FFDE6E"), DefaultJustification := text_justification.Center, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
+    TexteTemps:text_block = text_block{DefaultTextColor := MakeColorFromHex("BBF7D0"), DefaultJustification := text_justification.Center, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
 
     OnBegin<override>()<suspends>:void =
         # au départ : aucune ligne ; la première (PARIS - LONDON) est gratuite, mais il faut
@@ -469,29 +469,20 @@ pc_destinations := class(creative_device):
             DefaultText := Msg(S)
             DefaultTextColor := MakeColorFromHex(Hex)
             DefaultJustification := text_justification.Center
-            DefaultShadowColor := NamedColors.Black
-            DefaultShadowOpacity := 0.9
-            DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
 
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
 
-    # Un vrai bouton Fortnite (déjà arrondi, sa zone de clic a exactement sa forme : rien à
-    # importer). Fort = le gros bouton jaune (button_loud), sinon le bouton normal.
-    BoutonJeu(Texte:string, Fort:logic, Action:int, Index:int):widget =
-        Clic := clic_pc{Ordinateur := Self, Action := Action, Index := Index}
-        if (Fort?):
-            B := button_loud{DefaultText := Msg(Texte)}
-            B.OnClick().Subscribe(Clic.Clique)
-            B
-        else:
-            B := button_regular{DefaultText := Msg(Texte)}
-            B.OnClick().Subscribe(Clic.Clique)
-            B
-
-    # Un bouton placé sur l'écran 1920 x 1080 (toujours tout au-dessus).
-    PlaceBouton(Texte:string, Fort:logic, X:float, Y:float, L:float, H:float, Action:int, Index:int):canvas_slot =
-        Bloc(BoutonJeu(Texte, Fort, Action, Index), X, Y, L, H, 30)
+    # Un bouton cartoon (image du kit InterfacePC) + son texte + la zone de clic par-dessus
+    # (écran 1920 x 1080).
+    BoutonKit(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
+        array:
+            Bloc(Vignette(Img, L, H), X, Y, L, H, 16)
+            Bloc(Etiquette(Texte, "FFFFFF"), X, Y + H / 2.0 - 22.0, L, 40.0, 17)
+            Bloc(Zone(Action, Index), X, Y, L, H, 30)
 
     Abreger(N:int):string = AvionTycoon.Abreger(N)
 
@@ -515,15 +506,14 @@ pc_destinations := class(creative_device):
             if (C := Ecran?):
                 set Toile = C
             else:
-                Fond := PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})
-                Cadre := Rect("38BDF8", 0.6)
+                Fond := PleinEcran(Vignette(InterfacePC.Fond, 1920.0, 1080.0))
+                Cadre := Rect("4ADE80", 1.0)
                 ImageCarte := Vignette(Destinations.CarteVols, LargeurCarte, HauteurCarte)
                 Cadre.SetVisibility(widget_visibility.Collapsed)
                 ImageCarte.SetVisibility(widget_visibility.Collapsed)
                 Base := canvas:
                     Slots := array:
                         Fond
-                        Couvrir("0B1220", 1)
                         PlaceC(Cadre, 0.5, 0.5, 0.0, 0.0, LargeurCarte + 6.0, HauteurCarte + 6.0, 2)
                         PlaceC(ImageCarte, 0.5, 0.5, 0.0, 0.0, LargeurCarte, HauteurCarte, 3)
                 UI.AddWidget(Base, player_ui_slot{InputMode := ui_input_mode.All})
@@ -549,7 +539,7 @@ pc_destinations := class(creative_device):
             if (MessageErreur <> ""):
                 set Slots += array{Bloc(Rect("7F1D1D", 0.95), 610.0, 170.0, 700.0, 50.0, 25)}
                 set Slots += array{Bloc(Ecrit(MessageErreur, "FFFFFF", text_justification.Center), 610.0, 175.0, 700.0, 40.0, 26)}
-            set Slots += array{PlaceBouton("CLOSE", false, 1700.0, 10.0, 200.0, 56.0, 5, 0)}
+            set Slots += BoutonKit("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 5, 0)
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
             if (EnVol[], IconeAvion := IconeVol?):
@@ -566,32 +556,33 @@ pc_destinations := class(creative_device):
         # le titre et ce qu'il faut faire
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Base)}"
         Aide := if (EnVol[]) then "CHOOSE YOUR FLIGHT AFTER LANDING" else "CLICK A FLIGHT TO BUY IT OR CHOOSE IT"
-        set S += array{Bloc(Etiquette(Titre, "FBBF24"), 360.0, 165.0, 1200.0, 44.0, 6)}
-        set S += array{Bloc(Etiquette(Aide, "E2E8F0"), 360.0, 210.0, 1200.0, 40.0, 6)}
+        set S += array{Bloc(Etiquette(Titre, "FFFFFF"), 360.0, 165.0, 1200.0, 44.0, 6)}
+        set S += array{Bloc(Etiquette(Aide, "BBF7D0"), 360.0, 208.0, 1200.0, 40.0, 6)}
         # les cartes, triées du moins cher au plus cher
         var Lignes:[]int = array{}
         for (Niv := 1..8):
             set Lignes += for (R : RoutesDe(Base), Palier(R) = Niv) { R }
-        Largeur := 330.0
-        Ecart := 26.0
+        Largeur := 300.0
+        Ecart := 30.0
         Total := Lignes.Length * Largeur + (Lignes.Length - 1) * Ecart
         for (N -> R : Lignes, Ville := LesVilles[Autre(R, Base)]):
             X := 960.0 - Total / 2.0 + N * (Largeur + Ecart)
-            set S += CarteVol(R, Ville, X, 270.0, Largeur, Prochain)
+            set S += CarteVol(R, Ville, X, 262.0, Largeur, Prochain)
         # le prochain vol, en gros, en bas
         if (Rt := Routes[Prochain], Arrivee := LesVilles[Autre(Prochain, Base)]):
             Minutes := if (M := Round[MinutesRoute(Prochain)]) then M else 5
             Debut := if (EnVol[]) then "AFTER LANDING" else "NEXT FLIGHT"
-            set S += array{Bloc(Rect("22C55E", 1.0), 460.0, 880.0, 1000.0, 96.0, 6)}
-            set S += array{Bloc(Rect("0F2A1C", 1.0), 464.0, 884.0, 992.0, 88.0, 7)}
-            set S += array{Bloc(Etiquette("{Debut} :  {NomVille(Base)}  >  {Arrivee.Nom}  -  {Minutes} MIN", "FFFFFF"), 464.0, 893.0, 992.0, 40.0, 8)}
+            set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1000.0, 125.0), 460.0, 882.0, 1000.0, 125.0, 6)}
+            set S += array{Bloc(Etiquette("{Debut} :  {NomVille(Base)}  >  {Arrivee.Nom}  -  {Minutes} MIN", "FFFFFF"), 460.0, 904.0, 1000.0, 40.0, 8)}
             Ensuite := if (EnVol[]) then "IT STARTS WHEN YOU LAND" else "CLOSE THE DOORS AND TAKE OFF !"
-            set S += array{Bloc(Etiquette(Ensuite, "86EFAC"), 464.0, 931.0, 992.0, 36.0, 8)}
+            set S += array{Bloc(Etiquette(Ensuite, "DCFCE7"), 460.0, 942.0, 1000.0, 36.0, 8)}
         else:
-            set S += array{Bloc(Etiquette("BUY A FLIGHT ABOVE TO START", "FBBF24"), 460.0, 905.0, 1000.0, 44.0, 8)}
+            set S += array{Bloc(Etiquette("BUY A FLIGHT ABOVE TO START", "FFFFFF"), 460.0, 920.0, 1000.0, 44.0, 8)}
         S
 
-    # Une carte de vol : l'image de la ville, son nom, durée, gain, et un gros bouton clair.
+    # Une carte de vol cartoon (300 x 600) : l'image de la ville, son nom, durée, gain, et un
+    # gros bouton. La bague de la carte dit l'état : vert vif = prochain vol, cyan = à nous,
+    # vert clair = à acheter, gris = pas assez d'argent.
     CarteVol(R:int, Ville:ville_reseau, X:float, Y:float, L:float, Prochain:int):[]canvas_slot =
         var S:[]canvas_slot = array{}
         Achat := if (Achetee[R]) then true else false
@@ -600,52 +591,39 @@ pc_destinations := class(creative_device):
         Assez := if (AvionTycoon.Argent >= Prix) then true else false
         Minutes := if (M := Round[MinutesRoute(R)]) then M else 5
         Gain := if (V := ValeurPalier[Palier(R) - 1], Arrondi := Round[V]) then Arrondi else 0
-        Bord := if (Choisi?) then "22C55E" else if (Achat?) then "38BDF8" else if (Assez?) then "FBBF24" else "64748B"
-        H := 560.0
-        set S += array{Bloc(Rect(Bord, 1.0), X, Y, L, H, 6)}
-        set S += array{Bloc(Rect("0F172A", 1.0), X + 5.0, Y + 5.0, L - 10.0, H - 10.0, 7)}
-        set S += array{Bloc(Vignette(Ville.Image, L - 16.0, (L - 16.0) / 2.0), X + 8.0, Y + 8.0, L - 16.0, (L - 16.0) / 2.0, 8)}
-        set S += array{Bloc(Etiquette(Ville.Nom, "FFFFFF"), X, Y + 180.0, L, 40.0, 9)}
-        set S += array{Bloc(Etiquette(Ville.Pays, "94A3B8"), X, Y + 220.0, L, 34.0, 9)}
-        set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "E2E8F0"), X, Y + 280.0, L, 36.0, 9)}
-        set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "FDE047"), X, Y + 322.0, L, 36.0, 9)}
-        # le bouton : prochain vol = bandeau vert (rien à cliquer) ; sinon un vrai bouton Fortnite
-        Texte := if (Achat?) then "FLY HERE" else "BUY  -  {TextePrix(Prix)}"
-        YB := Y + H - 116.0
+        Fond := if (Choisi?) then InterfacePC.CarteChoisie else if (Achat?) then InterfacePC.CarteAchetee else if (Assez?) then InterfacePC.Carte else InterfacePC.CarteGrise
+        set S += array{Bloc(Vignette(Fond, L, 600.0), X, Y, L, 600.0, 6)}
+        set S += array{Bloc(Rect("052E16", 1.0), X + 19.0, Y + 19.0, L - 38.0, 134.0, 7)}
+        set S += array{Bloc(Vignette(Ville.Image, L - 44.0, 128.0), X + 22.0, Y + 22.0, L - 44.0, 128.0, 8)}
+        set S += array{Bloc(Etiquette(Ville.Nom, "FFFFFF"), X, Y + 165.0, L, 40.0, 9)}
+        set S += array{Bloc(Etiquette(Ville.Pays, "A7F3D0"), X, Y + 204.0, L, 34.0, 9)}
+        set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "FFFFFF"), X, Y + 260.0, L, 36.0, 9)}
+        set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "86EFAC"), X, Y + 300.0, L, 36.0, 9)}
+        # le gros bouton
         if (Choisi?):
-            set S += array{Bloc(Rect("16A34A", 1.0), X + 16.0, YB, L - 32.0, 96.0, 9)}
-            set S += array{Bloc(Etiquette("NEXT FLIGHT", "FFFFFF"), X + 16.0, YB + 28.0, L - 32.0, 40.0, 10)}
+            set S += array{Bloc(Vignette(InterfacePC.BoutonChoisi, L - 44.0, 128.0), X + 22.0, Y + 440.0, L - 44.0, 128.0, 9)}
+            set S += array{Bloc(Etiquette("NEXT FLIGHT", "FFFFFF"), X + 22.0, Y + 482.0, L - 44.0, 40.0, 10)}
         else:
             if (not Achat?, not Assez?):
-                set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FCA5A5"), X, YB - 42.0, L, 34.0, 10)}
-            # acheter = gros bouton jaune ; déjà à nous = bouton normal
-            Fort := if (Achat?) then false else true
-            set S += array{PlaceBouton(Texte, Fort, X + 16.0, YB, L - 32.0, 96.0, 12, R)}
+                set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FECACA"), X, Y + 390.0, L, 34.0, 10)}
+            Texte := if (Achat?) then "FLY HERE" else "BUY  {TextePrix(Prix)}"
+            ImageBouton := if (Achat?) then InterfacePC.BoutonCyan else if (Assez?) then InterfacePC.BoutonVert else InterfacePC.BoutonGris
+            set S += BoutonKit(Texte, ImageBouton, X + 22.0, Y + 440.0, L - 44.0, 128.0, 12, R)
         S
 
     # Les 2 onglets en haut à gauche : FLIGHTS (les vols d'ici) et WORLD MAP (la carte).
     Onglets():[]canvas_slot =
-        # l'onglet ouvert est en gros bouton jaune, l'autre en bouton normal
-        Vols0 := if (Vue = 0) then true else false
-        Carte1 := if (Vue = 1) then true else false
-        array:
-            PlaceBouton("FLIGHTS", Vols0, 40.0, 10.0, 220.0, 56.0, 9, 0)
-            PlaceBouton("WORLD MAP", Carte1, 275.0, 10.0, 240.0, 56.0, 9, 1)
-
-    Couvrir(Hex:string, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
-        canvas_slot:
-            Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
-            Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
-            SizeToContent := false
-            ZOrder := Couche
-            Widget := Rect(Hex, 1.0)
+        # l'onglet ouvert est vert vif, l'autre vert foncé
+        Vols0 := if (Vue = 0) then InterfacePC.OngletVert else InterfacePC.OngletSombre
+        Carte1 := if (Vue = 1) then InterfacePC.OngletVert else InterfacePC.OngletSombre
+        BoutonKit("FLIGHTS", Vols0, 40.0, 10.0, 220.0, 56.0, 9, 0) + BoutonKit("WORLD MAP", Carte1, 275.0, 10.0, 240.0, 56.0, 9, 1)
 
     # L'onglet WORLD MAP, épuré : seulement les lignes achetées, leurs villes, et l'avion.
     # Renvoie les slots et l'image de l'avion (pour l'animer pendant le vol).
     CarteReseau():tuple([]canvas_slot, ?texture_block) =
         var S:[]canvas_slot = array{}
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Position)}"
-        set S += array{Bloc(Etiquette(Titre, "FBBF24"), 560.0, 168.0, 800.0, 40.0, 6)}
+        set S += array{Bloc(Etiquette(Titre, "FFFFFF"), 560.0, 168.0, 800.0, 40.0, 6)}
         # seulement les lignes achetées (le prochain vol en vert, plus gros)
         Prochain := ProchainVol()
         for (I -> R : Routes, Achetee[I]):
@@ -662,7 +640,7 @@ pc_destinations := class(creative_device):
         for (I -> Ville : LesVilles, I = Position or I = Cible or VilleAchetee[I]):
             Ici := if (I = Position) then true else false
             Voisine := if (I = Cible, I <> Position) then true else false
-            Couleur := if (Ici?) then "22C55E" else if (Voisine?) then "FBBF24" else "E2E8F0"
+            Couleur := if (Ici?) then "4ADE80" else if (Voisine?) then "FFFFFF" else "BBF7D0"
             Cote := if (Ici?) then 16.0 else 11.0
             set S += array{PlaceC(Rect("0B1620", 1.0), Ville.U, Ville.V, 0.0, 0.0, Cote + 6.0, Cote + 6.0, 5)}
             set S += array{PlaceC(Rect(Couleur, 1.0), Ville.U, Ville.V, 0.0, 0.0, Cote, Cote, 6)}
@@ -750,8 +728,8 @@ pc_destinations := class(creative_device):
                 Course := LargeurJauge - 2.0 * MargeJauge - Remplissage
                 Bout := DebutJauge + Course * Progression()
                 Mobiles := array:
-                    EnHaut(Rect("FFB81C", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge, Max(1.0, Bout - DebutJauge), Remplissage, 1)
-                    EnHaut(Rect("FFDE6E", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge + Remplissage * 0.08, Max(1.0, Bout - DebutJauge), Remplissage * 0.3, 1)
+                    EnHaut(Rect("22C55E", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge, Max(1.0, Bout - DebutJauge), Remplissage, 1)
+                    EnHaut(Rect("86EFAC", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge + Remplissage * 0.08, Max(1.0, Bout - DebutJauge), Remplissage * 0.3, 1)
                     EnHaut(Vignette(JaugeVol.Rond, Remplissage, Remplissage), Bout, MargeJauge, Remplissage, Remplissage, 2)
                     EnHaut(Vignette(JaugeVol.Avion, TailleAvion, TailleAvion), Bout, HauteurJauge / 2.0 - TailleAvion / 2.0 - 4.0, TailleAvion, TailleAvion, 4)
                 for (S : Mobiles) { Toile.AddWidget(S) }

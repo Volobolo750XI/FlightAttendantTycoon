@@ -25,9 +25,9 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir à contenu :
 #   dossier "Destinations" : CarteMonde (la carte du monde), AvionDroite, AvionGauche (déjà là) ;
-#   dossier "Villes" : les 16 illustrations (Textures/Villes) : Paris, London, Rome, Madrid,
+#   dossier "Villes" : les 20 illustrations (Textures/Villes) : Paris, London, Rome, Madrid,
 #   Istanbul, Cairo, NewYork, Dubai, Rio, MexicoCity, LosAngeles, Delhi, Singapore, Tokyo,
-#   Sydney, BoraBora.
+#   Sydney, BoraBora, Bangkok, HongKong, Seoul, Vancouver.
 #
 # Dans l'éditeur :
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
@@ -106,9 +106,14 @@ pc_destinations := class(creative_device):
         ville_reseau{Nom := "TOKYO", Pays := "JAPAN", Description := "Neon lights under Mount Fuji.", U := 0.8938, V := 0.4570, Image := Villes.Tokyo}
         ville_reseau{Nom := "SYDNEY", Pays := "AUSTRALIA", Description := "Surf, sun and the Opera House.", U := 0.9172, V := 0.6150, Image := Villes.Sydney}
         ville_reseau{Nom := "BORA BORA", Pays := "FRENCH POLYNESIA", Description := "The dream island. Pure luxury.", U := 0.3002, V := 0.5745, Image := Villes.BoraBora}
+        ville_reseau{Nom := "BANGKOK", Pays := "THAILAND", Description := "Golden temples and street food.", U := 0.8140, V := 0.5081, Image := Villes.Bangkok}
+        ville_reseau{Nom := "HONG KONG", Pays := "CHINA", Description := "Skyscrapers above the harbour.", U := 0.8418, V := 0.4888, Image := Villes.HongKong}
+        ville_reseau{Nom := "SEOUL", Pays := "SOUTH KOREA", Description := "Palaces, K-pop and city lights.", U := 0.8679, V := 0.4523, Image := Villes.Seoul}
+        ville_reseau{Nom := "VANCOUVER", Pays := "CANADA", Description := "Mountains, forests and the ocean.", U := 0.3585, V := 0.4212, Image := Villes.Vancouver}
 
     # 0 PARIS 1 LONDON 2 ROME 3 MADRID 4 ISTANBUL 5 CAIRO 6 NEW YORK 7 DUBAI 8 RIO 9 MEXICO CITY
     # 10 LOS ANGELES 11 DELHI 12 SINGAPORE 13 TOKYO 14 SYDNEY 15 BORA BORA
+    # 16 BANGKOK 17 HONG KONG 18 SEOUL 19 VANCOUVER
     Routes:[]route_reseau = array:
         route_reseau{A := 0, B := 1, Palier := 1}
         route_reseau{A := 0, B := 2, Palier := 1}
@@ -123,10 +128,17 @@ pc_destinations := class(creative_device):
         route_reseau{A := 6, B := 10, Palier := 4}
         route_reseau{A := 7, B := 11, Palier := 5}
         route_reseau{A := 9, B := 10, Palier := 5}
-        route_reseau{A := 11, B := 12, Palier := 6}
-        route_reseau{A := 12, B := 13, Palier := 7}
+        route_reseau{A := 8, B := 9, Palier := 5}
+        route_reseau{A := 10, B := 19, Palier := 5}
+        route_reseau{A := 11, B := 16, Palier := 6}
+        route_reseau{A := 16, B := 12, Palier := 6}
+        route_reseau{A := 16, B := 17, Palier := 6}
         route_reseau{A := 12, B := 14, Palier := 7}
+        route_reseau{A := 17, B := 18, Palier := 7}
+        route_reseau{A := 18, B := 13, Palier := 7}
+        route_reseau{A := 17, B := 14, Palier := 8}
         route_reseau{A := 13, B := 14, Palier := 8}
+        route_reseau{A := 19, B := 15, Palier := 8}
         route_reseau{A := 10, B := 15, Palier := 8}
 
     # Par niveau de ligne (1..8) : prix, valeur d'un vol (ce que rapportent passagers et missions,
@@ -560,11 +572,18 @@ pc_destinations := class(creative_device):
             Bloc(Ecrit(Valeur, "FFFFFF", text_justification.Right), 840.0, Y, 480.0, 40.0, 16)
 
     # ---------- la barre de vol en haut de l'écran ----------
+    # Toujours affichée sur l'écran du joueur propriétaire de l'avion (en jeu, pas seulement au PC).
     # Panneau sombre : départ à gauche, arrivée à droite, temps au milieu ; en dessous une piste
     # qui se remplit et un avion qui avance. Au sol : le prochain vol, prêt à partir.
     BoucleBarre()<suspends>:void =
         loop:
             Sleep(0.05)
+            # nouveau propriétaire (ou plus personne) : on retire la barre de l'ancien écran
+            if (Ancien := BarreJoueur?, C := Barre?, not EstProprio[Ancien]):
+                if (AncienUI := GetPlayerUI[Ancien]) { AncienUI.RemoveWidget(C) }
+                set Barre = false
+                set BarreJoueur = false
+                set BarreMobile = array{}
             if (Proprio := AvionTycoon.Proprio?, J := player[Proprio], UI := GetPlayerUI[J]):
                 var Toile:canvas = canvas{}
                 if (C := Barre?):

@@ -33,6 +33,20 @@ produit := class:
     Appareil:string
     Image:texture
 
+# Une amelioration de l'onglet UPGRADES.
+# Cat : 0 AIRPLANE, 1 CLASSES, 2 COMFORT, 3 CREW, 4 REBIRTH.
+# Les bonus se multiplient entre eux (ex : PREMIUM x2 puis BUSINESS x2.5 = billets x5).
+amelioration := class:
+    Nom:string
+    Effet:string
+    Prix:int
+    Cat:int
+    Image:texture
+    Billet:float = 1.0
+    Service:float = 1.0
+    Repas:float = 1.0
+    Patience:float = 1.0
+
 # Un bouton du menu : il retient son action et son produit.
 clic_menu := class:
     Menu:menu_pc
@@ -44,6 +58,10 @@ menu_pc := class(creative_device):
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     # Son joue a chaque paiement : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
+    # Les avions de l'onglet UPGRADES > AIRPLANE, dans l'ordre : 1er = l'A320 du depart,
+    # 2e = MIDDLE ROW, etc. (chacun = ton Blueprint Avion_NiveauX pose dans la map, au meme endroit).
+    # Un seul est visible a la fois. Tant qu'un avion n'est pas dans la liste, sa carte affiche COMING SOON.
+    @editable AvionsNiveaux:[]creative_prop = array{}
 
     ListeProduits:[]produit = array:
         produit{Nom := "WATER", Lot := 20, PrixLot := 20, PrixDeblocage := 0, Appareil := "", Image := Produits.Produit_01_Eau}
@@ -54,6 +72,43 @@ menu_pc := class(creative_device):
         produit{Nom := "BURGER", Lot := 5, PrixLot := 250000, PrixDeblocage := 8000000, Appareil := "OVEN", Image := Produits.Produit_06_Burger}
         produit{Nom := "LOBSTER", Lot := 2, PrixLot := 10000000, PrixDeblocage := 1000000000, Appareil := "LOBSTER TANK", Image := Produits.Produit_08_Homard}
         produit{Nom := "CAVIAR", Lot := 1, PrixLot := 60000000, PrixDeblocage := 15000000000, Appareil := "SAFE", Image := Produits.Produit_09_Caviar}
+
+    ListeAmeliorations:[]amelioration = array:
+        # AIRPLANE
+        amelioration{Nom := "A320", Effet := "YOUR FIRST PLANE", Prix := 0, Cat := 0, Image := Ameliorations.Avion_01}
+        amelioration{Nom := "MIDDLE ROW", Effet := "TICKETS +50%", Prix := 150000, Cat := 0, Image := Ameliorations.Avion_02, Billet := 1.5}
+        amelioration{Nom := "STRETCHED", Effet := "TICKETS +50%", Prix := 5000000, Cat := 0, Image := Ameliorations.Avion_03, Billet := 1.5}
+        amelioration{Nom := "JUMBO JET", Effet := "TICKETS +50%", Prix := 250000000, Cat := 0, Image := Ameliorations.Avion_04, Billet := 1.5}
+        amelioration{Nom := "2ND FLOOR", Effet := "TICKETS x2", Prix := 50000000000, Cat := 0, Image := Ameliorations.Avion_05, Billet := 2.0}
+        amelioration{Nom := "3RD FLOOR", Effet := "TICKETS x2", Prix := 5000000000000, Cat := 0, Image := Ameliorations.Avion_06, Billet := 2.0}
+        amelioration{Nom := "LUXURY LOUNGE", Effet := "TICKETS x2", Prix := 500000000000000, Cat := 0, Image := Ameliorations.Avion_07, Billet := 2.0}
+        amelioration{Nom := "POOL PLANE", Effet := "TICKETS x3", Prix := 50000000000000000, Cat := 0, Image := Ameliorations.Avion_08, Billet := 3.0}
+        amelioration{Nom := "SIX ENGINES", Effet := "TICKETS x3", Prix := 1000000000000000000, Cat := 0, Image := Ameliorations.Avion_09, Billet := 3.0}
+        amelioration{Nom := "GOLDEN GIANT", Effet := "TICKETS x5", Prix := 8000000000000000000, Cat := 0, Image := Ameliorations.Avion_10, Billet := 5.0}
+        # CLASSES
+        amelioration{Nom := "PREMIUM", Effet := "TICKETS x2", Prix := 50000, Cat := 1, Image := Ameliorations.Classe_Premium, Billet := 2.0}
+        amelioration{Nom := "BUSINESS", Effet := "TICKETS x5", Prix := 20000000, Cat := 1, Image := Ameliorations.Classe_Business, Billet := 2.5}
+        amelioration{Nom := "FIRST CLASS", Effet := "TICKETS x15", Prix := 10000000000, Cat := 1, Image := Ameliorations.Classe_First, Billet := 3.0}
+        amelioration{Nom := "ROYAL SUITE", Effet := "TICKETS x50", Prix := 2000000000000, Cat := 1, Image := Ameliorations.Classe_Suite, Billet := 3.34}
+        # COMFORT
+        amelioration{Nom := "SCREENS", Effet := "SERVICE +25%", Prix := 10000, Cat := 2, Image := Ameliorations.Confort_Ecrans, Service := 1.25}
+        amelioration{Nom := "WI-FI", Effet := "PATIENCE +50%", Prix := 1000000, Cat := 2, Image := Ameliorations.Confort_Wifi, Patience := 1.5}
+        amelioration{Nom := "BLANKETS", Effet := "SERVICE +60%", Prix := 200000000, Cat := 2, Image := Ameliorations.Confort_Couvertures, Service := 1.6}
+        amelioration{Nom := "MASSAGE CHAIRS", Effet := "TICKETS x2", Prix := 80000000000, Cat := 2, Image := Ameliorations.Confort_Massage, Billet := 2.0}
+        # CREW
+        amelioration{Nom := "ATTENDANT", Effet := "SERVICE x2", Prix := 500000, Cat := 3, Image := Ameliorations.Equipe_Hotesse, Service := 2.0}
+        amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 100000000, Cat := 3, Image := Ameliorations.Equipe_Chef, Repas := 3.0}
+        amelioration{Nom := "CREW x2", Effet := "TICKETS x3", Prix := 30000000000, Cat := 3, Image := Ameliorations.Equipe_Hotesse2, Billet := 3.0}
+        amelioration{Nom := "FULL CREW", Effet := "EVERYTHING x2", Prix := 10000000000000, Cat := 3, Image := Ameliorations.Equipe_Complete, Billet := 2.0, Service := 2.0}
+        # REBIRTH (se rachete a l'infini, demande le GOLDEN GIANT)
+        amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 4, Image := Ameliorations.Rebirth}
+
+    NomsOnglets:[]string = array{"AIRPLANE", "CLASSES", "COMFORT", "CREW", "REBIRTH"}
+
+    # Ameliorations achetees (meme ordre que ListeAmeliorations)
+    var Achete:[]logic = array{}
+    # Onglet ouvert dans UPGRADES
+    var Onglet:int = 0
 
     # Ce que le joueur possede (le galley s'en servira).
     var Debloque:[]logic = array{}
@@ -77,6 +132,8 @@ menu_pc := class(creative_device):
         set Debloque = for (P : ListeProduits) { if (P.PrixDeblocage = 0) then true else false }
         set Stock = for (P : ListeProduits) { 0 }
         ViderPanier()
+        RemettreAmeliorations()
+        ChangerAvion(0)
 
     ViderPanier():void =
         set PanierLots = for (P : ListeProduits) { 0 }
@@ -96,7 +153,8 @@ menu_pc := class(creative_device):
         set Dynamiques = array{}
 
     # Actions : 0 Destinations, 1 Supplies, 2 Upgrades, 3 ajouter un lot, 4 retirer un lot,
-    # 5 debloquer, 7 payer, 8 vider, 9 retour, 10 fermer
+    # 5 debloquer, 7 payer, 8 vider, 9 retour, 10 fermer,
+    # 11 onglet des upgrades (Index = onglet), 12 acheter une amelioration (Index), 13 rien
     Agir(Action:int, Index:int):void =
         if (Action = 0):
             if (P := Joueur?, Ordinateur := OrdiPC?):
@@ -108,7 +166,10 @@ menu_pc := class(creative_device):
             set Message = ""
             Afficher()
         else if (Action = 2):
-            AfficherMessage("COMING SOON", false)
+            set Page = 2
+            set Onglet = 0
+            set Message = ""
+            Afficher()
         else if (Action = 3):
             if (Debloque[Index]?, N := PanierLots[Index], set PanierLots[Index] = N + 1) {}
             Afficher()
@@ -129,6 +190,95 @@ menu_pc := class(creative_device):
         else if (Action = 10):
             Fermer()
             set Joueur = false
+        else if (Action = 11):
+            set Onglet = Index
+            set Message = ""
+            Afficher()
+        else if (Action = 12):
+            AcheterAmelioration(Index)
+
+    # ---------- UPGRADES ----------
+    RemettreAmeliorations():void =
+        set Achete = for (A : ListeAmeliorations) { if (A.Prix = 0, A.Cat <> 4) then true else false }
+        AppliquerEffets()
+
+    # Place de l'amelioration dans sa categorie (0 = la 1re).
+    Rang(I:int)<transacts>:int =
+        var N:int = 0
+        if (A := ListeAmeliorations[I]):
+            for (J -> B : ListeAmeliorations, J < I, B.Cat = A.Cat) { set N += 1 }
+        N
+
+    # Achetable : toutes les precedentes de la meme categorie sont deja achetees.
+    Disponible(I:int)<transacts>:logic =
+        var Ok:logic = true
+        if (A := ListeAmeliorations[I]):
+            for (J -> B : ListeAmeliorations, J < I, B.Cat = A.Cat, not Achete[J]?) { set Ok = false }
+        Ok
+
+    # Tous les avions achetes (condition du rebirth).
+    TousLesAvions()<transacts>:logic =
+        var Ok:logic = true
+        for (J -> B : ListeAmeliorations, B.Cat = 0, not Achete[J]?) { set Ok = false }
+        Ok
+
+    AvionExiste(Niveau:int)<transacts>:logic =
+        if (Niveau = 0) then true else if (AvionsNiveaux[Niveau]) then true else false
+
+    # Un seul avion visible : celui du niveau donne.
+    ChangerAvion(Niveau:int):void =
+        for (I -> Av : AvionsNiveaux):
+            if (I = Niveau) then Av.Show() else Av.Hide()
+
+    AppliquerEffets():void =
+        var Billet:float = 1.0
+        var Service:float = 1.0
+        var Repas:float = 1.0
+        var Pat:float = 1.0
+        for (I -> A : ListeAmeliorations, Achete[I]?):
+            set Billet *= A.Billet
+            set Service *= A.Service
+            set Repas *= A.Repas
+            set Pat *= A.Patience
+        set AvionTycoon.MultiBillet = Billet
+        set AvionTycoon.MultiService = Service
+        set AvionTycoon.MultiRepas = Repas
+        set AvionTycoon.MultiPatience = Pat
+        set AvionTycoon.MultiRebirth = 1.0 + AvionTycoon.Rebirths * 1.0
+
+    AcheterAmelioration(I:int):void =
+        if (A := ListeAmeliorations[I]):
+            if (A.Cat = 4):
+                Renaitre()
+            else if (Achete[I]?):
+                AfficherMessage("ALREADY OWNED", true)
+            else if (not Disponible(I)?):
+                AfficherMessage("BUY THE PREVIOUS ONE FIRST", false)
+            else if (A.Cat = 0, not AvionExiste(Rang(I))?):
+                AfficherMessage("COMING SOON", false)
+            else if (AvionTycoon.Argent < A.Prix):
+                AfficherMessage("NOT ENOUGH MONEY", false)
+            else:
+                set AvionTycoon.Argent -= A.Prix
+                if (set Achete[I] = true) {}
+                AppliquerEffets()
+                AvionTycoon.MettreAJourUI()
+                if (Son := SonAchat?) { Son.Play() }
+                if (A.Cat = 0) { ChangerAvion(Rang(I)) }
+                AfficherMessage("{A.Nom} UNLOCKED!", true)
+
+    # Rebirth : on repart de zero (argent, ameliorations, A320) mais tout rapporte plus, pour toujours.
+    Renaitre():void =
+        if (not TousLesAvions()?):
+            AfficherMessage("BUY THE GOLDEN GIANT FIRST", false)
+        else:
+            set AvionTycoon.Rebirths += 1
+            set AvionTycoon.Argent = 0
+            RemettreAmeliorations()
+            ChangerAvion(0)
+            AvionTycoon.MettreAJourUI()
+            if (Son := SonAchat?) { Son.Play() }
+            AfficherMessage("REBIRTH! EVERYTHING EARNS x{AvionTycoon.Rebirths + 1}", true)
 
     # Deblocage : paye tout de suite, ensuite le produit s'achete normalement.
     Debloquer(Index:int):void =
@@ -243,7 +393,7 @@ menu_pc := class(creative_device):
                 set Base = option{Nouveau}
                 set Toile = Nouveau
             for (W : Dynamiques) { Toile.RemoveWidget(W) }
-            Slots := if (Page = 0) then PageMenu() else PageBoutique()
+            Slots := if (Page = 0) then PageMenu() else if (Page = 1) then PageBoutique() else PageAmeliorations()
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
 
@@ -255,7 +405,7 @@ menu_pc := class(creative_device):
         set Slots += Bouton("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 10, 0)
         set Slots += CarteMenu(0, "DESTINATIONS", "BUY ROUTES AND FLY", InterfacePC.IconeDestinations, true)
         set Slots += CarteMenu(1, "SUPPLIES", "FOOD AND DRINKS", InterfacePC.IconeSupplies, true)
-        set Slots += CarteMenu(2, "UPGRADES", "COMING SOON", InterfacePC.IconeUpgrades, false)
+        set Slots += CarteMenu(2, "UPGRADES", "GROW YOUR PLANE", InterfacePC.IconeUpgrades, true)
         set Slots += LigneMessage(560.0, 900.0, 800.0)
         Slots
 
@@ -355,3 +505,74 @@ menu_pc := class(creative_device):
         set Slots += array{Bloc(Texte(Prix(Montant), "86EFAC", text_justification.Right), X + 300.0, Y + 6.0, 130.0, 32.0, 5)}
         set Slots += Bouton("-", InterfacePC.BoutonGris, X + 446.0, Y, 64.0, 44.0, 4, Index)
         Slots
+
+    # ---------- Page UPGRADES : onglets + cartes (5 par ligne) ----------
+    PageAmeliorations():[]canvas_slot =
+        var Slots:[]canvas_slot = array{}
+        # en-tete
+        set Slots += Bouton("<  BACK", InterfacePC.OngletSombre, 40.0, 10.0, 220.0, 56.0, 9, 0)
+        set Slots += array{Bloc(Texte("UPGRADES", "FFFFFF", text_justification.Left), 290.0, 18.0, 400.0, 44.0, 5)}
+        set Slots += array{Bloc(Texte(Prix(AvionTycoon.Argent), "86EFAC", text_justification.Right), 1480.0, 18.0, 400.0, 44.0, 5)}
+        set Slots += LigneMessage(560.0, 22.0, 800.0)
+        # onglets
+        for (K -> Nom : NomsOnglets):
+            Img := if (K = Onglet) then InterfacePC.OngletVert else InterfacePC.OngletSombre
+            set Slots += Bouton(Nom, Img, 270.0 + K * 280.0, 86.0, 260.0, 64.0, 11, K)
+        if (Onglet = 4):
+            set Slots += PageRebirth()
+        else:
+            Indices := for (I -> A : ListeAmeliorations, A.Cat = Onglet) { I }
+            for (K -> I : Indices, Col := Mod[K, 5], Ligne := Quotient[K, 5], A := ListeAmeliorations[I]):
+                set Slots += CarteAmelioration(I, A, 60.0 + Col * 365.0, 175.0 + Ligne * 450.0)
+        Slots
+
+    # Carte : fond (verte / achetee / grise), icone, nom, bonus, prix, bouton.
+    CarteAmelioration(I:int, A:amelioration, X:float, Y:float):[]canvas_slot =
+        Possede := if (Achete[I]?) then true else false
+        Ouvert := if (not Possede?, Disponible(I)?) then true else false
+        Bientot := if (A.Cat = 0, not AvionExiste(Rang(I))?) then true else false
+        Fond := if (Possede?) then InterfacePC.CarteAchetee else if (Ouvert?) then InterfacePC.CarteCarree else InterfacePC.CarteCarreeGrise
+        var Slots:[]canvas_slot = array{Bloc(Vignette(Fond, 340.0, 430.0), X, Y, 340.0, 430.0, 2)}
+        set Slots += array{Bloc(Vignette(A.Image, 190.0, 190.0), X + 75.0, Y + 20.0, 190.0, 190.0, 3)}
+        set Slots += array{Bloc(Texte(A.Nom, "FFFFFF", text_justification.Center), X, Y + 218.0, 340.0, 40.0, 5)}
+        set Slots += array{Bloc(Texte(A.Effet, "A7F3D0", text_justification.Center), X, Y + 260.0, 340.0, 32.0, 5)}
+        if (Possede?):
+            set Slots += Bouton("OWNED", InterfacePC.BoutonChoisi, X + 50.0, Y + 330.0, 240.0, 80.0, 13, I)
+        else if (Bientot?):
+            set Slots += array{Bloc(Texte(Prix(A.Prix), "CBD5E1", text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
+            set Slots += Bouton("COMING SOON", InterfacePC.BoutonGris, X + 30.0, Y + 330.0, 280.0, 80.0, 12, I)
+        else if (Ouvert?):
+            Couleur := if (AvionTycoon.Argent >= A.Prix) then "86EFAC" else "FCA5A5"
+            set Slots += array{Bloc(Texte(Prix(A.Prix), Couleur, text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
+            set Slots += Bouton("BUY", InterfacePC.BoutonVert, X + 50.0, Y + 330.0, 240.0, 80.0, 12, I)
+        else:
+            set Slots += array{Bloc(Texte(Prix(A.Prix), "CBD5E1", text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
+            set Slots += Bouton("LOCKED", InterfacePC.BoutonGris, X + 50.0, Y + 330.0, 240.0, 80.0, 12, I)
+        Slots
+
+    # Onglet REBIRTH : une grande carte au centre + l'explication.
+    PageRebirth():[]canvas_slot =
+        var Slots:[]canvas_slot = array{}
+        Pret := TousLesAvions()
+        Suivant := AvionTycoon.Rebirths + 2
+        X := 710.0
+        Y := 190.0
+        set Slots += array{Bloc(Vignette(if (Pret?) then InterfacePC.CarteCarree else InterfacePC.CarteCarreeGrise, 500.0, 560.0), X, Y, 500.0, 560.0, 2)}
+        set Slots += array{Bloc(Vignette(Ameliorations.Rebirth, 260.0, 260.0), X + 120.0, Y + 25.0, 260.0, 260.0, 3)}
+        set Slots += array{Bloc(Texte("REBIRTH  #{AvionTycoon.Rebirths + 1}", "FFFFFF", text_justification.Center), X, Y + 300.0, 500.0, 44.0, 5)}
+        set Slots += array{Bloc(Texte("EVERYTHING EARNS x{Suivant}", "A7F3D0", text_justification.Center), X, Y + 348.0, 500.0, 36.0, 5)}
+        if (Pret?):
+            if (I := Indice("REBIRTH")):
+                set Slots += Bouton("REBIRTH", InterfacePC.BoutonCyan, X + 110.0, Y + 420.0, 280.0, 100.0, 12, I)
+        else:
+            set Slots += array{Bloc(Texte("BUY THE GOLDEN GIANT FIRST", "FCA5A5", text_justification.Center), X, Y + 400.0, 500.0, 36.0, 5)}
+        set Slots += array{Bloc(Texte("YOU RESTART WITH THE A320 AND 0 MONEY,", "FFFFFF", text_justification.Center), 360.0, 790.0, 1200.0, 36.0, 5)}
+        set Slots += array{Bloc(Texte("BUT EVERY TICKET AND EVERY SERVICE PAYS MORE, FOREVER.", "FFFFFF", text_justification.Center), 360.0, 830.0, 1200.0, 36.0, 5)}
+        set Slots += array{Bloc(Texte("ROUTES AND SUPPLIES ARE KEPT.", "A7F3D0", text_justification.Center), 360.0, 870.0, 1200.0, 36.0, 5)}
+        Slots
+
+    Indice(Nom:string)<transacts><decides>:int =
+        var Trouve:int = -1
+        for (I -> A : ListeAmeliorations, A.Nom = Nom) { set Trouve = I }
+        Trouve >= 0
+        Trouve

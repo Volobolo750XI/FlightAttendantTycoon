@@ -77,6 +77,12 @@ avion_tycoon := class(creative_device):
     var RangeesAchetees:int = 0
     var RevenuParSeconde:int = 0
     var Rebirths:int = 0
+    # Bonus des AMELIORATIONS du PC (calcules par menu_pc, lus par passagers et demandes).
+    var MultiBillet:float = 1.0
+    var MultiService:float = 1.0
+    var MultiRepas:float = 1.0
+    var MultiPatience:float = 1.0
+    var MultiRebirth:float = 1.0
     var UICree:logic = false
     TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}

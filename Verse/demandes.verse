@@ -246,7 +246,8 @@ demandes_device := class(creative_device):
             var Libre:int = -1
             if (not Apparue?):
                 for (I -> B : Fleches, Libre < 0, not Occupe[I]) { set Libre = I }
-            Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
+            MultiPat := if (A := DeviceAvion?) then A.MultiPatience else 1.0
+            Pat := (Patience + GetRandomFloat(-VariationPatience, VariationPatience)) * MultiPat
             D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
             set D.Fleche = Apparue
             set Actives += array{D}
@@ -415,7 +416,12 @@ demandes_device := class(creative_device):
         var Unite:float = 1.0
         if (M := Menu?, P := M.ListeProduits[D.Choix]):
             set Unite = (P.PrixLot * 1.0) / (Max(1, P.Lot) * 1.0)
-        Gain := if (G := Round[Unite * Marge * Multi * Bonus]) then Max(1, G) else 1
+        # x bonus des améliorations (service, repas) et du rebirth
+        var Ameliore:float = 1.0
+        if (A := DeviceAvion?):
+            set Ameliore = A.MultiService * A.MultiRebirth
+            if (EstRepas[D.Choix]) { set Ameliore *= A.MultiRepas }
+        Gain := if (G := Round[Unite * Marge * Multi * Bonus * Ameliore]) then Max(1, G) else 1
         if (A := DeviceAvion?):
             set A.Argent += Gain
             A.MettreAJourUI()

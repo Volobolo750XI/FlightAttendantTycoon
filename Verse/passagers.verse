@@ -323,7 +323,9 @@ passagers := class(creative_device):
             set Duree = Ordi.DureeVol * (1.0 - Ordi.Progression())
         set Duree = Max(5.0, Duree)
         # pendant tout le vol : chaque seconde, chaque passager assis rapporte de l'argent
-        ParPassager := (if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartParPassager else PrixBillet * 1.0) / Duree
+        # x bonus des améliorations (classes, confort, équipe) et du rebirth
+        Bonus := DeviceAvion.MultiBillet * DeviceAvion.MultiRebirth
+        ParPassager := (if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartParPassager else PrixBillet * 1.0) * Bonus / Duree
         set GainVol = 0
         var Reste:float = 0.0
         Debut := GetSimulationElapsedTime()

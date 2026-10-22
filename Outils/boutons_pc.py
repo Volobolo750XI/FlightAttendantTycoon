@@ -33,7 +33,7 @@ def bouton(nom, l, h, couleur, rayon, ep):
     im.paste(Image.new("RGBA", (L, H), sombre), (0, 0), bas)
     reflet = Image.new("L", (L, H), 0)
     m = e + int(H * 0.08)
-    ImageDraw.Draw(reflet).rounded_rectangle([m + r // 3, m, L - 1 - m - r // 3, int(H * 0.36)], (H * 0.36 - m) / 2, fill=110)
+    ImageDraw.Draw(reflet).rounded_rectangle([m + r // 3, m, L - 1 - m - r // 3, int(H * 0.27)], (H * 0.27 - m) / 2, fill=60)
     reflet = ImageChops.multiply(reflet, interieur)
     im.paste(Image.new("RGBA", (L, H), (255, 255, 255, 255)), (0, 0), reflet)
     im.resize((l, h), Image.LANCZOS).save(os.path.join(SORTIE, nom + ".png"))

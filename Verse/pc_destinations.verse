@@ -261,14 +261,14 @@ pc_destinations := class(creative_device):
     EnVol()<transacts><decides>:void = DebutVol >= 0.0
 
     # Valeur d'un vol (passagers + missions en dépendent) et multiplicateur des commandes.
-    ValeurVol():float = if (V := ValeurPalier[Palier(RouteCourante()) - 1]) then V else 1000.0
-    MultiplicateurActif():float = if (M := MultiPalier[Palier(RouteCourante()) - 1]) then M else 1.0
-    DureeVolActive():float = MinutesRoute(Choisie) * 60.0
+    ValeurVol()<transacts>:float = if (V := ValeurPalier[Palier(RouteCourante()) - 1]) then V else 1000.0
+    MultiplicateurActif()<transacts>:float = if (M := MultiPalier[Palier(RouteCourante()) - 1]) then M else 1.0
+    DureeVolActive()<transacts>:float = MinutesRoute(Choisie) * 60.0
     # Niveau de la ligne (1..8)
-    Niveau():int = Palier(RouteCourante())
+    Niveau()<transacts>:int = Palier(RouteCourante())
 
-    VilleDepart():string = NomVille(Position)
-    VilleArrivee():string = if (DebutVol >= 0.0) then NomVille(Vers) else NomVille(Autre(Choisie, Position))
+    VilleDepart()<transacts>:string = NomVille(Position)
+    VilleArrivee()<transacts>:string = if (DebutVol >= 0.0) then NomVille(Vers) else NomVille(Autre(Choisie, Position))
 
     # Avancement du vol entre 0 (départ) et 1 (arrivée).
     Progression():float =

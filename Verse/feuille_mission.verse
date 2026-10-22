@@ -464,9 +464,10 @@ feuille_mission := class(creative_device):
     NiveauActuel():int =
         var NiveauBase:int = 1
         if (Ordi := DevicePC?):
-            if (Ordi.Active >= 7):
+            # niveau de la ligne (1..8) : 6+ = erreurs difficiles, 3+ = moyennes
+            if (Ordi.Niveau() >= 6):
                 set NiveauBase = 3
-            else if (Ordi.Active >= 2):
+            else if (Ordi.Niveau() >= 3):
                 set NiveauBase = 2
         Bonus := if (Forme >= 6) then 1 else if (Forme <= -3) then -1 else 0
         Max(1, Min(3, NiveauBase + Bonus))
@@ -645,14 +646,14 @@ feuille_mission := class(creative_device):
 
     # ---------- le vol en cours, les dates, les noms ----------
     VilleDepart():string =
-        if (Ordi := DevicePC?, D := Ordi.ListeDestinations[Ordi.Active]):
-            if (Ordi.Retour?) then D.Ville2 else D.Ville1
+        if (Ordi := DevicePC?):
+            Ordi.VilleDepart()
         else:
             "PARIS"
 
     VilleArrivee():string =
-        if (Ordi := DevicePC?, D := Ordi.ListeDestinations[Ordi.Active]):
-            if (Ordi.Retour?) then D.Ville1 else D.Ville2
+        if (Ordi := DevicePC?):
+            Ordi.VilleArrivee()
         else:
             "LONDON"
 

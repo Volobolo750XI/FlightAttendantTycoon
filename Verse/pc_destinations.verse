@@ -203,6 +203,8 @@ pc_destinations := class(creative_device):
     var Selection:int = -1
     # page de la liste des trajets (on fait défiler avec PREV / NEXT)
     var Page:int = 0
+    # vue du PC : 0 = la grille des destinations (20 cases), 1 = la carte du réseau
+    var Vue:int = 0
     var MessageErreur:string = ""
     var NumeroMessage:int = 0
 
@@ -341,6 +343,7 @@ pc_destinations := class(creative_device):
         Fermer()
         set EcranJoueur = option{P}
         set Page = 0
+        set Vue = 0
         Afficher()
 
     Fermer():void =
@@ -353,7 +356,7 @@ pc_destinations := class(creative_device):
 
     # ---------- les clics ----------
     # 1 ouvrir la fiche d'un trajet, 2 acheter, 3 prochain vol, 4 fermer la fiche, 5 fermer le PC,
-    # 6 page précédente, 7 page suivante
+    # 6 page précédente, 7 page suivante, 8 case d'une ville (grille), 9 changer de vue
     Agir(Action:int, Index:int):void =
         if (Action = 1):
             set Selection = Index
@@ -367,7 +370,19 @@ pc_destinations := class(creative_device):
             set Page = Max(0, Page - 1)
             Afficher()
         else if (Action = 7):
-            set Page = Min(NbPages() - 1, Page + 1)
+            Dernier := if (Vue = 0) then NbPagesGrille() - 1 else NbPages() - 1
+            set Page = Min(Dernier, Page + 1)
+            Afficher()
+        else if (Action = 8):
+            T := TrajetVers(Index)
+            if (T >= 0):
+                set Selection = T
+                set MessageErreur = ""
+                Afficher()
+        else if (Action = 9):
+            set Vue = Index
+            set Page = 0
+            set Selection = -1
             Afficher()
         else if (Action = 4):
             set Selection = -1
@@ -507,9 +522,15 @@ pc_destinations := class(creative_device):
             for (W : Dynamiques) { Toile.RemoveWidget(W) }
             set NumeroAnimation += 1
             var Slots:[]canvas_slot = array{}
-            set Slots += ListeLignes()
-            Carte := CarteReseau()
-            set Slots += Carte(0)
+            var IconeVol:?texture_block = false
+            if (Vue = 0):
+                set Slots += Grille()
+            else:
+                Carte := CarteReseau()
+                set Slots += ListeLignes()
+                set Slots += Carte(0)
+                set IconeVol = Carte(1)
+            set Slots += Onglets()
             if (MessageErreur <> ""):
                 set Slots += array{Bloc(Rect("7F1D1D", 0.95), 610.0, 170.0, 700.0, 50.0, 25)}
                 set Slots += array{Bloc(Ecrit(MessageErreur, "FFFFFF", text_justification.Center), 610.0, 175.0, 700.0, 40.0, 26)}
@@ -518,8 +539,103 @@ pc_destinations := class(creative_device):
             set Slots += BoutonEcran("CLOSE", "374151", 1720.0, 20.0, 170.0, 50.0, 5, 0)
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
-            if (EnVol[], IconeAvion := Carte(1)?):
+            if (EnVol[], IconeAvion := IconeVol?):
                 spawn{AnimerAvion(NumeroAnimation, Toile, IconeAvion)}
+
+    # ---------- la grille des destinations : 20 cases par page ----------
+    ParGrille:int = 20
+
+    # Une fiche est ouverte : les cases en dessous ne doivent plus prendre les clics.
+    FicheOuverte()<transacts><decides>:void =
+        Selection >= 0
+        Selection < Routes.Length * 2
+
+    # Le niveau de la ligne la moins chère qui touche la ville V.
+    MinPalier(V:int)<transacts>:int =
+        var Mini:int = 99
+        for (R : RoutesDe(V)) { set Mini = Min(Mini, Palier(R)) }
+        Mini
+
+    # La ligne directe entre la ville de l'avion et V (-1 si aucune).
+    Directe(V:int)<transacts>:int =
+        for (R : RoutesDe(Position), Autre(R, Position) = V):
+            return R
+        -1
+
+    # Le trajet montré quand on clique sur la ville V : le vol direct depuis ici s'il existe,
+    # sinon la ligne la moins chère qui arrive à V (on peut l'acheter d'avance).
+    TrajetVers(V:int)<transacts>:int =
+        var R:int = Directe(V)
+        if (R < 0):
+            for (X : RoutesDe(V), R < 0, Palier(X) = MinPalier(V)) { set R = X }
+        if (Rt := Routes[R]) then (if (Rt.B = V) then 2 * R else 2 * R + 1) else -1
+
+    # L'ordre des cases : ici, puis les vols directs, puis les autres du moins cher au plus cher.
+    VillesGrille()<transacts>:[]int =
+        var L:[]int = array{Position}
+        set L += for (V := 0..LesVilles.Length - 1, V <> Position, Directe(V) >= 0) { V }
+        for (Niv := 1..8):
+            set L += for (V := 0..LesVilles.Length - 1, V <> Position, Directe(V) < 0, MinPalier(V) = Niv) { V }
+        L
+
+    NbPagesGrille()<transacts>:int = if (Q := Quotient[VillesGrille().Length + ParGrille - 1, ParGrille]) then Max(1, Q) else 1
+
+    # 5 colonnes x 4 rangées. Chaque case : l'image de la ville, son nom, et ce qu'on peut faire.
+    Grille():[]canvas_slot =
+        var S:[]canvas_slot = array{}
+        Toutes := VillesGrille()
+        set Page = Max(0, Min(Page, NbPagesGrille() - 1))
+        set S += array{Couvrir("0B1220", 2)}
+        Ici := NomVille(Position)
+        Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {Ici}"
+        set S += array{Bloc(Ecrit(Titre, "FBBF24", text_justification.Left), 70.0, 82.0, 480.0, 40.0, 6)}
+        set S += array{Bloc(Ecrit("PICK YOUR NEXT DESTINATION", "94A3B8", text_justification.Left), 70.0, 120.0, 480.0, 34.0, 6)}
+        for (N := 0..ParGrille - 1, V := Toutes[Page * ParGrille + N], Ville := LesVilles[V]):
+            Col := if (C := Mod[N, 5]) then C else 0
+            Lig := if (L := Quotient[N, 5]) then L else 0
+            X := 70.0 + Col * 360.0
+            Y := 165.0 + Lig * 226.0
+            R := Directe(V)
+            Minutes := if (M := Round[MinutesRoute(R)]) then M else 5
+            EstIci := if (V = Position) then true else false
+            Achat := if (R >= 0, Achetee[R]) then true else false
+            Prochain := if (R >= 0, R = Choisie, not EnVol[]) then true else false
+            Bord := if (EstIci?) then "22C55E" else if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else if (R >= 0) then "FBBF24" else "475569"
+            Statut := if (EstIci?) then "YOU ARE HERE" else if (Prochain?) then "NEXT FLIGHT" else if (Achat?) then "OWNED  -  {Minutes} MIN" else if (R >= 0) then "${Abreger(PrixRoute(R))}  -  {Minutes} MIN" else "NO DIRECT FLIGHT"
+            set S += array{Bloc(Rect(Bord, 1.0), X, Y, 340.0, 214.0, 6)}
+            set S += array{Bloc(Rect("0F172A", 1.0), X + 3.0, Y + 3.0, 334.0, 208.0, 7)}
+            set S += array{Bloc(Vignette(Ville.Image, 328.0, 164.0), X + 6.0, Y + 6.0, 328.0, 164.0, 8)}
+            if (not EstIci?, R < 0):
+                set S += array{Bloc(Rect("000000", 0.55), X + 6.0, Y + 6.0, 328.0, 164.0, 9)}
+            set S += array{Bloc(Rect("0B1620", 0.75), X + 6.0, Y + 130.0, 328.0, 40.0, 10)}
+            set S += array{Bloc(Ecrit(Ville.Nom, "FFFFFF", text_justification.Center), X + 6.0, Y + 133.0, 328.0, 34.0, 10)}
+            CouleurStatut := if (not EstIci?, R < 0) then "94A3B8" else Bord
+            set S += array{Bloc(Ecrit(Statut, CouleurStatut, text_justification.Center), X + 6.0, Y + 174.0, 328.0, 34.0, 10)}
+            if (not EstIci?, not FicheOuverte[]):
+                set S += array{Bloc(Zone(8, V), X, Y, 340.0, 214.0, 30)}
+        # les pages
+        Pages := NbPagesGrille()
+        if (Pages > 1):
+            if (Page > 0):
+                set S += BoutonEcran("<", "334155", 1400.0, 82.0, 90.0, 60.0, 6, 0)
+            set S += array{Bloc(Ecrit("PAGE {Page + 1} / {Pages}", "E2E8F0", text_justification.Center), 1500.0, 92.0, 240.0, 40.0, 6)}
+            if (Page < Pages - 1):
+                set S += BoutonEcran(">", "334155", 1750.0, 82.0, 90.0, 60.0, 7, 0)
+        S
+
+    # Les 2 onglets en haut à gauche : la grille des destinations et la carte du réseau.
+    Onglets():[]canvas_slot =
+        Grille0 := if (Vue = 0) then "0369A1" else "334155"
+        Carte1 := if (Vue = 1) then "0369A1" else "334155"
+        BoutonEcran("DESTINATIONS", Grille0, 70.0, 20.0, 260.0, 50.0, 9, 0) + BoutonEcran("MAP", Carte1, 345.0, 20.0, 150.0, 50.0, 9, 1)
+
+    Couvrir(Hex:string, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
+        canvas_slot:
+            Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
+            Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
+            SizeToContent := false
+            ZOrder := Couche
+            Widget := Rect(Hex, 1.0)
 
     # À gauche : tous les trajets, dans les 2 sens, 6 par page (PREV / NEXT pour défiler).
     # Ceux qui partent de la ville où est l'avion sont en premier.
@@ -550,7 +666,8 @@ pc_destinations := class(creative_device):
             set S += array{PlaceC(Ecrit("TO {Ville.Nom}", "FFFFFF", text_justification.Left), UL, ListeHaut, 70.0, DY - 32.0, Largeur - 150.0, 34.0, 8)}
             set S += array{PlaceC(Ecrit("FROM {NomVille(DepartDe(T))}", CouleurDepart, text_justification.Left), UL, ListeHaut, 70.0, DY, Largeur - 150.0, 34.0, 8)}
             set S += array{PlaceC(Ecrit("{Statut}  -  {Duree} MIN", Bord, text_justification.Left), UL, ListeHaut, 70.0, DY + 32.0, Largeur - 150.0, 34.0, 8)}
-            set S += array{PlaceC(Zone(1, T), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 30)}
+            if (not FicheOuverte[]):
+                set S += array{PlaceC(Zone(1, T), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 30)}
         # défilement
         DYP := 150.0 + ParPage * Pas
         Bouton := (Largeur - 20.0) / 3.0

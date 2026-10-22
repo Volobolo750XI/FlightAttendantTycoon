@@ -15,8 +15,7 @@ using { /UnrealEngine.com/Temporary/UI }
 # Style cartoon vert "argent", comme l'écran des vols.
 # Dans le Tiroir a contenu :
 #   dossier InterfacePC : le kit cartoon (Fond, CarteCarree, Carte, Bouton..., Onglet...,
-#                         IconeSupplies, IconeUpgrades)
-#   dossier JaugeVol    : Avion (l'avion cartoon, icône de DESTINATIONS)
+#                         IconeDestinations, IconeSupplies, IconeUpgrades)
 #   dossier MenuPC      : Icone_Panier
 #   dossier Produits    : Produit_01_Eau ... Produit_09_Caviar (sans le 07)
 #
@@ -254,7 +253,7 @@ menu_pc := class(creative_device):
         set Slots += array{Bloc(Texte("FLIGHT OPS", "FFFFFF", text_justification.Center), 560.0, 150.0, 800.0, 50.0, 5)}
         set Slots += array{Bloc(Texte("WHAT DO YOU WANT TO DO ?", "BBF7D0", text_justification.Center), 560.0, 200.0, 800.0, 40.0, 5)}
         set Slots += Bouton("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 10, 0)
-        set Slots += CarteMenu(0, "DESTINATIONS", "BUY ROUTES AND FLY", JaugeVol.Avion, true)
+        set Slots += CarteMenu(0, "DESTINATIONS", "BUY ROUTES AND FLY", InterfacePC.IconeDestinations, true)
         set Slots += CarteMenu(1, "SUPPLIES", "FOOD AND DRINKS", InterfacePC.IconeSupplies, true)
         set Slots += CarteMenu(2, "UPGRADES", "COMING SOON", InterfacePC.IconeUpgrades, false)
         set Slots += LigneMessage(560.0, 900.0, 800.0)

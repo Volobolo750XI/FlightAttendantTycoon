@@ -729,10 +729,15 @@ pc_destinations := class(creative_device):
             Bloc(Ecrit(Valeur, "FFFFFF", text_justification.Right), 840.0, Y, 480.0, 40.0, 16)
 
     # ---------- la barre de vol en haut de l'écran ----------
-    # Jauge cartoon : largeur en pixels (l'image JaugeVol.Fond fait 8 fois plus large que haut :
-    # 560 x 70), et le centre du rond de départ du remplissage.
-    LargeurJauge:float = 560.0
-    DebutJauge:float = -280.0 + 9.0 + 26.0
+    # Jauge cartoon, petite : 400 x 50 pixels (l'image JaugeVol.Fond fait 8 fois plus large que
+    # haut). Le remplissage jaune fait 37 pixels de haut, à 6,5 pixels du bord. DebutJauge = le
+    # centre du rond de départ du remplissage. L'avion est plus grand que la jauge : il dépasse.
+    LargeurJauge:float = 400.0
+    HauteurJauge:float = 50.0
+    MargeJauge:float = 6.5
+    Remplissage:float = 37.0
+    DebutJauge:float = -200.0 + 6.5 + 18.5
+    TailleAvion:float = 120.0
     # Toujours affichée sur l'écran du joueur propriétaire de l'avion (en jeu, pas seulement au PC).
     # Une jauge ronde qui se remplit de jaune, avec l'avion cartoon au bout ; la ville de départ
     # à gauche, l'arrivée à droite, le temps restant en dessous. Au sol : le prochain vol.
@@ -752,11 +757,11 @@ pc_destinations := class(creative_device):
                 else:
                     # la jauge vide (ronde, contour foncé), le bout gauche du remplissage, les textes
                     Fixes := array:
-                        EnHaut(Vignette(JaugeVol.Fond, LargeurJauge, 70.0), 0.0, 0.0, LargeurJauge, 70.0, 0)
-                        EnHaut(Vignette(JaugeVol.Rond, 52.0, 52.0), DebutJauge, 9.0, 52.0, 52.0, 2)
-                        EnHaut(TexteDepart, -LargeurJauge / 2.0 - 165.0, 15.0, 300.0, 40.0, 5)
-                        EnHaut(TexteArrivee, LargeurJauge / 2.0 + 165.0, 15.0, 300.0, 40.0, 5)
-                        EnHaut(TexteTemps, 0.0, 72.0, 260.0, 40.0, 5)
+                        EnHaut(Vignette(JaugeVol.Fond, LargeurJauge, HauteurJauge), 0.0, 0.0, LargeurJauge, HauteurJauge, 0)
+                        EnHaut(Vignette(JaugeVol.Rond, Remplissage, Remplissage), DebutJauge, MargeJauge, Remplissage, Remplissage, 2)
+                        EnHaut(TexteDepart, -LargeurJauge / 2.0 - 190.0, HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5)
+                        EnHaut(TexteArrivee, LargeurJauge / 2.0 + 190.0, HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5)
+                        EnHaut(TexteTemps, 0.0, HauteurJauge + 6.0, 260.0, 40.0, 5)
                     Nouvelle := canvas{Slots := Fixes}
                     UI.AddWidget(Nouvelle)
                     set Barre = option{Nouvelle}
@@ -775,13 +780,13 @@ pc_destinations := class(creative_device):
                 for (W : BarreMobile) { Toile.RemoveWidget(W) }
                 # le remplissage jaune : un rond au début, un rond au bout, un rectangle entre les deux
                 # (comme ça les 2 bouts restent bien ronds) ; l'avion cartoon roule sur le bout
-                Course := LargeurJauge - 18.0 - 52.0
+                Course := LargeurJauge - 2.0 * MargeJauge - Remplissage
                 Bout := DebutJauge + Course * Progression()
                 Mobiles := array:
-                    EnHaut(Rect("FFB81C", 1.0), (DebutJauge + Bout) / 2.0, 9.0, Max(1.0, Bout - DebutJauge), 52.0, 1)
-                    EnHaut(Rect("FFDE6E", 1.0), (DebutJauge + Bout) / 2.0, 13.0, Max(1.0, Bout - DebutJauge), 16.0, 1)
-                    EnHaut(Vignette(JaugeVol.Rond, 52.0, 52.0), Bout, 9.0, 52.0, 52.0, 2)
-                    EnHaut(Vignette(JaugeVol.Avion, 112.0, 112.0), Bout, -22.0, 112.0, 112.0, 4)
+                    EnHaut(Rect("FFB81C", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge, Max(1.0, Bout - DebutJauge), Remplissage, 1)
+                    EnHaut(Rect("FFDE6E", 1.0), (DebutJauge + Bout) / 2.0, MargeJauge + Remplissage * 0.08, Max(1.0, Bout - DebutJauge), Remplissage * 0.3, 1)
+                    EnHaut(Vignette(JaugeVol.Rond, Remplissage, Remplissage), Bout, MargeJauge, Remplissage, Remplissage, 2)
+                    EnHaut(Vignette(JaugeVol.Avion, TailleAvion, TailleAvion), Bout, HauteurJauge / 2.0 - TailleAvion / 2.0 - 4.0, TailleAvion, TailleAvion, 4)
                 for (S : Mobiles) { Toile.AddWidget(S) }
                 set BarreMobile = for (S : Mobiles) { S.Widget }
 

@@ -34,10 +34,12 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 #   BoutonsCoffres     : un bouton par porte (même ordre) pour que le joueur les referme.
 #   Les repères sont cachés automatiquement au lancement de la partie.
 #
-# Le trajet : TAKE OFF -> le vol dure le temps du trajet choisi sur le PC (DevicePC) -> atterrissage :
-# les billets sont payés (PartBillets x valeur du vol x sièges occupés / nombre de Places : plus
-# l'avion est plein et la destination chère, plus ça rapporte), puis tout le monde descend, les
-# coffres se rouvrent et le bouton redevient START BOARDING (nouveau trajet).
+# Le trajet : TAKE OFF -> le vol dure le temps du trajet choisi sur le PC (DevicePC). PENDANT tout
+# le vol, chaque passager assis (sauf un fraudeur) rapporte de l'argent CHAQUE SECONDE : le cadre
+# "/Sec" montre combien, et l'argent monte en direct. Sur un vol complet, un passager rapporte
+# PartParPassager x la valeur du vol (pc_destinations.ValeurVol) : plus l'avion est plein et la
+# destination chère, plus ça rapporte. À l'atterrissage tout le monde descend, les coffres se
+# rouvrent et le bouton redevient START BOARDING (nouveau trajet).
 
 modele_passager := class<concrete>:
     @editable MarcheValise:creative_prop_asset = DefaultCreativePropAsset
@@ -134,9 +136,10 @@ passagers := class(creative_device):
     @editable DevicePC:?pc_destinations = false
     # Durée du vol (secondes) si aucun DevicePC n'est rempli.
     @editable DureeVolSansPC:float = 300.0
-    # Part de la valeur du vol payée par les billets quand l'avion est PLEIN (0.5 = la moitié).
-    @editable PartBillets:float = 0.5
-    # Sans DevicePC : prix fixe d'un billet.
+    # Ce que rapporte UN passager sur un vol complet : PartParPassager x la valeur du vol
+    # (0.05 = 5 % ; avec 30 passagers, un vol rapporte 1.5 fois la valeur du vol).
+    @editable PartParPassager:float = 0.05
+    # Sans DevicePC : ce que rapporte un passager sur un vol complet.
     @editable PrixBillet:int = 10
     # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
     @editable MessageHUD:?hud_message_device = false
@@ -230,6 +233,8 @@ passagers := class(creative_device):
     # Dernier atterrissage : passagers qui ont payé et argent gagné (lu par la feuille de mission).
     var DerniersPayants:int = 0
     var DernierGainBillets:int = 0
+    # Argent gagné pendant le vol en cours
+    var GainVol:int = 0
 
     OnBegin<override>()<suspends>:void =
         MesurerExemples()
@@ -313,26 +318,37 @@ passagers := class(creative_device):
         if (Ordi := DevicePC?):
             if (not Ordi.EnVol[]) { Ordi.Decollage() }
             set Duree = Ordi.DureeVol * (1.0 - Ordi.Progression())
-        Sleep(Max(5.0, Duree))
+        set Duree = Max(5.0, Duree)
+        # pendant tout le vol : chaque seconde, chaque passager assis rapporte de l'argent
+        ParPassager := (if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartParPassager else PrixBillet * 1.0) / Duree
+        set GainVol = 0
+        var Reste:float = 0.0
+        Debut := GetSimulationElapsedTime()
+        loop:
+            Sleep(1.0)
+            Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
+            Taux := ParPassager * Payants.Length
+            set Reste += Taux
+            if (Entier := Floor[Reste], Entier > 0):
+                set Reste -= Entier * 1.0
+                set GainVol += Entier
+                set DeviceAvion.Argent += Entier
+            set DeviceAvion.RevenuParSeconde = if (R := Round[Taux]) then R else 0
+            DeviceAvion.MettreAJourUI()
+            set DerniersPayants = Payants.Length
+            Ecoule := GetSimulationElapsedTime() - Debut
+            if (Ecoule >= Duree) { break }
+        # atterrissage
+        set DeviceAvion.RevenuParSeconde = 0
+        DeviceAvion.MettreAJourUI()
+        set DernierGainBillets = GainVol
         if (C := DeviceCinematique?):
             C.Atterrissage()
             if (V := C.Vol?) { V.Atterrir() }
-        PayerBillets()
+        if (M := MessageHUD?):
+            M.SetText(Msg("LANDED! {DerniersPayants} passengers earned you ${DeviceAvion.Abreger(GainVol)}"))
+            for (J : GetPlayspace().GetPlayers()) { M.Show(J) }
         Debarquer()
-
-    # Chaque passager assis (sauf un fraudeur) paie son billet.
-    PayerBillets():void =
-        Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
-        ParSiege := if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartBillets / Max(1.0, Places.Length * 1.0) else PrixBillet * 1.0
-        Gain := if (G := Round[ParSiege * Payants.Length]) then G else 0
-        set DerniersPayants = Payants.Length
-        set DernierGainBillets = Gain
-        if (Gain > 0):
-            set DeviceAvion.Argent += Gain
-            DeviceAvion.MettreAJourUI()
-            if (M := MessageHUD?):
-                M.SetText(Msg("LANDED! {Payants.Length} passengers  +${DeviceAvion.Abreger(Gain)}"))
-                for (J : GetPlayspace().GetPlayers()) { M.Show(J) }
 
     # Tout le monde descend : passagers et bagages disparaissent, les places se libèrent,
     # les coffres se rouvrent et le bouton redevient START BOARDING.

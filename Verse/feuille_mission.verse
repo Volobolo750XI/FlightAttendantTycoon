@@ -39,7 +39,7 @@ using { /UnrealEngine.com/Temporary/UI }
 # ARGENT : tout dépend de la VALEUR DU VOL (pc_destinations.ValeurVol : environ la moitié du prix
 # de la destination suivante). Au début ça rapporte un peu, avec les grosses destinations beaucoup.
 #   mission = PartMission x valeur, fraudeur = PartFraudeur x valeur, feuille parfaite =
-#   PartParfait x valeur ; billets (device passagers) = PartBillets x valeur x sièges occupés / sièges.
+#   PartParfait x valeur ; passagers (device passagers) = PartParPassager x valeur par passager assis, gagné seconde par seconde en vol.
 #
 # Dans le Tiroir à contenu, dossier "FeuilleMission" : importe tout Textures/FeuilleMission
 # (FondFeuille, Billet, Passeport, Case, CaseCochee, CaseRatee, TamponOk, TamponRefus, Photo1 ... Photo5).
@@ -281,12 +281,6 @@ feuille_mission := class(creative_device):
                 Payer(Gain(PartParfait), "PERFECT FLIGHT!")
             Passes := for (B : Billets, B.Probleme > 0, B.Decision <> 2) { B }
             set FraudeursRates = Passes.Length
-            # revenu moyen du trajet (billets + missions) pour le cadre "/Sec"
-            Duree := GetSimulationElapsedTime() - DebutTrajet
-            Total := Passagers.DernierGainBillets + GainsMissions
-            if (Duree > 1.0, R := Round[Total * 1.0 / Duree]):
-                set DeviceAvion.RevenuParSeconde = R
-                DeviceAvion.MettreAJourUI()
             set Bilan = true
             Message("Flight complete! Check your briefing sheet.")
             Rafraichir()
@@ -890,7 +884,7 @@ feuille_mission := class(creative_device):
         Total := GainBillets + GainsMissions
         var S:[]canvas_slot = array{}
         set S += array{Bloc(Ecrit("FLIGHT COMPLETE", "244A8C", text_justification.Left), 640.0, 700.0, 400.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("Tickets x{Passagers.DerniersPayants}", "1E293B", text_justification.Left), 640.0, 744.0, 480.0, 40.0, 3)}
+        set S += array{Bloc(Ecrit("Passengers x{Passagers.DerniersPayants}", "1E293B", text_justification.Left), 640.0, 744.0, 480.0, 40.0, 3)}
         set S += array{Bloc(Ecrit("+{Prix(GainBillets)}", "16A34A", text_justification.Right), 1120.0, 744.0, 180.0, 40.0, 3)}
         set S += array{Bloc(Ecrit("Missions", "1E293B", text_justification.Left), 640.0, 786.0, 480.0, 40.0, 3)}
         set S += array{Bloc(Ecrit("+{Prix(GainsMissions)}", "16A34A", text_justification.Right), 1120.0, 786.0, 180.0, 40.0, 3)}

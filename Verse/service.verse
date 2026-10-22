@@ -6,9 +6,10 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 
 # Flight Attendant Tycoon - le galley : prendre, porter, poser (comme la pizzeria).
 #
-#   CHARIOT : E sur un stockage avec le chariot en main (ou a moins de DistanceChargement cm) ->
-#   le produit se range TOUT SEUL dans la case libre suivante du plateau du chariot (les plats
-#   sur une assiette). TOUCHE en tenant un produit, chariot a cote -> il va aussi dans une case.
+#   CHARIOT : E sur un stockage EN TENANT le chariot -> le produit se range TOUT SEUL dans la case
+#   libre suivante du plateau du chariot (les plats sur une assiette). Sans tenir le chariot, le
+#   produit va dans la main comme avant. TOUCHE en tenant un produit, chariot a cote -> il va aussi
+#   dans une case.
 #   Pour servir : le chariot a cote d'un passager qui commande, on le vise, TOUCHE de la feuille
 #   (feuille_mission) -> on choisit le produit du chariot sur l'ecran.
 #
@@ -196,9 +197,9 @@ service_device := class(creative_device):
 
     # ---------- prendre ----------
     ClicStockage(Agent:agent, Index:int):void =
-        ChariotProche := ChariotDe(Agent)
-        if (P := player[Agent], PeutAgir[P], I := ChariotProche?, Index >= 0, MainsLibres[P]):
-            # chariot a cote : le produit va directement dans une case du plateau
+        Tenu := ChariotTenu(Agent)
+        if (P := player[Agent], PeutAgir[P], I := Tenu?, Index >= 0, MainsLibres[P]):
+            # on tient le chariot : le produit va directement dans une case du plateau
             Marquer(P)
             ChargerChariot(I, Index)
         else if (P := player[Agent], MainsLibres[P], PeutAgir[P]):
@@ -209,7 +210,7 @@ service_device := class(creative_device):
                 Marquer(P)
                 CreerEnMain(P, Index)
             else:
-                Print("Galley : plus de stock pour ce produit")
+                Annoncer("Out of stock! Buy more on the PC.")
 
     CreerEnMain(P:player, Index:int):void =
         if (FC := P.GetFortCharacter[]):
@@ -477,53 +478,55 @@ service_device := class(creative_device):
         DY := (Rang * 1.0 - (Max(1, RangeesChariot) - 1) * 0.5) * EcartChariot
         Centre + vector3{X := DX, Y := DY, Z := 0.0}
 
-    # Cree un objet (produit ou assiette) a sa taille, cache sous la carte le temps de l'accrocher.
-    CreerObjet(Index:int):?objet_service =
-        Loin := vector3{Z := -5000.0}
-        Resultat := SpawnProp(Modele(Index), transform{Translation := Loin, Rotation := IdentityRotation(), Scale := Echelle(Index)})
-        if (Prop := Resultat(0)?):
-            Placer(Prop, Index, Loin, IdentityRotation())
-            if (Index = 0, Mat := MateriauEau?) { Prop.SetMaterial(Mat) }
-            option{objet_service{Index := Index, Prop := Prop}}
-        else:
-            false
+    # Le chariot que ce joueur tient (pour y charger les produits du galley).
+    ChariotTenu(Agent:agent)<transacts>:?int =
+        for (I -> Ch : Chariots, Porteur := Ch.Porteur?, Porteur = Agent):
+            return option{I}
+        false
 
-    # Accroche un objet dans une case du chariot (hauteur en plus pour un plat sur son assiette).
-    MettreDansCase(O:objet_service, I:int, Casier:int, Hauteur:float):void =
+    # Cree un objet (produit ou assiette) DIRECTEMENT dans une case du chariot (position Rel dans le
+    # repere du chariot), a sa taille, et l'accroche au chariot.
+    CreerDansChariot(I:int, Index:int, Rel:vector3):?objet_service =
         if (Ch := Chariots[I]):
-            Rel := PositionCase(Ch, Casier) + vector3{Z := Hauteur}
-            Rot := MakeRotationFromYawPitchRollDegrees(if (O.Index >= 0) then RotationProduit(O.Index) else 0.0, 0.0, 0.0)
-            set O.Attache = option{Ch.AttacherRelatif(O.Prop, Rel, Rot)}
-            set O.ChariotIndex = I
+            C := Ch.Chariot.GetTransform()
+            Rot := MakeRotationFromYawPitchRollDegrees(if (Index >= 0) then RotationProduit(Index) else 0.0, 0.0, 0.0)
+            Monde := transform{Translation := C.Translation + C.Rotation.RotateVector(Rel), Rotation := C.Rotation.RotateBy(Rot), Scale := Echelle(Index)}
+            Resultat := SpawnProp(Modele(Index), Monde)
+            if (Prop := Resultat(0)?):
+                Placer(Prop, Index, Monde.Translation, Monde.Rotation)
+                if (Index = 0, Mat := MateriauEau?) { Prop.SetMaterial(Mat) }
+                O := objet_service{Index := Index, Prop := Prop}
+                set O.Attache = option{Ch.AttacherRelatif(Prop, Rel, Rot)}
+                set O.ChariotIndex = I
+                return option{O}
+        false
 
-    # E sur un stockage, chariot a cote : un produit du stock va dans la case libre suivante.
+    # E sur un stockage en tenant le chariot : un produit du stock va dans la case libre suivante
+    # (un plat sur une assiette, s'il y a un modele d'assiette).
     ChargerChariot(I:int, Index:int):void =
-        if (Casier := CaseLibre(I)?):
+        if (Ch := Chariots[I], Casier := CaseLibre(I)?):
             if (M := Menu?, M.RetirerUn[Index]):
-                Cree := CreerObjet(Index)
-                if (Article := Cree?):
-                    Ranger(Article, I, Casier)
+                Base := PositionCase(Ch, Casier)
+                var Pose:logic = false
+                if (EstPlat[Index]):
+                    CreeA := CreerDansChariot(I, -1, Base)
+                    if (Assiette := CreeA?):
+                        set Assiette.Casier = Casier
+                        set Poses += array{Assiette}
+                        CreeP := CreerDansChariot(I, Index, Base + vector3{Z := HauteurAssiette + DecalagePose(Index)})
+                        if (Plat := CreeP?) { set Assiette.Dessus = option{Plat} }
+                        set Pose = true
+                if (not Pose?):
+                    Cree := CreerDansChariot(I, Index, Base + vector3{Z := DecalagePose(Index)})
+                    if (O := Cree?):
+                        set O.Casier = Casier
+                        set Poses += array{O}
+                Nom := if (P := M.ListeProduits[Index]) then P.Nom else "Item"
+                Annoncer("{Nom} added to the trolley")
             else:
                 Annoncer("Out of stock! Buy more on the PC.")
         else:
             Annoncer("Your trolley is full!")
-
-    # Range un objet dans une case : un plat va sur une assiette neuve (s'il y a un modele d'assiette).
-    Ranger(O:objet_service, I:int, Casier:int):void =
-        var SurAssiette:logic = false
-        if (O.Index >= 0, EstPlat[O.Index]):
-            Cree := CreerObjet(-1)
-            if (Assiette := Cree?):
-                set Assiette.Dessus = option{O}
-                set Assiette.Casier = Casier
-                set Poses += array{Assiette}
-                MettreDansCase(Assiette, I, Casier, 0.0)
-                MettreDansCase(O, I, Casier, HauteurAssiette + DecalagePose(O.Index))
-                set SurAssiette = true
-        if (not SurAssiette?):
-            set O.Casier = Casier
-            set Poses += array{O}
-            MettreDansCase(O, I, Casier, if (O.Index >= 0) then DecalagePose(O.Index) else 0.0)
 
     # TOUCHE avec un objet en main et le chariot a cote : il va dans une case (produit, ou
     # assiette garnie). Une assiette vide reste en main (false).

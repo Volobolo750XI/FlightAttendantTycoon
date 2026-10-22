@@ -64,7 +64,7 @@ pc_destinations := class(creative_device):
     @editable Menu:?menu_pc = false
     # Économie : valeur d'un vol = PartPrixSuivant x prix de la destination suivante (minimum ValeurVolMin).
     @editable PartPrixSuivant:float = 0.5
-    @editable ValeurVolMin:float = 100.0
+    @editable ValeurVolMin:float = 1000.0
 
     # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
     # avec 1960, la liste + la carte prennent toute la largeur.

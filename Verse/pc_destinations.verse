@@ -203,9 +203,9 @@ pc_destinations := class(creative_device):
     var Barre:?canvas = false
     var BarreJoueur:?player = false
     var BarreMobile:[]widget = array{}
-    TexteDepart:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Left, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.8, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
-    TexteArrivee:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Right, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.8, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
-    TexteTemps:text_block = text_block{DefaultTextColor := MakeColorFromHex("7DD3FC"), DefaultJustification := text_justification.Center, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.8, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
+    TexteDepart:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Right, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
+    TexteArrivee:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Left, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
+    TexteTemps:text_block = text_block{DefaultTextColor := MakeColorFromHex("FFDE6E"), DefaultJustification := text_justification.Center, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
 
     OnBegin<override>()<suspends>:void =
         # au départ : seule la ligne PARIS - LONDON est à nous (offerte)
@@ -729,9 +729,13 @@ pc_destinations := class(creative_device):
             Bloc(Ecrit(Valeur, "FFFFFF", text_justification.Right), 840.0, Y, 480.0, 40.0, 16)
 
     # ---------- la barre de vol en haut de l'écran ----------
+    # Jauge cartoon : largeur en pixels (l'image JaugeVol.Fond fait 8 fois plus large que haut :
+    # 560 x 70), et le centre du rond de départ du remplissage.
+    LargeurJauge:float = 560.0
+    DebutJauge:float = -280.0 + 9.0 + 26.0
     # Toujours affichée sur l'écran du joueur propriétaire de l'avion (en jeu, pas seulement au PC).
-    # Panneau sombre : départ à gauche, arrivée à droite, temps au milieu ; en dessous une piste
-    # qui se remplit et un avion qui avance. Au sol : le prochain vol, prêt à partir.
+    # Une jauge ronde qui se remplit de jaune, avec l'avion cartoon au bout ; la ville de départ
+    # à gauche, l'arrivée à droite, le temps restant en dessous. Au sol : le prochain vol.
     BoucleBarre()<suspends>:void =
         loop:
             Sleep(0.05)
@@ -746,15 +750,13 @@ pc_destinations := class(creative_device):
                 if (C := Barre?):
                     set Toile = C
                 else:
+                    # la jauge vide (ronde, contour foncé), le bout gauche du remplissage, les textes
                     Fixes := array:
-                        EnHaut(Rect("0F172A", 0.85), 0.0, 0.0, 800.0, 86.0, 0)
-                        EnHaut(Rect("38BDF8", 0.9), 0.0, 0.0, 800.0, 3.0, 1)
-                        EnHaut(TexteDepart, -200.0, 6.0, 360.0, 40.0, 2)
-                        EnHaut(TexteArrivee, 200.0, 6.0, 360.0, 40.0, 2)
-                        EnHaut(TexteTemps, 0.0, 6.0, 200.0, 40.0, 2)
-                        EnHaut(Rect("1E293B", 1.0), 0.0, 56.0, 720.0, 12.0, 1)
-                        EnHaut(Rect("E2E8F0", 1.0), -360.0, 54.0, 14.0, 16.0, 3)
-                        EnHaut(Rect("E2E8F0", 1.0), 360.0, 54.0, 14.0, 16.0, 3)
+                        EnHaut(Vignette(JaugeVol.Fond, LargeurJauge, 70.0), 0.0, 0.0, LargeurJauge, 70.0, 0)
+                        EnHaut(Vignette(JaugeVol.Rond, 52.0, 52.0), DebutJauge, 9.0, 52.0, 52.0, 2)
+                        EnHaut(TexteDepart, -LargeurJauge / 2.0 - 165.0, 15.0, 300.0, 40.0, 5)
+                        EnHaut(TexteArrivee, LargeurJauge / 2.0 + 165.0, 15.0, 300.0, 40.0, 5)
+                        EnHaut(TexteTemps, 0.0, 72.0, 260.0, 40.0, 5)
                     Nouvelle := canvas{Slots := Fixes}
                     UI.AddWidget(Nouvelle)
                     set Barre = option{Nouvelle}
@@ -771,12 +773,15 @@ pc_destinations := class(creative_device):
                 TexteTemps.SetText(Msg(if (EnVol[]) then Chrono else "NEXT  {Chrono}"))
                 # la piste remplie et l'avion
                 for (W : BarreMobile) { Toile.RemoveWidget(W) }
-                P := Progression()
-                Plein := 720.0 * P
+                # le remplissage jaune : un rond au début, un rond au bout, un rectangle entre les deux
+                # (comme ça les 2 bouts restent bien ronds) ; l'avion cartoon roule sur le bout
+                Course := LargeurJauge - 18.0 - 52.0
+                Bout := DebutJauge + Course * Progression()
                 Mobiles := array:
-                    EnHaut(Rect("38BDF8", 1.0), -360.0 + Plein / 2.0, 56.0, Max(1.0, Plein), 12.0, 2)
-                    EnHaut(Rect("BAE6FD", 1.0), -360.0 + Plein / 2.0, 56.0, Max(1.0, Plein), 3.0, 3)
-                    EnHaut(Vignette(Destinations.AvionDroite, 40.0, 40.0), -360.0 + Plein, 42.0, 40.0, 40.0, 4)
+                    EnHaut(Rect("FFB81C", 1.0), (DebutJauge + Bout) / 2.0, 9.0, Max(1.0, Bout - DebutJauge), 52.0, 1)
+                    EnHaut(Rect("FFDE6E", 1.0), (DebutJauge + Bout) / 2.0, 13.0, Max(1.0, Bout - DebutJauge), 16.0, 1)
+                    EnHaut(Vignette(JaugeVol.Rond, 52.0, 52.0), Bout, 9.0, 52.0, 52.0, 2)
+                    EnHaut(Vignette(JaugeVol.Avion, 112.0, 112.0), Bout, -22.0, 112.0, 112.0, 4)
                 for (S : Mobiles) { Toile.AddWidget(S) }
                 set BarreMobile = for (S : Mobiles) { S.Widget }
 

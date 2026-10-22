@@ -192,10 +192,10 @@ pc_destinations := class(creative_device):
     # trajet ouvert dans la fiche (-1 = aucune) ; un trajet = une ligne dans un sens :
     # trajet 2*R = de A vers B, trajet 2*R+1 = de B vers A
     var Selection:int = -1
-    # page de la liste des trajets (on fait défiler avec PREV / NEXT)
-    var Page:int = 0
-    # vue du PC : 0 = la grille des destinations (20 cases), 1 = la carte du réseau
+    # vue du PC : 0 = les vols possibles d'ici (FLIGHTS), 1 = la carte du monde (WORLD MAP)
     var Vue:int = 0
+    # pendant un vol : la ligne choisie pour le vol suivant (au départ de la ville d'arrivée)
+    var ChoixApres:int = -1
     var MessageErreur:string = ""
     var NumeroMessage:int = 0
 
@@ -313,7 +313,9 @@ pc_destinations := class(creative_device):
         set DebutVol = -1.0
         # on est arrivé : l'avion est dans la nouvelle ville ; le prochain vol par défaut = le retour
         if (Vers >= 0) { set Position = Vers }
-        set Choisie = RouteVol
+        Retour := RouteVol
+        set Choisie = if (Touche[ChoixApres, Position], Achetee[ChoixApres]) then ChoixApres else Retour
+        set ChoixApres = -1
         set RouteVol = -1
         set Vers = -1
         for (Porte : Portes) { Porte.Verrouiller(false) }
@@ -323,7 +325,6 @@ pc_destinations := class(creative_device):
     Ouvrir(P:player):void =
         Fermer()
         set EcranJoueur = option{P}
-        set Page = 0
         set Vue = 0
         Afficher()
 
@@ -337,7 +338,7 @@ pc_destinations := class(creative_device):
 
     # ---------- les clics ----------
     # 1 ouvrir la fiche d'un trajet, 2 acheter, 3 prochain vol, 4 fermer la fiche, 5 fermer le PC,
-    # 6 page précédente, 7 page suivante, 8 case d'une ville (grille), 9 changer de vue
+    # 8 ville cliquée sur la carte, 9 changer de vue, 12 carte d'un vol (acheter ou choisir en 1 clic)
     Agir(Action:int, Index:int):void =
         if (Action = 1):
             set Selection = Index
@@ -347,13 +348,8 @@ pc_destinations := class(creative_device):
             Acheter(RouteDe(Selection))
         else if (Action = 3):
             Choisir(RouteDe(Selection))
-        else if (Action = 6):
-            set Page = Max(0, Page - 1)
-            Afficher()
-        else if (Action = 7):
-            Dernier := NbPagesGrille() - 1
-            set Page = Min(Dernier, Page + 1)
-            Afficher()
+        else if (Action = 12):
+            Principal(Index)
         else if (Action = 8):
             T := TrajetVers(Index)
             if (T >= 0):
@@ -362,8 +358,7 @@ pc_destinations := class(creative_device):
                 Afficher()
         else if (Action = 9):
             set Vue = Index
-            set Page = 0
-            set Selection = -1
+                set Selection = -1
             Afficher()
         else if (Action = 4):
             set Selection = -1
@@ -384,12 +379,34 @@ pc_destinations := class(creative_device):
                 AvionTycoon.MettreAJourUI()
                 if (S := SonAchat?) { S.Play() }
                 if (set Achetees[R] = true) {}
-                # si elle part d'ici, la nouvelle ligne devient le prochain vol (au sol)
+                # elle devient tout de suite le prochain vol (au sol : depuis ici ; en vol : depuis
+                # la ville d'arrivée)
                 if (not EnVol[], Touche[R, Position]) { set Choisie = R }
+                if (EnVol[], Touche[R, Vers]) { set ChoixApres = R }
                 set MessageErreur = ""
                 Afficher()
             else:
                 AfficherErreur("NOT ENOUGH MONEY")
+
+    # Le clic sur la carte d'un vol : pas encore achetée -> on l'achète (et elle est choisie) ;
+    # déjà à nous -> elle devient le prochain vol. Un seul clic dans tous les cas.
+    Principal(R:int):void =
+        if (not Achetee[R]):
+            Acheter(R)
+        else if (EnVol[]):
+            if (Touche[R, Vers]):
+                set ChoixApres = R
+                Afficher()
+        else:
+            Choisir(R)
+
+    # La ville d'où partira le prochain vol (ici au sol, la ville d'arrivée en vol).
+    VilleBase()<transacts>:int = if (EnVol[]) then Vers else Position
+
+    # La ligne du prochain vol (au sol : celle choisie ; en vol : celle choisie pour après,
+    # sinon le retour).
+    ProchainVol()<transacts>:int =
+        if (EnVol[]) then (if (ChoixApres >= 0) then ChoixApres else RouteVol) else Choisie
 
     Choisir(R:int):void =
         if (EnVol[]):
@@ -510,7 +527,7 @@ pc_destinations := class(creative_device):
             var Slots:[]canvas_slot = array{}
             var IconeVol:?texture_block = false
             if (Vue = 0):
-                set Slots += Grille()
+                set Slots += EcranVols()
             else:
                 Carte := CarteReseau()
                 set Slots += Carte(0)
@@ -527,9 +544,7 @@ pc_destinations := class(creative_device):
             if (EnVol[], IconeAvion := IconeVol?):
                 spawn{AnimerAvion(NumeroAnimation, Toile, IconeAvion)}
 
-    # ---------- la grille des destinations : 20 cases par page ----------
-    ParGrille:int = 20
-
+    # ---------- l'écran des vols : simple et rapide ----------
     # Une fiche est ouverte : les cases en dessous ne doivent plus prendre les clics.
     FicheOuverte()<transacts><decides>:void =
         Selection >= 0
@@ -555,64 +570,75 @@ pc_destinations := class(creative_device):
             for (X : RoutesDe(V), R < 0, Palier(X) = MinPalier(V)) { set R = X }
         if (Rt := Routes[R]) then (if (Rt.B = V) then 2 * R else 2 * R + 1) else -1
 
-    # L'ordre des cases : ici, puis les vols directs, puis les autres du moins cher au plus cher.
-    VillesGrille()<transacts>:[]int =
-        var L:[]int = array{Position}
-        set L += for (V := 0..LesVilles.Length - 1, V <> Position, Directe(V) >= 0) { V }
-        for (Niv := 1..8):
-            set L += for (V := 0..LesVilles.Length - 1, V <> Position, Directe(V) < 0, MinPalier(V) = Niv) { V }
-        L
-
-    NbPagesGrille()<transacts>:int = if (Q := Quotient[VillesGrille().Length + ParGrille - 1, ParGrille]) then Max(1, Q) else 1
-
-    # 5 colonnes x 4 rangées. Chaque case : l'image de la ville, son nom, et ce qu'on peut faire.
-    Grille():[]canvas_slot =
+    # Seulement les vols possibles depuis la ville de l'avion (2 à 5), en grandes cartes côte à
+    # côte. Un clic sur une carte = acheter la ligne ou la choisir. En bas : le prochain vol.
+    EcranVols():[]canvas_slot =
         var S:[]canvas_slot = array{}
-        Toutes := VillesGrille()
-        set Page = Max(0, Min(Page, NbPagesGrille() - 1))
         set S += array{Couvrir("0B1220", 2)}
-        Ici := NomVille(Position)
-        Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {Ici}"
-        set S += array{Bloc(Ecrit(Titre, "FBBF24", text_justification.Left), 70.0, 82.0, 480.0, 40.0, 6)}
-        set S += array{Bloc(Ecrit("PICK YOUR NEXT DESTINATION", "94A3B8", text_justification.Left), 70.0, 120.0, 480.0, 34.0, 6)}
-        for (N := 0..ParGrille - 1, V := Toutes[Page * ParGrille + N], Ville := LesVilles[V]):
-            Col := if (C := Mod[N, 5]) then C else 0
-            Lig := if (L := Quotient[N, 5]) then L else 0
-            X := 70.0 + Col * 360.0
-            Y := 165.0 + Lig * 226.0
-            R := Directe(V)
-            Minutes := if (M := Round[MinutesRoute(R)]) then M else 5
-            EstIci := if (V = Position) then true else false
-            Achat := if (R >= 0, Achetee[R]) then true else false
-            Prochain := if (R >= 0, R = Choisie, not EnVol[]) then true else false
-            Bord := if (EstIci?) then "22C55E" else if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else if (R >= 0) then "FBBF24" else "475569"
-            Statut := if (EstIci?) then "YOU ARE HERE" else if (Prochain?) then "NEXT FLIGHT" else if (Achat?) then "OWNED  -  {Minutes} MIN" else if (R >= 0) then "${Abreger(PrixRoute(R))}  -  {Minutes} MIN" else "NO DIRECT FLIGHT"
-            set S += array{Bloc(Rect(Bord, 1.0), X, Y, 340.0, 214.0, 6)}
-            set S += array{Bloc(Rect("0F172A", 1.0), X + 3.0, Y + 3.0, 334.0, 208.0, 7)}
-            set S += array{Bloc(Vignette(Ville.Image, 328.0, 164.0), X + 6.0, Y + 6.0, 328.0, 164.0, 8)}
-            if (not EstIci?, R < 0):
-                set S += array{Bloc(Rect("000000", 0.55), X + 6.0, Y + 6.0, 328.0, 164.0, 9)}
-            set S += array{Bloc(Rect("0B1620", 0.75), X + 6.0, Y + 130.0, 328.0, 40.0, 10)}
-            set S += array{Bloc(Ecrit(Ville.Nom, "FFFFFF", text_justification.Center), X + 6.0, Y + 133.0, 328.0, 34.0, 10)}
-            CouleurStatut := if (not EstIci?, R < 0) then "94A3B8" else Bord
-            set S += array{Bloc(Ecrit(Statut, CouleurStatut, text_justification.Center), X + 6.0, Y + 174.0, 328.0, 34.0, 10)}
-            if (not EstIci?, not FicheOuverte[]):
-                set S += array{Bloc(Zone(8, V), X, Y, 340.0, 214.0, 30)}
-        # les pages
-        Pages := NbPagesGrille()
-        if (Pages > 1):
-            if (Page > 0):
-                set S += BoutonEcran("<", "334155", 1400.0, 82.0, 90.0, 60.0, 6, 0)
-            set S += array{Bloc(Ecrit("PAGE {Page + 1} / {Pages}", "E2E8F0", text_justification.Center), 1500.0, 92.0, 240.0, 40.0, 6)}
-            if (Page < Pages - 1):
-                set S += BoutonEcran(">", "334155", 1750.0, 82.0, 90.0, 60.0, 7, 0)
+        Base := VilleBase()
+        Prochain := ProchainVol()
+        # le titre et ce qu'il faut faire
+        Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Base)}"
+        Aide := if (EnVol[]) then "CHOOSE YOUR FLIGHT AFTER LANDING" else "CLICK A FLIGHT TO BUY IT OR CHOOSE IT"
+        set S += array{Bloc(Etiquette(Titre, "FBBF24"), 360.0, 165.0, 1200.0, 44.0, 6)}
+        set S += array{Bloc(Etiquette(Aide, "E2E8F0"), 360.0, 210.0, 1200.0, 40.0, 6)}
+        # les cartes, triées du moins cher au plus cher
+        var Lignes:[]int = array{}
+        for (Niv := 1..8):
+            set Lignes += for (R : RoutesDe(Base), Palier(R) = Niv) { R }
+        Largeur := 330.0
+        Ecart := 26.0
+        Total := Lignes.Length * Largeur + (Lignes.Length - 1) * Ecart
+        for (N -> R : Lignes, Ville := LesVilles[Autre(R, Base)]):
+            X := 960.0 - Total / 2.0 + N * (Largeur + Ecart)
+            set S += CarteVol(R, Ville, X, 270.0, Largeur, Prochain)
+        # le prochain vol, en gros, en bas
+        if (Rt := Routes[Prochain], Arrivee := LesVilles[Autre(Prochain, Base)]):
+            Minutes := if (M := Round[MinutesRoute(Prochain)]) then M else 5
+            Debut := if (EnVol[]) then "AFTER LANDING" else "NEXT FLIGHT"
+            set S += array{Bloc(Rect("22C55E", 1.0), 460.0, 880.0, 1000.0, 96.0, 6)}
+            set S += array{Bloc(Rect("0F2A1C", 1.0), 464.0, 884.0, 992.0, 88.0, 7)}
+            set S += array{Bloc(Etiquette("{Debut} :  {NomVille(Base)}  >  {Arrivee.Nom}  -  {Minutes} MIN", "FFFFFF"), 464.0, 893.0, 992.0, 40.0, 8)}
+            Ensuite := if (EnVol[]) then "IT STARTS WHEN YOU LAND" else "CLOSE THE DOORS AND TAKE OFF !"
+            set S += array{Bloc(Etiquette(Ensuite, "86EFAC"), 464.0, 931.0, 992.0, 36.0, 8)}
+        else:
+            set S += array{Bloc(Etiquette("BUY A FLIGHT ABOVE TO START", "FBBF24"), 460.0, 905.0, 1000.0, 44.0, 8)}
+        S
+
+    # Une carte de vol : l'image de la ville, son nom, durée, gain, et un gros bouton clair.
+    CarteVol(R:int, Ville:ville_reseau, X:float, Y:float, L:float, Prochain:int):[]canvas_slot =
+        var S:[]canvas_slot = array{}
+        Achat := if (Achetee[R]) then true else false
+        Choisi := if (R = Prochain) then true else false
+        Prix := PrixRoute(R)
+        Assez := if (AvionTycoon.Argent >= Prix) then true else false
+        Minutes := if (M := Round[MinutesRoute(R)]) then M else 5
+        Gain := if (V := ValeurPalier[Palier(R) - 1], Arrondi := Round[V]) then Arrondi else 0
+        Bord := if (Choisi?) then "22C55E" else if (Achat?) then "38BDF8" else if (Assez?) then "FBBF24" else "64748B"
+        H := 560.0
+        set S += array{Bloc(Rect(Bord, 1.0), X, Y, L, H, 6)}
+        set S += array{Bloc(Rect("0F172A", 1.0), X + 5.0, Y + 5.0, L - 10.0, H - 10.0, 7)}
+        set S += array{Bloc(Vignette(Ville.Image, L - 16.0, (L - 16.0) / 2.0), X + 8.0, Y + 8.0, L - 16.0, (L - 16.0) / 2.0, 8)}
+        set S += array{Bloc(Etiquette(Ville.Nom, "FFFFFF"), X, Y + 180.0, L, 40.0, 9)}
+        set S += array{Bloc(Etiquette(Ville.Pays, "94A3B8"), X, Y + 220.0, L, 34.0, 9)}
+        set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "E2E8F0"), X, Y + 280.0, L, 36.0, 9)}
+        set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "FDE047"), X, Y + 322.0, L, 36.0, 9)}
+        # le gros bouton (toute la carte est cliquable)
+        Texte := if (Choisi?) then "NEXT FLIGHT" else if (Achat?) then "FLY HERE" else "BUY  ${Abreger(Prix)}"
+        Fond := if (Choisi?) then "15803D" else if (Achat?) then "0369A1" else if (Assez?) then "CA8A04" else "475569"
+        set S += array{Bloc(Rect(Fond, 1.0), X + 16.0, Y + 400.0, L - 32.0, 130.0, 9)}
+        set S += array{Bloc(Etiquette(Texte, "FFFFFF"), X + 16.0, Y + 445.0, L - 32.0, 40.0, 10)}
+        if (not Achat?, not Assez?):
+            set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FCA5A5"), X + 16.0, Y + 490.0, L - 32.0, 30.0, 10)}
+        if (not Choisi?, not FicheOuverte[]):
+            set S += array{Bloc(Zone(12, R), X, Y, L, H, 30)}
         S
 
     # Les 2 onglets en haut à gauche : la grille des destinations et la carte du réseau.
     Onglets():[]canvas_slot =
-        Grille0 := if (Vue = 0) then "0369A1" else "334155"
+        Vols0 := if (Vue = 0) then "0369A1" else "334155"
         Carte1 := if (Vue = 1) then "0369A1" else "334155"
-        BoutonEcran("DESTINATIONS", Grille0, 70.0, 20.0, 260.0, 50.0, 9, 0) + BoutonEcran("MAP", Carte1, 345.0, 20.0, 150.0, 50.0, 9, 1)
+        BoutonEcran("FLIGHTS", Vols0, 70.0, 20.0, 200.0, 50.0, 9, 0) + BoutonEcran("WORLD MAP", Carte1, 285.0, 20.0, 230.0, 50.0, 9, 1)
 
     Couvrir(Hex:string, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
         canvas_slot:
@@ -632,6 +658,12 @@ pc_destinations := class(creative_device):
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Position)}"
         set S += array{Bloc(Ecrit(Titre, "FBBF24", text_justification.Left), 520.0, 25.0, 420.0, 40.0, 6)}
         set S += array{Bloc(Ecrit("CLICK A CITY", "94A3B8", text_justification.Right), 1380.0, 25.0, 320.0, 40.0, 6)}
+        # la légende des couleurs, en bas à gauche de la carte
+        set S += array{Bloc(Rect("0B1220", 0.85), 76.0, 996.0, 1000.0, 50.0, 7)}
+        set S += Legende("22C55E", "NEXT FLIGHT", 90.0)
+        set S += Legende("38BDF8", "YOUR ROUTES", 330.0)
+        set S += Legende("FBBF24", "FROM HERE", 570.0)
+        set S += Legende("CBD5E1", "OTHER ROUTES", 800.0)
         for (I -> R : Routes):
             A := PointVille(R.A)
             B := PointVille(R.B)
@@ -666,6 +698,11 @@ pc_destinations := class(creative_device):
         Pos := if (EnVol[]) then Courbe(Depart, Arrivee, Progression()) else Depart
         set S += array{PlaceC(IconeAvion, Pos.X, Pos.Y, 0.0, -18.0, 44.0, 44.0, 9)}
         (S, option{IconeAvion})
+
+    Legende(Hex:string, Texte:string, X:float):[]canvas_slot =
+        array:
+            Bloc(Rect(Hex, 1.0), X, 1012.0, 18.0, 18.0, 8)
+            Bloc(Ecrit(Texte, "FFFFFF", text_justification.Left), X + 28.0, 1001.0, 200.0, 40.0, 8)
 
     # Pendant le vol, l'avion de la carte est replacé 10 fois par seconde à sa vraie position.
     AnimerAvion(Numero:int, Toile:canvas, Img:texture_block)<suspends>:void =

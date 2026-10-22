@@ -5,6 +5,7 @@
 #   BoutonVert / BoutonCyan / BoutonGris / BoutonChoisi : gros boutons (512 x 256)
 #   OngletVert / OngletSombre        : onglets et CLOSE (512 x 128)
 #   Bandeau.png                      : le bandeau "prochain vol" (1024 x 128)
+#   CarteCarree / CarteCarreeGrise   : cartes du menu du PC et des produits (512 x 512)
 #   python Outils/interface_pc.py
 import math, os, random
 from PIL import Image, ImageDraw, ImageFilter, ImageChops, ImageFont
@@ -105,10 +106,10 @@ if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     fond()
     # cartes de vol : corps vert, bague de couleur selon l'état
-    forme("Carte", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="BBF7D0", bague_ep=8, reflet=40)
-    forme("CarteChoisie", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="4ADE80", bague_ep=16, reflet=40)
-    forme("CarteAchetee", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="22D3EE", bague_ep=12, reflet=40)
-    forme("CarteGrise", 512, 1024, 70, 14, "3F4F5F", "2A3542", bague="64748B", bague_ep=8, reflet=25)
+    forme("Carte", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="BBF7D0", bague_ep=8, reflet=0)
+    forme("CarteChoisie", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="4ADE80", bague_ep=16, reflet=0)
+    forme("CarteAchetee", 512, 1024, 70, 14, "1B7A43", "0F5132", bague="22D3EE", bague_ep=12, reflet=0)
+    forme("CarteGrise", 512, 1024, 70, 14, "3F4F5F", "2A3542", bague="64748B", bague_ep=8, reflet=0)
     # boutons
     forme("BoutonVert", 512, 256, 70, 12, "4ADE80", "15803D", reflet=90)
     forme("BoutonCyan", 512, 256, 70, 12, "22D3EE", "0E7490", reflet=90)
@@ -117,6 +118,9 @@ if __name__ == "__main__":
     # onglets
     forme("OngletVert", 512, 128, 56, 10, "4ADE80", "15803D", reflet=90)
     forme("OngletSombre", 512, 128, 56, 10, "1F6B45", "0B3D24", reflet=50)
+    # cartes carrées : menu du PC et produits de la boutique
+    forme("CarteCarree", 512, 512, 70, 14, "1B7A43", "0F5132", bague="BBF7D0", bague_ep=8, reflet=0)
+    forme("CarteCarreeGrise", 512, 512, 70, 14, "3F4F5F", "2A3542", bague="64748B", bague_ep=8, reflet=0)
     # bandeau du prochain vol
     forme("Bandeau", 1024, 128, 56, 10, "22C55E", "116D35", reflet=70)
     print("ok")

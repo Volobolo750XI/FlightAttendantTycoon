@@ -12,10 +12,13 @@ using { /UnrealEngine.com/Temporary/UI }
 # SUPPLIES = un vrai site : a gauche les produits (3 par ligne), a droite le panier.
 # Un produit verrouille se debloque d'abord (paiement direct), ensuite on peut l'acheter.
 #
+# Style cartoon vert "argent", comme l'écran des vols.
 # Dans le Tiroir a contenu :
-#   dossier MenuPC   : Fond_Menu, Carte_Destinations, Carte_Marchandises,
-#                      Carte_Ameliorations_Verrou, Icone_Panier
-#   dossier Produits : Produit_01_Eau ... Produit_09_Caviar (sans le 07)
+#   dossier InterfacePC : le kit cartoon (Fond, CarteCarree, Carte, Bouton..., Onglet...,
+#                         IconeSupplies, IconeUpgrades)
+#   dossier JaugeVol    : Avion (l'avion cartoon, icône de DESTINATIONS)
+#   dossier MenuPC      : Icone_Panier
+#   dossier Produits    : Produit_01_Eau ... Produit_09_Caviar (sans le 07)
 #
 # Dans l'editeur : pose ce device, remplis AvionTycoon, puis dans le device
 # pc_destinations mets ce device dans le champ "Menu".
@@ -69,14 +72,6 @@ menu_pc := class(creative_device):
     var MessageOk:logic = false
     var NumeroMessage:int = 0
 
-    # Couleurs du site
-    CouleurCarte:string = "FFFFFF"
-    CouleurBord:string = "2A3648"
-    CouleurPanneau:string = "111827"
-    CouleurBleu:string = "2563EB"
-    CouleurViolet:string = "7C3AED"
-    CouleurVert:string = "16A34A"
-    CouleurGris:string = "374151"
     MaxLignesPanier:int = 11
 
     OnBegin<override>()<suspends>:void =
@@ -207,29 +202,30 @@ menu_pc := class(creative_device):
             ZOrder := Couche
             Widget := W
 
-    Rect(Hex:string):color_block = color_block{DefaultColor := MakeColorFromHex(Hex), DefaultOpacity := 1.0}
+    Rect(Hex:string, Opacite:type{_X:float where 0.0 <= _X, _X <= 1.0}):color_block =
+        color_block{DefaultColor := MakeColorFromHex(Hex), DefaultOpacity := Opacite}
 
+    # Texte cartoon : ombre vert très foncé.
     Texte(S:string, Hex:string, J:text_justification):text_block =
-        text_block{DefaultText := Msg(S), DefaultTextColor := MakeColorFromHex(Hex), DefaultJustification := J}
+        text_block:
+            DefaultText := Msg(S)
+            DefaultTextColor := MakeColorFromHex(Hex)
+            DefaultJustification := J
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
 
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
 
-    # Bouton plat (pas de jaune) : un rectangle de couleur + un bouton transparent dessus.
-    Bouton(S:string, Hex:string, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
-        B := button_quiet{DefaultText := Msg(S)}
-        B.OnClick().Subscribe(clic_menu{Menu := Self, Action := Action, Index := Index}.Clique)
-        array{Bloc(Rect(Hex), X, Y, L, H, 3), Bloc(B, X, Y, L, H, 4)}
-
-    # Zone cliquable invisible (sur les cartes du menu).
-    Zone(X:float, Y:float, L:float, H:float, Action:int):canvas_slot =
+    # Bouton cartoon : l'image arrondie du kit + le texte + la zone de clic par-dessus.
+    Bouton(S:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
         B := button_quiet{DefaultText := Msg("")}
-        B.OnClick().Subscribe(clic_menu{Menu := Self, Action := Action, Index := 0}.Clique)
-        Bloc(B, X, Y, L, H, 4)
-
-    # Cadre avec bordure fine.
-    Cadre(X:float, Y:float, L:float, H:float, Hex:string):[]canvas_slot =
-        array{Bloc(Rect(CouleurBord), X - 1.0, Y - 1.0, L + 2.0, H + 2.0, 1), Bloc(Rect(Hex), X, Y, L, H, 2)}
+        B.OnClick().Subscribe(clic_menu{Menu := Self, Action := Action, Index := Index}.Clique)
+        array:
+            Bloc(Vignette(Img, L, H), X, Y, L, H, 6)
+            Bloc(Texte(S, "FFFFFF", text_justification.Center), X, Y + H / 2.0 - 20.0, L, 40.0, 7)
+            Bloc(B, X, Y, L, H, 30)
 
     # ---------- Construction de l'ecran ----------
     Afficher():void =
@@ -242,7 +238,7 @@ menu_pc := class(creative_device):
                     Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
                     Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
                     SizeToContent := false
-                    Widget := texture_block{DefaultImage := MenuPC.Fond_Menu}
+                    Widget := texture_block{DefaultImage := InterfacePC.Fond}
                 Nouveau := canvas{Slots := array{Fond}}
                 UI.AddWidget(Nouveau, player_ui_slot{InputMode := ui_input_mode.All})
                 set Base = option{Nouveau}
@@ -252,61 +248,77 @@ menu_pc := class(creative_device):
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
 
+    # Le menu : 3 grandes cartes cartoon, chacune avec son icône et un gros bouton.
     PageMenu():[]canvas_slot =
         var Slots:[]canvas_slot = array{}
-        set Slots += array{Bloc(Texte("FLIGHT OPS", "FFFFFF", text_justification.Left), 60.0, 40.0, 600.0, 50.0, 5)}
-        set Slots += Bouton("CLOSE", CouleurGris, 1668.0, 40.0, 192.0, 48.0, 10, 0)
-        Cartes := array{MenuPC.Carte_Destinations, MenuPC.Carte_Marchandises, MenuPC.Carte_Ameliorations_Verrou}
-        for (I -> Carte : Cartes):
-            X := 225.0 + I * 500.0
-            set Slots += array{Bloc(Vignette(Carte, 470.0, 470.0), X, 300.0, 470.0, 470.0, 2)}
-            set Slots += array{Zone(X, 300.0, 470.0, 470.0, I)}
-        set Slots += LigneMessage(560.0, 820.0, 800.0)
+        set Slots += array{Bloc(Texte("FLIGHT OPS", "FFFFFF", text_justification.Center), 560.0, 150.0, 800.0, 50.0, 5)}
+        set Slots += array{Bloc(Texte("WHAT DO YOU WANT TO DO ?", "BBF7D0", text_justification.Center), 560.0, 200.0, 800.0, 40.0, 5)}
+        set Slots += Bouton("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 10, 0)
+        set Slots += CarteMenu(0, "DESTINATIONS", "BUY ROUTES AND FLY", JaugeVol.Avion, true)
+        set Slots += CarteMenu(1, "SUPPLIES", "FOOD AND DRINKS", InterfacePC.IconeSupplies, true)
+        set Slots += CarteMenu(2, "UPGRADES", "COMING SOON", InterfacePC.IconeUpgrades, false)
+        set Slots += LigneMessage(560.0, 900.0, 800.0)
+        Slots
+
+    CarteMenu(I:int, Titre:string, Sous:string, Icone:texture, Ouverte:logic):[]canvas_slot =
+        X := 225.0 + I * 500.0
+        Y := 280.0
+        var Slots:[]canvas_slot = array{}
+        Fond := if (Ouverte?) then InterfacePC.CarteCarree else InterfacePC.CarteCarreeGrise
+        set Slots += array{Bloc(Vignette(Fond, 470.0, 560.0), X, Y, 470.0, 560.0, 2)}
+        set Slots += array{Bloc(Vignette(Icone, 250.0, 250.0), X + 110.0, Y + 30.0, 250.0, 250.0, 3)}
+        set Slots += array{Bloc(Texte(Titre, "FFFFFF", text_justification.Center), X, Y + 300.0, 470.0, 44.0, 5)}
+        CouleurSous := if (Ouverte?) then "A7F3D0" else "CBD5E1"
+        set Slots += array{Bloc(Texte(Sous, CouleurSous, text_justification.Center), X, Y + 345.0, 470.0, 36.0, 5)}
+        Img := if (Ouverte?) then InterfacePC.BoutonVert else InterfacePC.BoutonGris
+        TexteBouton := if (Ouverte?) then "OPEN" else "LOCKED"
+        set Slots += Bouton(TexteBouton, Img, X + 115.0, Y + 410.0, 240.0, 120.0, I, 0)
         Slots
 
     LigneMessage(X:float, Y:float, L:float):[]canvas_slot =
         if (Message <> ""):
-            Couleur := if (MessageOk?) then "4ADE80" else "F87171"
-            array{Bloc(Texte(Message, Couleur, text_justification.Center), X, Y, L, 40.0, 6)}
+            Couleur := if (MessageOk?) then "86EFAC" else "FCA5A5"
+            array{Bloc(Texte(Message, Couleur, text_justification.Center), X, Y, L, 40.0, 8)}
         else:
             array{}
 
     PageBoutique():[]canvas_slot =
         var Slots:[]canvas_slot = array{}
         # en-tete
-        set Slots += Bouton("<  BACK", CouleurGris, 60.0, 41.0, 192.0, 48.0, 9, 0)
-        set Slots += array{Bloc(Texte("SUPPLIES", "FFFFFF", text_justification.Left), 280.0, 48.0, 400.0, 40.0, 5)}
-        set Slots += LigneMessage(560.0, 48.0, 700.0)
+        set Slots += Bouton("<  BACK", InterfacePC.OngletSombre, 40.0, 10.0, 220.0, 56.0, 9, 0)
+        set Slots += array{Bloc(Texte("SUPPLIES", "FFFFFF", text_justification.Left), 290.0, 18.0, 400.0, 44.0, 5)}
+        set Slots += LigneMessage(560.0, 22.0, 700.0)
         # produits : 3 par ligne
         for (Ligne := 0..2, Col := 0..2, I := Ligne * 3 + Col, P := ListeProduits[I]):
-            set Slots += CarteProduit(I, P, 60.0 + Col * 415.0, 120.0 + Ligne * 310.0)
+            set Slots += CarteProduit(I, P, 50.0 + Col * 420.0, 90.0 + Ligne * 325.0)
         # panier
         set Slots += Panier()
         Slots
 
-    # Carte produit : image, nom, une ligne de prix, un bouton. Rien de plus.
+    # Carte produit cartoon : image, nom, prix, un gros bouton.
     CarteProduit(I:int, P:produit, X:float, Y:float):[]canvas_slot =
-        var Slots:[]canvas_slot = Cadre(X, Y, 390.0, 295.0, CouleurCarte)
-        set Slots += array{Bloc(Vignette(P.Image, 150.0, 150.0), X + 120.0, Y + 14.0, 150.0, 150.0, 3)}
-        set Slots += array{Bloc(Texte(P.Nom, "111827", text_justification.Center), X, Y + 172.0, 390.0, 32.0, 5)}
-        if (Debloque[I]?):
-            set Slots += array{Bloc(Texte("x{P.Lot}  -  {Prix(P.PrixLot)}", "2563EB", text_justification.Center), X, Y + 204.0, 390.0, 28.0, 5)}
-            set Slots += Bouton("ADD TO CART", CouleurBleu, X + 19.0, Y + 238.0, 352.0, 44.0, 3, I)
+        Ouvert := if (Debloque[I]?) then true else false
+        Fond := if (Ouvert?) then InterfacePC.CarteCarree else InterfacePC.CarteCarreeGrise
+        var Slots:[]canvas_slot = array{Bloc(Vignette(Fond, 400.0, 310.0), X, Y, 400.0, 310.0, 2)}
+        set Slots += array{Bloc(Vignette(P.Image, 130.0, 130.0), X + 135.0, Y + 18.0, 130.0, 130.0, 3)}
+        set Slots += array{Bloc(Texte(P.Nom, "FFFFFF", text_justification.Center), X, Y + 150.0, 400.0, 36.0, 5)}
+        if (Ouvert?):
+            set Slots += array{Bloc(Texte("x{P.Lot}  -  {Prix(P.PrixLot)}", "86EFAC", text_justification.Center), X, Y + 186.0, 400.0, 32.0, 5)}
+            set Slots += Bouton("ADD TO CART", InterfacePC.BoutonVert, X + 80.0, Y + 222.0, 240.0, 72.0, 3, I)
         else:
-            # verrouille : image palie, prix du deblocage
-            set Slots += array{Bloc(color_block{DefaultColor := MakeColorFromHex(CouleurCarte), DefaultOpacity := 0.6}, X + 120.0, Y + 14.0, 150.0, 150.0, 4)}
-            set Slots += array{Bloc(Texte(Prix(P.PrixDeblocage), "7C3AED", text_justification.Center), X, Y + 204.0, 390.0, 28.0, 5)}
+            # verrouillé (carte grise) : prix du déblocage
+            set Slots += array{Bloc(Texte(Prix(P.PrixDeblocage), "A5F3FC", text_justification.Center), X, Y + 186.0, 400.0, 32.0, 5)}
             Quoi := if (P.Appareil = "") then "UNLOCK" else "BUY {P.Appareil}"
-            set Slots += Bouton(Quoi, CouleurViolet, X + 19.0, Y + 238.0, 352.0, 44.0, 5, I)
+            set Slots += Bouton(Quoi, InterfacePC.BoutonCyan, X + 40.0, Y + 222.0, 320.0, 72.0, 5, I)
         Slots
 
     Panier():[]canvas_slot =
         X := 1330.0
-        L := 530.0
-        var Slots:[]canvas_slot = Cadre(X, 40.0, L, 1000.0, CouleurPanneau)
-        set Slots += array{Bloc(Vignette(MenuPC.Icone_Panier, 48.0, 48.0), X + 24.0, 60.0, 48.0, 48.0, 3)}
-        set Slots += array{Bloc(Texte("YOUR CART", "FFFFFF", text_justification.Left), X + 86.0, 68.0, 300.0, 36.0, 5)}
-        set Slots += array{Bloc(Rect(CouleurBord), X + 20.0, 128.0, L - 40.0, 2.0, 3)}
+        L := 540.0
+        var Slots:[]canvas_slot = array{Bloc(Vignette(InterfacePC.Carte, L, 980.0), X, 80.0, L, 980.0, 2)}
+        set Slots += array{Bloc(Vignette(MenuPC.Icone_Panier, 48.0, 48.0), X + 40.0, 110.0, 48.0, 48.0, 3)}
+        set Slots += array{Bloc(Texte("YOUR CART", "FFFFFF", text_justification.Left), X + 100.0, 114.0, 300.0, 40.0, 5)}
+        set Slots += array{Bloc(Rect("BBF7D0", 0.5), X + 36.0, 172.0, L - 72.0, 3.0, 3)}
 
         # lignes du panier
         var Ligne:int = 0
@@ -318,29 +330,29 @@ menu_pc := class(creative_device):
             else:
                 set Cachees += 1
         if (Ligne = 0):
-            set Slots += array{Bloc(Texte("Your cart is empty", "64748B", text_justification.Center), X, 400.0, L, 36.0, 5)}
+            set Slots += array{Bloc(Texte("YOUR CART IS EMPTY", "A7F3D0", text_justification.Center), X, 440.0, L, 36.0, 5)}
         if (Cachees > 0):
-            set Slots += array{Bloc(Texte("+ {Cachees} more...", "94A3B8", text_justification.Left), X + 24.0, 145.0 + MaxLignesPanier * 54.0, 300.0, 30.0, 5)}
+            set Slots += array{Bloc(Texte("+ {Cachees} MORE...", "A7F3D0", text_justification.Left), X + 40.0, 185.0 + MaxLignesPanier * 52.0, 300.0, 30.0, 5)}
 
         # recapitulatif
         Total := TotalPanier()
         Solde := AvionTycoon.Argent
-        set Slots += array{Bloc(Rect(CouleurBord), X + 20.0, 790.0, L - 40.0, 2.0, 3)}
-        set Slots += array{Bloc(Texte("TOTAL", "FFFFFF", text_justification.Left), X + 24.0, 805.0, 200.0, 36.0, 5)}
-        set Slots += array{Bloc(Texte(Prix(Total), "FFFFFF", text_justification.Right), X + L - 224.0, 805.0, 200.0, 36.0, 5)}
-        set Slots += array{Bloc(Texte("YOUR BALANCE", "94A3B8", text_justification.Left), X + 24.0, 843.0, 250.0, 30.0, 5)}
-        CouleurSolde := if (Solde >= Total) then "94A3B8" else "F87171"
-        set Slots += array{Bloc(Texte(Prix(Solde), CouleurSolde, text_justification.Right), X + L - 224.0, 843.0, 200.0, 30.0, 5)}
-        set Slots += Bouton("CHECKOUT", CouleurVert, X + 25.0, 895.0, 480.0, 60.0, 7, 0)
-        set Slots += Bouton("EMPTY CART", CouleurGris, X + 89.0, 970.0, 352.0, 44.0, 8, 0)
+        set Slots += array{Bloc(Rect("BBF7D0", 0.5), X + 36.0, 790.0, L - 72.0, 3.0, 3)}
+        set Slots += array{Bloc(Texte("TOTAL", "FFFFFF", text_justification.Left), X + 40.0, 802.0, 200.0, 40.0, 5)}
+        set Slots += array{Bloc(Texte(Prix(Total), "FFFFFF", text_justification.Right), X + L - 240.0, 802.0, 200.0, 40.0, 5)}
+        set Slots += array{Bloc(Texte("YOUR MONEY", "A7F3D0", text_justification.Left), X + 40.0, 842.0, 250.0, 34.0, 5)}
+        CouleurSolde := if (Solde >= Total) then "86EFAC" else "FCA5A5"
+        set Slots += array{Bloc(Texte(Prix(Solde), CouleurSolde, text_justification.Right), X + L - 240.0, 842.0, 200.0, 34.0, 5)}
+        set Slots += Bouton("CHECKOUT", InterfacePC.BoutonVert, X + 130.0, 885.0, 280.0, 100.0, 7, 0)
+        set Slots += Bouton("EMPTY CART", InterfacePC.OngletSombre, X + 150.0, 990.0, 240.0, 56.0, 8, 0)
         Slots
 
     # Une ligne : nom a gauche, prix a droite, petit bouton "-" pour retirer un lot.
     LignePanier(Ligne:int, Nom:string, Montant:int, Index:int):[]canvas_slot =
         X := 1330.0
-        Y := 145.0 + Ligne * 54.0
+        Y := 185.0 + Ligne * 52.0
         var Slots:[]canvas_slot = array{}
-        set Slots += array{Bloc(Texte(Nom, "E2E8F0", text_justification.Left), X + 24.0, Y + 6.0, 300.0, 32.0, 5)}
-        set Slots += array{Bloc(Texte(Prix(Montant), "E2E8F0", text_justification.Right), X + 310.0, Y + 6.0, 140.0, 32.0, 5)}
-        set Slots += Bouton("-", CouleurGris, X + 466.0, Y + 2.0, 40.0, 40.0, 4, Index)
+        set Slots += array{Bloc(Texte(Nom, "FFFFFF", text_justification.Left), X + 40.0, Y + 6.0, 290.0, 32.0, 5)}
+        set Slots += array{Bloc(Texte(Prix(Montant), "86EFAC", text_justification.Right), X + 300.0, Y + 6.0, 130.0, 32.0, 5)}
+        set Slots += Bouton("-", InterfacePC.BoutonGris, X + 446.0, Y, 64.0, 44.0, 4, Index)
         Slots

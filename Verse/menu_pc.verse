@@ -34,7 +34,8 @@ produit := class:
     Image:texture
 
 # Une amelioration de l'onglet UPGRADES.
-# Cat : 0 AIRPLANE, 1 CLASSES, 2 COMFORT, 3 CREW, 4 REBIRTH.
+# Cat : 0 AIRPLANE, 1 SPACES, 2 CLASSES, 3 COMFORT, 4 STAFF, 5 REBIRTH.
+# Requis : nom d'une autre amelioration a acheter avant (ex : BARMAN demande BAR).
 # Les bonus se multiplient entre eux (ex : PREMIUM x2 puis BUSINESS x2.5 = billets x5).
 amelioration := class:
     Nom:string
@@ -42,6 +43,7 @@ amelioration := class:
     Prix:int
     Cat:int
     Image:texture
+    Requis:string = ""
     Billet:float = 1.0
     Service:float = 1.0
     Repas:float = 1.0
@@ -73,37 +75,47 @@ menu_pc := class(creative_device):
         produit{Nom := "LOBSTER", Lot := 2, PrixLot := 10000000, PrixDeblocage := 1000000000, Appareil := "LOBSTER TANK", Image := Produits.Produit_08_Homard}
         produit{Nom := "CAVIAR", Lot := 1, PrixLot := 60000000, PrixDeblocage := 15000000000, Appareil := "SAFE", Image := Produits.Produit_09_Caviar}
 
+    # Prix calés sur les gains : un vol plein rapporte ~1.6K (lignes niveau 1) ... ~3B (niveau 8),
+    # sans compter les bonus. Une amelioration coute ~2 a 10 vols du niveau ou on l'achete ;
+    # les dernieres demandent des bonus et des rebirths (fin du jeu tres longue).
     ListeAmeliorations:[]amelioration = array:
-        # AIRPLANE
+        # 0 AIRPLANE (chaque avion = un Blueprint Avion_NiveauX, champ AvionsNiveaux)
         amelioration{Nom := "A320", Effet := "YOUR FIRST PLANE", Prix := 0, Cat := 0, Image := Ameliorations.Avion_01}
-        amelioration{Nom := "MIDDLE ROW", Effet := "TICKETS +50%", Prix := 150000, Cat := 0, Image := Ameliorations.Avion_02, Billet := 1.5}
-        amelioration{Nom := "STRETCHED", Effet := "TICKETS +50%", Prix := 5000000, Cat := 0, Image := Ameliorations.Avion_03, Billet := 1.5}
-        amelioration{Nom := "JUMBO JET", Effet := "TICKETS +50%", Prix := 250000000, Cat := 0, Image := Ameliorations.Avion_04, Billet := 1.5}
-        amelioration{Nom := "2ND FLOOR", Effet := "TICKETS x2", Prix := 50000000000, Cat := 0, Image := Ameliorations.Avion_05, Billet := 2.0}
-        amelioration{Nom := "3RD FLOOR", Effet := "TICKETS x2", Prix := 5000000000000, Cat := 0, Image := Ameliorations.Avion_06, Billet := 2.0}
-        amelioration{Nom := "LUXURY LOUNGE", Effet := "TICKETS x2", Prix := 500000000000000, Cat := 0, Image := Ameliorations.Avion_07, Billet := 2.0}
-        amelioration{Nom := "POOL PLANE", Effet := "TICKETS x3", Prix := 50000000000000000, Cat := 0, Image := Ameliorations.Avion_08, Billet := 3.0}
-        amelioration{Nom := "SIX ENGINES", Effet := "TICKETS x3", Prix := 1000000000000000000, Cat := 0, Image := Ameliorations.Avion_09, Billet := 3.0}
-        amelioration{Nom := "GOLDEN GIANT", Effet := "TICKETS x5", Prix := 8000000000000000000, Cat := 0, Image := Ameliorations.Avion_10, Billet := 5.0}
-        # CLASSES
-        amelioration{Nom := "PREMIUM", Effet := "TICKETS x2", Prix := 50000, Cat := 1, Image := Ameliorations.Classe_Premium, Billet := 2.0}
-        amelioration{Nom := "BUSINESS", Effet := "TICKETS x5", Prix := 20000000, Cat := 1, Image := Ameliorations.Classe_Business, Billet := 2.5}
-        amelioration{Nom := "FIRST CLASS", Effet := "TICKETS x15", Prix := 10000000000, Cat := 1, Image := Ameliorations.Classe_First, Billet := 3.0}
-        amelioration{Nom := "ROYAL SUITE", Effet := "TICKETS x50", Prix := 2000000000000, Cat := 1, Image := Ameliorations.Classe_Suite, Billet := 3.34}
-        # COMFORT
-        amelioration{Nom := "SCREENS", Effet := "SERVICE +25%", Prix := 10000, Cat := 2, Image := Ameliorations.Confort_Ecrans, Service := 1.25}
-        amelioration{Nom := "WI-FI", Effet := "PATIENCE +50%", Prix := 1000000, Cat := 2, Image := Ameliorations.Confort_Wifi, Patience := 1.5}
-        amelioration{Nom := "BLANKETS", Effet := "SERVICE +60%", Prix := 200000000, Cat := 2, Image := Ameliorations.Confort_Couvertures, Service := 1.6}
-        amelioration{Nom := "MASSAGE CHAIRS", Effet := "TICKETS x2", Prix := 80000000000, Cat := 2, Image := Ameliorations.Confort_Massage, Billet := 2.0}
-        # CREW
-        amelioration{Nom := "ATTENDANT", Effet := "SERVICE x2", Prix := 500000, Cat := 3, Image := Ameliorations.Equipe_Hotesse, Service := 2.0}
-        amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 100000000, Cat := 3, Image := Ameliorations.Equipe_Chef, Repas := 3.0}
-        amelioration{Nom := "CREW x2", Effet := "TICKETS x3", Prix := 30000000000, Cat := 3, Image := Ameliorations.Equipe_Hotesse2, Billet := 3.0}
-        amelioration{Nom := "FULL CREW", Effet := "EVERYTHING x2", Prix := 10000000000000, Cat := 3, Image := Ameliorations.Equipe_Complete, Billet := 2.0, Service := 2.0}
-        # REBIRTH (se rachete a l'infini, demande le GOLDEN GIANT)
-        amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 4, Image := Ameliorations.Rebirth}
+        amelioration{Nom := "MIDDLE ROW", Effet := "TICKETS x1.5", Prix := 300000, Cat := 0, Image := Ameliorations.Avion_02, Billet := 1.5}
+        amelioration{Nom := "LONGER PLANE", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 0, Image := Ameliorations.Avion_03, Billet := 1.5}
+        amelioration{Nom := "JUMBO JET", Effet := "TICKETS x2", Prix := 500000000, Cat := 0, Image := Ameliorations.Avion_04, Billet := 2.0}
+        amelioration{Nom := "2ND FLOOR", Effet := "TICKETS x2", Prix := 20000000000, Cat := 0, Image := Ameliorations.Avion_05, Billet := 2.0}
+        amelioration{Nom := "3RD FLOOR", Effet := "TICKETS x2", Prix := 1000000000000, Cat := 0, Image := Ameliorations.Avion_06, Billet := 2.0}
+        amelioration{Nom := "6 ENGINES", Effet := "TICKETS x3", Prix := 50000000000000, Cat := 0, Image := Ameliorations.Avion_07, Billet := 3.0}
+        amelioration{Nom := "GOLDEN GIANT", Effet := "TICKETS x5", Prix := 5000000000000000, Cat := 0, Image := Ameliorations.Avion_08, Billet := 5.0}
+        # 1 SPACES (debloquent les employes)
+        amelioration{Nom := "BAR", Effet := "SERVICE x1.5", Prix := 50000, Cat := 1, Image := Ameliorations.Espace_Bar, Service := 1.5}
+        amelioration{Nom := "LOUNGE", Effet := "PATIENCE x1.5", Prix := 3000000, Cat := 1, Image := Ameliorations.Espace_Salon, Patience := 1.5}
+        amelioration{Nom := "RESTAURANT", Effet := "MEALS x2", Prix := 200000000, Cat := 1, Image := Ameliorations.Espace_Restaurant, Repas := 2.0}
+        amelioration{Nom := "CINEMA", Effet := "PATIENCE x2", Prix := 8000000000, Cat := 1, Image := Ameliorations.Espace_Cinema, Patience := 2.0}
+        amelioration{Nom := "SPA", Effet := "TICKETS x2", Prix := 400000000000, Cat := 1, Image := Ameliorations.Espace_Spa, Billet := 2.0}
+        amelioration{Nom := "POOL", Effet := "TICKETS x3", Prix := 20000000000000, Cat := 1, Image := Ameliorations.Espace_Piscine, Billet := 3.0}
+        # 2 CLASSES
+        amelioration{Nom := "PREMIUM", Effet := "TICKETS x2", Prix := 20000, Cat := 2, Image := Ameliorations.Classe_Premium, Billet := 2.0}
+        amelioration{Nom := "BUSINESS", Effet := "TICKETS x2.5", Prix := 1000000, Cat := 2, Image := Ameliorations.Classe_Business, Billet := 2.5}
+        amelioration{Nom := "FIRST CLASS", Effet := "TICKETS x3", Prix := 80000000, Cat := 2, Image := Ameliorations.Classe_First, Billet := 3.0}
+        amelioration{Nom := "ROYAL SUITE", Effet := "TICKETS x3.5", Prix := 5000000000, Cat := 2, Image := Ameliorations.Classe_Suite, Billet := 3.5}
+        # 3 COMFORT
+        amelioration{Nom := "SCREENS", Effet := "SERVICE x1.25", Prix := 3000, Cat := 3, Image := Ameliorations.Confort_Ecrans, Service := 1.25}
+        amelioration{Nom := "WI-FI", Effet := "PATIENCE x1.5", Prix := 60000, Cat := 3, Image := Ameliorations.Confort_Wifi, Patience := 1.5}
+        amelioration{Nom := "BLANKETS", Effet := "SERVICE x1.5", Prix := 2000000, Cat := 3, Image := Ameliorations.Confort_Couvertures, Service := 1.5}
+        amelioration{Nom := "MASSAGE SEATS", Effet := "TICKETS x2", Prix := 150000000, Cat := 3, Image := Ameliorations.Confort_Massage, Billet := 2.0}
+        # 4 STAFF (chaque employe demande son espace)
+        amelioration{Nom := "ATTENDANT", Effet := "SERVICE x1.5", Prix := 10000, Cat := 4, Image := Ameliorations.Equipe_Hotesse, Service := 1.5}
+        amelioration{Nom := "BARMAN", Effet := "SERVICE x2", Prix := 150000, Cat := 4, Image := Ameliorations.Equipe_Barman, Requis := "BAR", Service := 2.0}
+        amelioration{Nom := "BUTLER", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 4, Image := Ameliorations.Equipe_Majordome, Requis := "LOUNGE", Billet := 1.5}
+        amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 800000000, Cat := 4, Image := Ameliorations.Equipe_Chef, Requis := "RESTAURANT", Repas := 3.0}
+        amelioration{Nom := "MASSEUR", Effet := "TICKETS x2", Prix := 1500000000000, Cat := 4, Image := Ameliorations.Equipe_Masseur, Requis := "SPA", Billet := 2.0}
+        amelioration{Nom := "LIFEGUARD", Effet := "TICKETS x3", Prix := 80000000000000, Cat := 4, Image := Ameliorations.Equipe_MaitreNageur, Requis := "POOL", Billet := 3.0}
+        # 5 REBIRTH (se rachete a l'infini, demande le GOLDEN GIANT)
+        amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 5, Image := Ameliorations.Rebirth}
 
-    NomsOnglets:[]string = array{"AIRPLANE", "CLASSES", "COMFORT", "CREW", "REBIRTH"}
+    NomsOnglets:[]string = array{"AIRPLANE", "SPACES", "CLASSES", "COMFORT", "STAFF", "REBIRTH"}
 
     # Ameliorations achetees (meme ordre que ListeAmeliorations)
     var Achete:[]logic = array{}
@@ -199,7 +211,7 @@ menu_pc := class(creative_device):
 
     # ---------- UPGRADES ----------
     RemettreAmeliorations():void =
-        set Achete = for (A : ListeAmeliorations) { if (A.Prix = 0, A.Cat <> 4) then true else false }
+        set Achete = for (A : ListeAmeliorations) { if (A.Prix = 0, A.Cat <> 5) then true else false }
         AppliquerEffets()
 
     # Place de l'amelioration dans sa categorie (0 = la 1re).
@@ -214,6 +226,14 @@ menu_pc := class(creative_device):
         var Ok:logic = true
         if (A := ListeAmeliorations[I]):
             for (J -> B : ListeAmeliorations, J < I, B.Cat = A.Cat, not Achete[J]?) { set Ok = false }
+        Ok
+
+    # L'amelioration demandee (Requis) est achetee.
+    RequisOk(I:int)<transacts>:logic =
+        var Ok:logic = true
+        if (A := ListeAmeliorations[I], A.Requis <> ""):
+            set Ok = false
+            for (J -> B : ListeAmeliorations, B.Nom = A.Requis, Achete[J]?) { set Ok = true }
         Ok
 
     # Tous les avions achetes (condition du rebirth).
@@ -248,10 +268,12 @@ menu_pc := class(creative_device):
 
     AcheterAmelioration(I:int):void =
         if (A := ListeAmeliorations[I]):
-            if (A.Cat = 4):
+            if (A.Cat = 5):
                 Renaitre()
             else if (Achete[I]?):
                 AfficherMessage("ALREADY OWNED", true)
+            else if (not RequisOk(I)?):
+                AfficherMessage("BUY THE {A.Requis} FIRST", false)
             else if (not Disponible(I)?):
                 AfficherMessage("BUY THE PREVIOUS ONE FIRST", false)
             else if (A.Cat = 0, not AvionExiste(Rang(I))?):
@@ -517,8 +539,8 @@ menu_pc := class(creative_device):
         # onglets
         for (K -> Nom : NomsOnglets):
             Img := if (K = Onglet) then InterfacePC.OngletVert else InterfacePC.OngletSombre
-            set Slots += Bouton(Nom, Img, 270.0 + K * 280.0, 86.0, 260.0, 64.0, 11, K)
-        if (Onglet = 4):
+            set Slots += Bouton(Nom, Img, 172.0 + K * 265.0, 86.0, 250.0, 64.0, 11, K)
+        if (Onglet = 5):
             set Slots += PageRebirth()
         else:
             Indices := for (I -> A : ListeAmeliorations, A.Cat = Onglet) { I }
@@ -529,7 +551,7 @@ menu_pc := class(creative_device):
     # Carte : fond (verte / achetee / grise), icone, nom, bonus, prix, bouton.
     CarteAmelioration(I:int, A:amelioration, X:float, Y:float):[]canvas_slot =
         Possede := if (Achete[I]?) then true else false
-        Ouvert := if (not Possede?, Disponible(I)?) then true else false
+        Ouvert := if (not Possede?, Disponible(I)?, RequisOk(I)?) then true else false
         Bientot := if (A.Cat = 0, not AvionExiste(Rang(I))?) then true else false
         Fond := if (Possede?) then InterfacePC.CarteAchetee else if (Ouvert?) then InterfacePC.CarteCarree else InterfacePC.CarteCarreeGrise
         var Slots:[]canvas_slot = array{Bloc(Vignette(Fond, 340.0, 430.0), X, Y, 340.0, 430.0, 2)}
@@ -545,6 +567,9 @@ menu_pc := class(creative_device):
             Couleur := if (AvionTycoon.Argent >= A.Prix) then "86EFAC" else "FCA5A5"
             set Slots += array{Bloc(Texte(Prix(A.Prix), Couleur, text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
             set Slots += Bouton("BUY", InterfacePC.BoutonVert, X + 50.0, Y + 330.0, 240.0, 80.0, 12, I)
+        else if (not RequisOk(I)?):
+            set Slots += array{Bloc(Texte("NEEDS {A.Requis}", "FCA5A5", text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
+            set Slots += Bouton("LOCKED", InterfacePC.BoutonGris, X + 50.0, Y + 330.0, 240.0, 80.0, 12, I)
         else:
             set Slots += array{Bloc(Texte(Prix(A.Prix), "CBD5E1", text_justification.Center), X, Y + 294.0, 340.0, 32.0, 5)}
             set Slots += Bouton("LOCKED", InterfacePC.BoutonGris, X + 50.0, Y + 330.0, 240.0, 80.0, 12, I)

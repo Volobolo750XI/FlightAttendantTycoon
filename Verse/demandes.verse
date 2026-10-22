@@ -30,7 +30,7 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 # Dans l'editeur :
 #   Passagers, Service, Menu, Vol, DeviceAvion, DevicePC : tes devices.
 #   ModeleFleche      : le modele de la fleche (Creative Prop fait avec Fleche.glb). Rien a poser.
-#   Bulles            : (ancien) des bulles posees dans la map, si tu n'as pas de fleches.
+#   Bulles            : (ancien, ne sert plus) les bulles 3D sont cachees : la bulle est sur l'ecran.
 #   MateriauxBulle    : 8 materiaux, un par produit, dans l'ordre de la boutique
 #                       (Eau, Soda, Croissant, Sandwich, Cafe, Burger, Homard, Caviar).
 #   SonCommande / SonServi / SonErreur / SonFache : (facultatif) Lecteurs audio.
@@ -124,6 +124,8 @@ demandes_device := class(creative_device):
 
     OnBegin<override>()<suspends>:void =
         for (I -> B : Marqueurs()) { Ranger(I) }
+        # les anciennes bulles 3D ne servent plus (la bulle s'affiche sur l'ecran du joueur)
+        for (B : Bulles) { B.Hide() }
         loop:
             Sleep(0.1)
             if (Actif?, EnVol[]):
@@ -239,22 +241,18 @@ demandes_device := class(creative_device):
                 if (F := Resultat(0)?):
                     F.Hide()
                     set Apparue = option{F}
-            # sinon : une fleche / bulle posee libre
+            # sinon : une fleche deja posee dans la map, s'il y en a une libre (sinon pas de fleche,
+            # la commande existe quand meme). Plus aucune bulle 3D : la bulle est sur l'ecran.
             var Libre:int = -1
             if (not Apparue?):
-                for (I -> B : Marqueurs(), Libre < 0, not Occupe[I]) { set Libre = I }
-                if (Libre < 0) { return }
-                if (Fleches.Length = 0, B := Bulles[Libre], Mat := MateriauxBulle[Choix]) { B.SetMaterial(Mat) }
+                for (I -> B : Fleches, Libre < 0, not Occupe[I]) { set Libre = I }
             Pat := Patience + GetRandomFloat(-VariationPatience, VariationPatience)
             D := demande{Passager := P, Choix := Choix, Debut := GetSimulationElapsedTime(), Patience := Pat, Emplacement := Libre}
             set D.Fleche = Apparue
             set Actives += array{D}
-            AvecFleche := if (Apparue?) then true else if (Fleches.Length > 0) then true else false
+            AvecFleche := if (Apparue?) then true else if (Libre >= 0) then true else false
             if (AvecFleche?):
                 spawn{AnimerFleche(D)}
-            else:
-                Placer(D)
-                if (B := Bulles[Libre]) { B.Show() }
             if (S := SonCommande?) { S.Play() }
             Message("A passenger is calling! Bring the trolley.")
 
@@ -267,8 +265,6 @@ demandes_device := class(creative_device):
             Reste := 1.0 - (Maintenant - D.Debut) / Max(1.0, D.Patience)
             if (Reste <= 0.0):
                 Fache(D)
-            else:
-                Placer(D)
 
     # Bulle au-dessus du passager, tournee vers le joueur le plus proche (les fleches s'animent
     # toutes seules, voir AnimerFleche).
@@ -307,7 +303,7 @@ demandes_device := class(creative_device):
         Oui?
 
     # Les fleches si on en a, sinon les anciennes bulles.
-    Marqueurs()<transacts>:[]creative_prop = if (Fleches.Length > 0) then Fleches else Bulles
+    Marqueurs()<transacts>:[]creative_prop = Fleches
 
     # La fleche flotte (haut / bas) et tourne au-dessus du passager tant qu'il attend.
     AnimerFleche(D:demande)<suspends>:void =

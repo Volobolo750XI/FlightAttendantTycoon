@@ -254,7 +254,7 @@ pc_destinations := class(creative_device):
     Palier(R:int)<transacts>:int = if (Rt := Routes[R]) then Rt.Palier else 1
     # La ligne 0 (PARIS - LONDON) est gratuite.
     PrixRoute(R:int)<transacts>:int = if (R = 0) then 0 else if (P := PrixPalier[Palier(R) - 1]) then P else 0
-    TextePrix(P:int)<transacts>:string = if (P = 0) then "FREE" else "${Abreger(P)}"
+    TextePrix(P:int):string = if (P = 0) then "FREE" else "${Abreger(P)}"
 
     # On peut décoller : au sol, avec une ligne achetée qui part d'ici.
     PretADecoller()<transacts><decides>:void =

@@ -476,6 +476,12 @@ pc_destinations := class(creative_device):
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
 
+    # Zone cliquable invisible (toujours au-dessus de tout).
+    Zone(Action:int, Index:int):button_quiet =
+        B := button_quiet{DefaultText := Msg("")}
+        B.OnClick().Subscribe(clic_pc{Ordinateur := Self, Action := Action, Index := Index}.Clique)
+        B
+
     # Un bouton cartoon (image du kit InterfacePC) + son texte + la zone de clic par-dessus
     # (écran 1920 x 1080).
     BoutonKit(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =

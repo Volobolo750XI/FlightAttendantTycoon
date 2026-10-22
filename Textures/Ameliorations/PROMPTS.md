@@ -1,35 +1,88 @@
-# Onglet UPGRADES du PC — images
+# Icônes de l'onglet UPGRADES du PC — prompts
 
-## Déjà faites (rien à générer)
+29 images. Même style que les icônes actuelles du PC (le globe, le chariot, la clé) : autocollant cartoon,
+contour bleu nuit épais, couleurs vives.
 
-23 pictogrammes blancs, dessinés par `Outils/icones_ameliorations.py` (traits blancs épais, fond transparent) :
-avions (Avion_01 à Avion_08), espaces (Espace_*), classes (Classe_*), confort (Confort_*), Rebirth.
+## La règle la plus importante : UN SEUL objet, ultra clair
 
-## À générer : les 6 portraits des employés (onglet STAFF)
+Chaque icône montre **une seule chose**, qu'on comprend en une fraction de seconde, même toute petite.
+Pas de scène, pas de décor, pas de cadre, pas de pièce autour, pas de vue en coupe.
 
-Un portrait = un employé qu'on reconnaît **en une fraction de seconde** grâce à sa tenue et à UN objet.
+**Bloc à coller au début de CHAQUE prompt :**
 
-**Règles pour les 6 images** (à coller au début de chaque prompt) :
+> Flat cartoon sticker icon, thick dark navy blue outline (#1E2A5A) around every shape,
+> bright saturated flat colors with one soft highlight and one soft shade, cute chunky proportions,
+> mobile game UI icon. ONLY ONE single object, centered, filling 85% of the image,
+> NO background, NO scene, NO room, NO frame, NO border, plain white background,
+> must be instantly recognizable even at very small size. No text unless asked below.
 
-> Head-and-shoulders portrait of ONE person, facing the camera, friendly smile,
-> realistic photo style with soft studio light, plain background that is easy to remove
-> (solid light grey), the person centered and filling most of the square image,
-> the job must be obvious at a glance from the outfit and the one object,
-> no text, no logo, no other people, square image 1024 x 1024.
+- Format : carré, puis détouré en PNG transparent 512 x 512.
+- Nom du fichier : exactement celui du tableau.
 
-| Fichier | Prompt (après le bloc de règles) |
+---
+
+## AIRPLANE (8)
+
+| Fichier | Prompt (après le bloc) |
 |---|---|
-| `Equipe_Hotesse.png` | A female flight attendant in a navy blue airline uniform with a small red neck scarf and a small navy hat. |
-| `Equipe_Barman.png` | A male bartender in a white shirt, black vest and black bow tie, holding a silver cocktail shaker next to his shoulder. |
-| `Equipe_Majordome.png` | An elderly male butler in a black tailcoat with white gloves, holding a small silver tray with one glass of champagne. |
-| `Equipe_Chef.png` | A chef in a white chef jacket and a tall white chef hat (toque), holding a wooden spoon. |
-| `Equipe_Masseur.png` | A massage therapist in a white spa tunic, with a rolled white towel on the shoulder. |
-| `Equipe_MaitreNageur.png` | A lifeguard in a red lifeguard t-shirt with a whistle around the neck and a red rescue float on the shoulder. |
+| `Avion_01.png` | A small white passenger airplane seen from the side, two engines, blue windows. |
+| `Avion_02.png` | Three blue airplane seats side by side seen from the front, the middle seat is bright green with a big green "+" above it. |
+| `Avion_03.png` | A long white passenger airplane seen from the side, with one big green arrow under it pointing left and right (double arrow). |
+| `Avion_04.png` | A big white jumbo jet seen from the front, four engines under the wings. |
+| `Avion_05.png` | A white staircase going up to the right, with a round green sign on the top step showing big white text "2F". |
+| `Avion_06.png` | A silver elevator door (closed, two panels) with a round green button next to it showing big white text "3F". |
+| `Avion_07.png` | A huge white airplane seen from the front with SIX engines (three under each wing). |
+| `Avion_08.png` | A shiny golden airplane seen from the side with a small golden crown on top. |
 
-## Après la génération
+## SPACES (6)
 
-1. Détourer le fond (fond transparent) et redimensionner en 512 x 512.
-2. Mettre les 6 PNG dans le dépôt : `Textures/Ameliorations/`.
-3. Dans UEFN : créer le dossier **Ameliorations** dans le Tiroir à contenu et importer les **29 images**
-   (23 pictogrammes + 6 portraits). Les noms doivent être exactement les mêmes : le Verse les appelle
-   `Ameliorations.Avion_02`, `Ameliorations.Equipe_Barman`, etc.
+| Fichier | Prompt (après le bloc) |
+|---|---|
+| `Espace_Bar.png` | One cocktail glass with an orange drink, a lime slice and a straw. |
+| `Espace_Salon.png` | One comfortable dark blue sofa with two cushions. |
+| `Espace_Restaurant.png` | One white plate with a steaming roasted chicken leg, a fork on the left and a knife on the right. |
+| `Espace_Cinema.png` | One red and white popcorn bucket full of popcorn. |
+| `Espace_Spa.png` | One white rolled towel with a pink flower and two smooth grey stones. |
+| `Espace_DutyFree.png` | One white shopping bag with a small perfume bottle and a gift box sticking out. |
+
+## CLASSES (4)
+
+| Fichier | Prompt (après le bloc) |
+|---|---|
+| `Classe_Premium.png` | One blue airplane seat with a small green "+" badge. |
+| `Classe_Business.png` | One grey airplane seat fully reclined flat like a bed, with a small pillow. |
+| `Classe_First.png` | One big beige leather airplane armchair with gold details. |
+| `Classe_Suite.png` | One double bed with white sheets and a golden headboard with a small crown. |
+
+## COMFORT (4)
+
+| Fichier | Prompt (après le bloc) |
+|---|---|
+| `Confort_Ecrans.png` | One small TV screen showing a big white "play" triangle, with headphones hanging on its side. |
+| `Confort_Wifi.png` | One big green Wi-Fi symbol (three curved bars and a dot). |
+| `Confort_Couvertures.png` | One folded blue blanket with a white pillow on top. |
+| `Confort_Massage.png` | One purple massage armchair with small vibration lines around it. |
+
+## STAFF (6) — juste la tête et les épaules de l'employé
+
+| Fichier | Prompt (après le bloc) |
+|---|---|
+| `Equipe_Hotesse.png` | Head and shoulders of a smiling female flight attendant, navy uniform, small red neck scarf, small navy hat. |
+| `Equipe_Barman.png` | Head and shoulders of a smiling bartender with a black bow tie and black vest, holding a silver cocktail shaker. |
+| `Equipe_Majordome.png` | Head and shoulders of a smiling old butler in a black tailcoat with white gloves, holding a silver tray. |
+| `Equipe_Chef.png` | Head and shoulders of a smiling chef with a tall white chef hat and white chef jacket. |
+| `Equipe_Masseur.png` | Head and shoulders of a smiling massage therapist in a white spa tunic with a towel on the shoulder. |
+| `Equipe_Vendeuse.png` | Head and shoulders of a smiling shop seller in a red vest holding a small perfume bottle. |
+
+## REBIRTH (1)
+
+| Fichier | Prompt (après le bloc) |
+|---|---|
+| `Rebirth.png` | One big golden circular "refresh" arrow (two arrows chasing each other in a circle). |
+
+---
+
+## Dans UEFN
+
+Créer le dossier **Ameliorations** dans le Tiroir à contenu et y importer les 29 PNG avec exactement ces noms
+(le Verse les appelle `Ameliorations.Avion_02`, `Ameliorations.Equipe_Barman`, etc.).

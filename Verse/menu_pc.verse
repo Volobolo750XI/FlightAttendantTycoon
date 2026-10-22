@@ -94,7 +94,7 @@ menu_pc := class(creative_device):
         amelioration{Nom := "RESTAURANT", Effet := "MEALS x2", Prix := 200000000, Cat := 1, Image := Ameliorations.Espace_Restaurant, Repas := 2.0}
         amelioration{Nom := "CINEMA", Effet := "PATIENCE x2", Prix := 8000000000, Cat := 1, Image := Ameliorations.Espace_Cinema, Patience := 2.0}
         amelioration{Nom := "SPA", Effet := "TICKETS x2", Prix := 400000000000, Cat := 1, Image := Ameliorations.Espace_Spa, Billet := 2.0}
-        amelioration{Nom := "POOL", Effet := "TICKETS x3", Prix := 20000000000000, Cat := 1, Image := Ameliorations.Espace_Piscine, Billet := 3.0}
+        amelioration{Nom := "DUTY FREE", Effet := "TICKETS x3", Prix := 20000000000000, Cat := 1, Image := Ameliorations.Espace_DutyFree, Billet := 3.0}
         # 2 CLASSES
         amelioration{Nom := "PREMIUM", Effet := "TICKETS x2", Prix := 20000, Cat := 2, Image := Ameliorations.Classe_Premium, Billet := 2.0}
         amelioration{Nom := "BUSINESS", Effet := "TICKETS x2.5", Prix := 1000000, Cat := 2, Image := Ameliorations.Classe_Business, Billet := 2.5}
@@ -111,7 +111,7 @@ menu_pc := class(creative_device):
         amelioration{Nom := "BUTLER", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 4, Image := Ameliorations.Equipe_Majordome, Requis := "LOUNGE", Billet := 1.5}
         amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 800000000, Cat := 4, Image := Ameliorations.Equipe_Chef, Requis := "RESTAURANT", Repas := 3.0}
         amelioration{Nom := "MASSEUR", Effet := "TICKETS x2", Prix := 1500000000000, Cat := 4, Image := Ameliorations.Equipe_Masseur, Requis := "SPA", Billet := 2.0}
-        amelioration{Nom := "LIFEGUARD", Effet := "TICKETS x3", Prix := 80000000000000, Cat := 4, Image := Ameliorations.Equipe_MaitreNageur, Requis := "POOL", Billet := 3.0}
+        amelioration{Nom := "SELLER", Effet := "TICKETS x3", Prix := 80000000000000, Cat := 4, Image := Ameliorations.Equipe_Vendeuse, Requis := "DUTY FREE", Billet := 3.0}
         # 5 REBIRTH (se rachete a l'infini, demande le GOLDEN GIANT)
         amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 5, Image := Ameliorations.Rebirth}
 

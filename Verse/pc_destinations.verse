@@ -24,7 +24,8 @@ using { /UnrealEngine.com/Temporary/UI }
 # une barre de vol avec le départ, l'arrivée, le temps restant et un avion qui avance.
 #
 # Dans le Tiroir à contenu :
-#   dossier "Destinations" : CarteMonde (la carte du monde), AvionDroite, AvionGauche (déjà là) ;
+#   dossier "Destinations" : CarteVols (la nouvelle carte du monde, Textures/Destinations),
+#   AvionDroite, AvionGauche (déjà là) ;
 #   dossier "Villes" : les 30 illustrations (Textures/Villes) : Paris, London, Rome, Madrid,
 #   Istanbul, Cairo, NewYork, Dubai, Rio, MexicoCity, LosAngeles, Delhi, Singapore, Tokyo,
 #   Sydney, BoraBora, Bangkok, HongKong, Seoul, Vancouver, Amsterdam, Athens, Marrakech,
@@ -38,13 +39,12 @@ using { /UnrealEngine.com/Temporary/UI }
 #                     pour décoller avec BoutonDecollage. Elles restent verrouillées pendant le vol.
 #   MessageHUD      : un Appareil Message HUD pour les messages.
 #   Menu            : (facultatif) le device menu_pc : le PC ouvre alors le menu des 3 cartes.
-#   Les réglages Carte... / Liste... servent à caler les points sur l'image CarteMonde.
 
 ville_reseau := class:
     Nom:string
     Pays:string
     Description:string
-    # Position de la ville dans l'image CarteMonde (0..1).
+    # Position de la ville sur l'image CarteVols (0..1), calculée avec Outils/carte_monde.py.
     U:float
     V:float
     Image:texture
@@ -76,51 +76,42 @@ pc_destinations := class(creative_device):
     # 1920 x 1080). Laisse de la place pour le code de la map.
     @editable HautBarre:float = 64.0
 
-    # Taille (pixels) de l'image de la carte à l'écran. L'écran fait 1920 x 1080 :
-    # avec 1960, la liste + la carte prennent toute la largeur.
-    @editable TailleCarte:float = 1960.0
-    # Où est le cadre de la carte du monde dans l'image (0 = bord gauche/haut, 1 = droite/bas).
-    @editable CarteGauche:float = 0.283
-    @editable CarteDroite:float = 0.974
-    @editable CarteHaut:float = 0.254
-    @editable CarteBas:float = 0.746
-    # Où est le panneau de la liste dans l'image.
-    @editable ListeGauche:float = 0.036
-    @editable ListeDroite:float = 0.270
-    @editable ListeHaut:float = 0.270
-    @editable ListeBas:float = 0.730
+    # La carte du monde à l'écran (onglet MAP) : 1800 x 900 pixels, sous les onglets.
+    LargeurCarte:float = 1800.0
+    HauteurCarte:float = 900.0
+    CentreCarteY:float = 610.0
 
     LesVilles:[]ville_reseau = array:
-        ville_reseau{Nom := "PARIS", Pays := "FRANCE", Description := "Your home base. Croissants included!", U := 0.6141, V := 0.4224, Image := Villes.Paris}
-        ville_reseau{Nom := "LONDON", Pays := "UNITED KINGDOM", Description := "Tea time under Big Ben.", U := 0.6090, V := 0.4148, Image := Villes.London}
-        ville_reseau{Nom := "ROME", Pays := "ITALY", Description := "Pasta, gelato and ancient history.", U := 0.6347, V := 0.4412, Image := Villes.Rome}
-        ville_reseau{Nom := "MADRID", Pays := "SPAIN", Description := "Sunny plazas and late dinners.", U := 0.6017, V := 0.4451, Image := Villes.Madrid}
-        ville_reseau{Nom := "ISTANBUL", Pays := "TURKEY", Description := "Where Europe meets Asia.", U := 0.6683, V := 0.4435, Image := Villes.Istanbul}
-        ville_reseau{Nom := "CAIRO", Pays := "EGYPT", Description := "The pyramids are waiting.", U := 0.6729, V := 0.4708, Image := Villes.Cairo}
-        ville_reseau{Nom := "NEW YORK", Pays := "USA", Description := "The city that never sleeps.", U := 0.4585, V := 0.4443, Image := Villes.NewYork}
-        ville_reseau{Nom := "DUBAI", Pays := "UAE", Description := "Gold, sand and the tallest tower.", U := 0.7218, V := 0.4822, Image := Villes.Dubai}
-        ville_reseau{Nom := "RIO", Pays := "BRAZIL", Description := "Beaches, samba and sunshine.", U := 0.5213, V := 0.5891, Image := Villes.Rio}
-        ville_reseau{Nom := "MEXICO CITY", Pays := "MEXICO", Description := "Tacos, colors and old pyramids.", U := 0.4074, V := 0.4954, Image := Villes.MexicoCity}
-        ville_reseau{Nom := "LOS ANGELES", Pays := "USA", Description := "Palm trees and movie stars.", U := 0.3684, V := 0.4611, Image := Villes.LosAngeles}
-        ville_reseau{Nom := "DELHI", Pays := "INDIA", Description := "Spices, palaces and busy streets.", U := 0.7665, V := 0.4742, Image := Villes.Delhi}
-        ville_reseau{Nom := "SINGAPORE", Pays := "SINGAPORE", Description := "A garden city of the future.", U := 0.8207, V := 0.5353, Image := Villes.Singapore}
-        ville_reseau{Nom := "TOKYO", Pays := "JAPAN", Description := "Neon lights under Mount Fuji.", U := 0.8938, V := 0.4570, Image := Villes.Tokyo}
-        ville_reseau{Nom := "SYDNEY", Pays := "AUSTRALIA", Description := "Surf, sun and the Opera House.", U := 0.9172, V := 0.6150, Image := Villes.Sydney}
-        ville_reseau{Nom := "BORA BORA", Pays := "FRENCH POLYNESIA", Description := "The dream island. Pure luxury.", U := 0.3002, V := 0.5745, Image := Villes.BoraBora}
-        ville_reseau{Nom := "BANGKOK", Pays := "THAILAND", Description := "Golden temples and street food.", U := 0.8140, V := 0.5081, Image := Villes.Bangkok}
-        ville_reseau{Nom := "HONG KONG", Pays := "CHINA", Description := "Skyscrapers above the harbour.", U := 0.8418, V := 0.4888, Image := Villes.HongKong}
-        ville_reseau{Nom := "SEOUL", Pays := "SOUTH KOREA", Description := "Palaces, K-pop and city lights.", U := 0.8679, V := 0.4523, Image := Villes.Seoul}
-        ville_reseau{Nom := "VANCOUVER", Pays := "CANADA", Description := "Mountains, forests and the ocean.", U := 0.3585, V := 0.4212, Image := Villes.Vancouver}
-        ville_reseau{Nom := "AMSTERDAM", Pays := "NETHERLANDS", Description := "Canals, bikes and tulips.", U := 0.6193, V := 0.4125, Image := Villes.Amsterdam}
-        ville_reseau{Nom := "ATHENS", Pays := "GREECE", Description := "The Acropolis above the city.", U := 0.6576, V := 0.4512, Image := Villes.Athens}
-        ville_reseau{Nom := "MARRAKECH", Pays := "MOROCCO", Description := "Red walls and busy souks.", U := 0.5930, V := 0.4669, Image := Villes.Marrakech}
-        ville_reseau{Nom := "CAPE TOWN", Pays := "SOUTH AFRICA", Description := "Table Mountain over the sea.", U := 0.6468, V := 0.6152, Image := Villes.CapeTown}
-        ville_reseau{Nom := "MIAMI", Pays := "USA", Description := "Neon nights and sunny beaches.", U := 0.4459, V := 0.4809, Image := Villes.Miami}
-        ville_reseau{Nom := "SAN FRANCISCO", Pays := "USA", Description := "The Golden Gate in the fog.", U := 0.3598, V := 0.4517, Image := Villes.SanFrancisco}
-        ville_reseau{Nom := "SHANGHAI", Pays := "CHINA", Description := "A skyline from the future.", U := 0.8569, V := 0.4679, Image := Villes.Shanghai}
-        ville_reseau{Nom := "MALDIVES", Pays := "MALDIVES", Description := "Crystal water, private islands.", U := 0.7591, V := 0.5292, Image := Villes.Maldives}
-        ville_reseau{Nom := "BALI", Pays := "INDONESIA", Description := "Rice terraces and temples.", U := 0.8441, V := 0.5571, Image := Villes.Bali}
-        ville_reseau{Nom := "CUSCO", Pays := "PERU", Description := "The gate to Machu Picchu.", U := 0.4626, V := 0.5678, Image := Villes.Cusco}
+        ville_reseau{Nom := "PARIS", Pays := "FRANCE", Description := "Your home base. Croissants included!", U := 0.5065, V := 0.2790, Image := Villes.Paris}
+        ville_reseau{Nom := "LONDON", Pays := "UNITED KINGDOM", Description := "Tea time under Big Ben.", U := 0.4996, V := 0.2556, Image := Villes.London}
+        ville_reseau{Nom := "ROME", Pays := "ITALY", Description := "Pasta, gelato and ancient history.", U := 0.5347, V := 0.3350, Image := Villes.Rome}
+        ville_reseau{Nom := "MADRID", Pays := "SPAIN", Description := "Sunny plazas and late dinners.", U := 0.4897, V := 0.3461, Image := Villes.Madrid}
+        ville_reseau{Nom := "ISTANBUL", Pays := "TURKEY", Description := "Where Europe meets Asia.", U := 0.5805, V := 0.3417, Image := Villes.Istanbul}
+        ville_reseau{Nom := "CAIRO", Pays := "EGYPT", Description := "The pyramids are waiting.", U := 0.5868, V := 0.4181, Image := Villes.Cairo}
+        ville_reseau{Nom := "NEW YORK", Pays := "USA", Description := "The city that never sleeps.", U := 0.2944, V := 0.3440, Image := Villes.NewYork}
+        ville_reseau{Nom := "DUBAI", Pays := "UAE", Description := "Gold, sand and the tallest tower.", U := 0.6535, V := 0.4489, Image := Villes.Dubai}
+        ville_reseau{Nom := "RIO", Pays := "BRAZIL", Description := "Beaches, samba and sunshine.", U := 0.3801, V := 0.7289, Image := Villes.Rio}
+        ville_reseau{Nom := "MEXICO CITY", Pays := "MEXICO", Description := "Tacos, colors and old pyramids.", U := 0.2246, V := 0.4841, Image := Villes.MexicoCity}
+        ville_reseau{Nom := "LOS ANGELES", Pays := "USA", Description := "Palm trees and movie stars.", U := 0.1716, V := 0.3914, Image := Villes.LosAngeles}
+        ville_reseau{Nom := "DELHI", Pays := "INDIA", Description := "Spices, palaces and busy streets.", U := 0.7145, V := 0.4273, Image := Villes.Delhi}
+        ville_reseau{Nom := "SINGAPORE", Pays := "SINGAPORE", Description := "A garden city of the future.", U := 0.7884, V := 0.5884, Image := Villes.Singapore}
+        ville_reseau{Nom := "TOKYO", Pays := "JAPAN", Description := "Neon lights under Mount Fuji.", U := 0.8880, V := 0.3801, Image := Villes.Tokyo}
+        ville_reseau{Nom := "SYDNEY", Pays := "AUSTRALIA", Description := "Surf, sun and the Opera House.", U := 0.9200, V := 0.7994, Image := Villes.Sydney}
+        ville_reseau{Nom := "BORA BORA", Pays := "FRENCH POLYNESIA", Description := "The dream island. Pure luxury.", U := 0.0785, V := 0.6904, Image := Villes.BoraBora}
+        ville_reseau{Nom := "BANGKOK", Pays := "THAILAND", Description := "Golden temples and street food.", U := 0.7792, V := 0.5176, Image := Villes.Bangkok}
+        ville_reseau{Nom := "HONG KONG", Pays := "CHINA", Description := "Skyscrapers above the harbour.", U := 0.8171, V := 0.4667, Image := Villes.HongKong}
+        ville_reseau{Nom := "SEOUL", Pays := "SOUTH KOREA", Description := "Palaces, K-pop and city lights.", U := 0.8527, V := 0.3668, Image := Villes.Seoul}
+        ville_reseau{Nom := "VANCOUVER", Pays := "CANADA", Description := "Mountains, forests and the ocean.", U := 0.1580, V := 0.2754, Image := Villes.Vancouver}
+        ville_reseau{Nom := "AMSTERDAM", Pays := "NETHERLANDS", Description := "Canals, bikes and tulips.", U := 0.5136, V := 0.2478, Image := Villes.Amsterdam}
+        ville_reseau{Nom := "ATHENS", Pays := "GREECE", Description := "The Acropolis above the city.", U := 0.5659, V := 0.3639, Image := Villes.Athens}
+        ville_reseau{Nom := "MARRAKECH", Pays := "MOROCCO", Description := "Red walls and busy souks.", U := 0.4778, V := 0.4076, Image := Villes.Marrakech}
+        ville_reseau{Nom := "CAPE TOWN", Pays := "SOUTH AFRICA", Description := "Table Mountain over the sea.", U := 0.5512, V := 0.7997, Image := Villes.CapeTown}
+        ville_reseau{Nom := "MIAMI", Pays := "USA", Description := "Neon nights and sunny beaches.", U := 0.2772, V := 0.4454, Image := Villes.Miami}
+        ville_reseau{Nom := "SAN FRANCISCO", Pays := "USA", Description := "The Golden Gate in the fog.", U := 0.1599, V := 0.3654, Image := Villes.SanFrancisco}
+        ville_reseau{Nom := "SHANGHAI", Pays := "CHINA", Description := "A skyline from the future.", U := 0.8374, V := 0.4103, Image := Villes.Shanghai}
+        ville_reseau{Nom := "MALDIVES", Pays := "MALDIVES", Description := "Crystal water, private islands.", U := 0.7042, V := 0.5724, Image := Villes.Maldives}
+        ville_reseau{Nom := "BALI", Pays := "INDONESIA", Description := "Rice terraces and temples.", U := 0.8200, V := 0.6450, Image := Villes.Bali}
+        ville_reseau{Nom := "CUSCO", Pays := "PERU", Description := "The gate to Machu Picchu.", U := 0.3001, V := 0.6731, Image := Villes.Cusco}
 
     # 0 PARIS 1 LONDON 2 ROME 3 MADRID 4 ISTANBUL 5 CAIRO 6 NEW YORK 7 DUBAI 8 RIO 9 MEXICO CITY
     # 10 LOS ANGELES 11 DELHI 12 SINGAPORE 13 TOKYO 14 SYDNEY 15 BORA BORA
@@ -259,16 +250,6 @@ pc_destinations := class(creative_device):
         if (Rt := Routes[RouteDe(T)]) then (if (Mod[T, 2] = 0) then Rt.A else Rt.B) else -1
     ArriveeDe(T:int)<transacts>:int = Autre(RouteDe(T), DepartDe(T))
 
-    # Tous les trajets : d'abord ceux qui partent d'ici, puis les autres du moins cher au plus cher.
-    Trajets()<transacts>:[]int =
-        var Liste:[]int = for (T := 0..Routes.Length * 2 - 1, DepartDe(T) = Position) { T }
-        for (Niv := 1..8):
-            set Liste += for (T := 0..Routes.Length * 2 - 1, DepartDe(T) <> Position, Palier(RouteDe(T)) = Niv) { T }
-        Liste
-
-    ParPage:int = 6
-    NbPages()<transacts>:int = if (Q := Quotient[Trajets().Length + ParPage - 1, ParPage]) then Max(1, Q) else 1
-
     Palier(R:int)<transacts>:int = if (Rt := Routes[R]) then Rt.Palier else 1
     PrixRoute(R:int)<transacts>:int = if (P := PrixPalier[Palier(R) - 1]) then P else 0
     MinutesRoute(R:int)<transacts>:float = if (M := MinutesPalier[Palier(R) - 1]) then M else 5.0
@@ -370,7 +351,7 @@ pc_destinations := class(creative_device):
             set Page = Max(0, Page - 1)
             Afficher()
         else if (Action = 7):
-            Dernier := if (Vue = 0) then NbPagesGrille() - 1 else NbPages() - 1
+            Dernier := NbPagesGrille() - 1
             set Page = Min(Dernier, Page + 1)
             Afficher()
         else if (Action = 8):
@@ -436,18 +417,14 @@ pc_destinations := class(creative_device):
             Afficher()
 
     # ---------- placement sur l'écran ----------
-    # L'image CarteMonde est centrée sur le cadre (liste + carte).
-    CentreU():float = (ListeGauche + CarteDroite) / 2.0
-    CentreV():float = (CarteHaut + CarteBas) / 2.0
-
-    # Un widget centré sur le point (U, V) de l'image CarteMonde, décalé de DX, DY pixels.
+    # Un widget centré sur le point (U, V) de la carte CarteVols, décalé de DX, DY pixels.
     # ZOrder : plus le nombre est grand, plus c'est au-dessus. Les boutons sont TOUJOURS tout en
     # haut (30) : rien ne peut bloquer un clic.
     PlaceC(W:widget, U:float, V:float, DX:float, DY:float, Largeur:float, Hauteur:float, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
         canvas_slot:
             Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.5}, Maximum := vector2{X := 0.5, Y := 0.5}}
             Alignment := vector2{X := 0.5, Y := 0.5}
-            Offsets := margin{Left := (U - CentreU()) * TailleCarte + DX, Top := (V - CentreV()) * TailleCarte + DY, Right := Largeur, Bottom := Hauteur}
+            Offsets := margin{Left := (U - 0.5) * LargeurCarte + DX, Top := (V - 0.5) * HauteurCarte + CentreCarteY - 540.0 + DY, Right := Largeur, Bottom := Hauteur}
             SizeToContent := false
             ZOrder := Couche
             Widget := W
@@ -474,6 +451,16 @@ pc_destinations := class(creative_device):
 
     Ecrit(S:string, Hex:string, J:text_justification):text_block =
         text_block{DefaultText := Msg(S), DefaultTextColor := MakeColorFromHex(Hex), DefaultJustification := J}
+
+    # Un texte avec une ombre, lisible sur la carte.
+    Etiquette(S:string, Hex:string):text_block =
+        text_block:
+            DefaultText := Msg(S)
+            DefaultTextColor := MakeColorFromHex(Hex)
+            DefaultJustification := text_justification.Center
+            DefaultShadowColor := NamedColors.Black
+            DefaultShadowOpacity := 0.9
+            DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}
 
     Vignette(T:texture, L:float, H:float):texture_block =
         texture_block{DefaultImage := T, DefaultDesiredSize := vector2{X := L, Y := H}}
@@ -508,14 +495,13 @@ pc_destinations := class(creative_device):
     # ---------- l'écran du PC ----------
     Afficher():void =
         if (P := EcranJoueur?, UI := GetPlayerUI[P]):
-            # le fond et la carte du monde ne sont créés qu'une fois à l'ouverture
+            # le fond n'est créé qu'une fois à l'ouverture
             var Toile:canvas = canvas{}
             if (C := Ecran?):
                 set Toile = C
             else:
                 Fond := PleinEcran(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.85})
-                Monde := PlaceC(Vignette(Destinations.CarteMonde, TailleCarte, TailleCarte), 0.5, 0.5, 0.0, 0.0, TailleCarte, TailleCarte, 1)
-                Base := canvas{Slots := array{Fond, Monde}}
+                Base := canvas{Slots := array{Fond}}
                 UI.AddWidget(Base, player_ui_slot{InputMode := ui_input_mode.All})
                 set Ecran = option{Base}
                 set Toile = Base
@@ -527,7 +513,6 @@ pc_destinations := class(creative_device):
                 set Slots += Grille()
             else:
                 Carte := CarteReseau()
-                set Slots += ListeLignes()
                 set Slots += Carte(0)
                 set IconeVol = Carte(1)
             set Slots += Onglets()
@@ -637,71 +622,42 @@ pc_destinations := class(creative_device):
             ZOrder := Couche
             Widget := Rect(Hex, 1.0)
 
-    # À gauche : tous les trajets, dans les 2 sens, 6 par page (PREV / NEXT pour défiler).
-    # Ceux qui partent de la ville où est l'avion sont en premier.
-    ListeLignes():[]canvas_slot =
-        var S:[]canvas_slot = array{}
-        UL := (ListeGauche + ListeDroite) / 2.0
-        Largeur := (ListeDroite - ListeGauche) * TailleCarte * 0.94
-        Ici := NomVille(Position)
-        Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {Ici}"
-        set S += array{PlaceC(Ecrit(Titre, "FBBF24", text_justification.Center), UL, ListeHaut, 0.0, 10.0, Largeur, 40.0, 6)}
-        set S += array{PlaceC(Ecrit("ALL ROUTES - BOTH WAYS", "94A3B8", text_justification.Center), UL, ListeHaut, 0.0, 50.0, Largeur, 40.0, 6)}
-        Tous := Trajets()
-        set Page = Max(0, Min(Page, NbPages() - 1))
-        Pas := 115.0
-        for (N := 0..ParPage - 1, T := Tous[Page * ParPage + N], Ville := LesVilles[ArriveeDe(T)]):
-            R := RouteDe(T)
-            DY := 150.0 + N * Pas
-            Achat := if (Achetee[R]) then true else false
-            DIci := if (DepartDe(T) = Position) then true else false
-            Prochain := if (R = Choisie, DIci?, not EnVol[]) then true else false
-            Bord := if (Prochain?) then "22C55E" else if (Achat?) then "38BDF8" else if (DIci?) then "FBBF24" else "64748B"
-            Statut := if (Prochain?) then "NEXT FLIGHT" else if (Achat?) then "OWNED" else "${Abreger(PrixRoute(R))}"
-            Duree := if (M := Round[MinutesRoute(R)]) then M else 5
-            CouleurDepart := if (DIci?) then "FBBF24" else "94A3B8"
-            set S += array{PlaceC(Rect(Bord, 1.0), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 6)}
-            set S += array{PlaceC(Rect("0B1620", 1.0), UL, ListeHaut, 0.0, DY, Largeur - 6.0, Pas - 16.0, 7)}
-            set S += array{PlaceC(Vignette(Ville.Image, 120.0, 60.0), UL, ListeHaut, -Largeur / 2.0 + 70.0, DY, 120.0, 60.0, 8)}
-            set S += array{PlaceC(Ecrit("TO {Ville.Nom}", "FFFFFF", text_justification.Left), UL, ListeHaut, 70.0, DY - 32.0, Largeur - 150.0, 34.0, 8)}
-            set S += array{PlaceC(Ecrit("FROM {NomVille(DepartDe(T))}", CouleurDepart, text_justification.Left), UL, ListeHaut, 70.0, DY, Largeur - 150.0, 34.0, 8)}
-            set S += array{PlaceC(Ecrit("{Statut}  -  {Duree} MIN", Bord, text_justification.Left), UL, ListeHaut, 70.0, DY + 32.0, Largeur - 150.0, 34.0, 8)}
-            if (not FicheOuverte[]):
-                set S += array{PlaceC(Zone(1, T), UL, ListeHaut, 0.0, DY, Largeur, Pas - 10.0, 30)}
-        # défilement
-        DYP := 150.0 + ParPage * Pas
-        Bouton := (Largeur - 20.0) / 3.0
-        if (Page > 0):
-            set S += array{PlaceC(Rect("334155", 1.0), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 60.0, 6)}
-            set S += array{PlaceC(Ecrit("< PREV", "FFFFFF", text_justification.Center), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 40.0, 8)}
-            set S += array{PlaceC(Zone(6, 0), UL, ListeHaut, -Bouton - 10.0, DYP, Bouton, 60.0, 30)}
-        set S += array{PlaceC(Ecrit("{Page + 1} / {NbPages()}", "E2E8F0", text_justification.Center), UL, ListeHaut, 0.0, DYP, Bouton, 40.0, 8)}
-        if (Page < NbPages() - 1):
-            set S += array{PlaceC(Rect("334155", 1.0), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 60.0, 6)}
-            set S += array{PlaceC(Ecrit("NEXT >", "FFFFFF", text_justification.Center), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 40.0, 8)}
-            set S += array{PlaceC(Zone(7, 0), UL, ListeHaut, Bouton + 10.0, DYP, Bouton, 60.0, 30)}
-        S
-
     # À droite : toutes les lignes en pointillés, les villes, l'avion.
     # Renvoie les slots et l'image de l'avion (pour l'animer pendant le vol).
     CarteReseau():tuple([]canvas_slot, ?texture_block) =
         var S:[]canvas_slot = array{}
+        set S += array{Couvrir("0B1220", 2)}
+        set S += array{PlaceC(Rect("38BDF8", 0.6), 0.5, 0.5, 0.0, 0.0, LargeurCarte + 6.0, HauteurCarte + 6.0, 2)}
+        set S += array{PlaceC(Vignette(Destinations.CarteVols, LargeurCarte, HauteurCarte), 0.5, 0.5, 0.0, 0.0, LargeurCarte, HauteurCarte, 3)}
+        Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Position)}"
+        set S += array{Bloc(Ecrit(Titre, "FBBF24", text_justification.Left), 520.0, 25.0, 420.0, 40.0, 6)}
+        set S += array{Bloc(Ecrit("CLICK A CITY", "94A3B8", text_justification.Right), 1380.0, 25.0, 320.0, 40.0, 6)}
         for (I -> R : Routes):
             A := PointVille(R.A)
             B := PointVille(R.B)
             Prochain := if (I = Choisie, not EnVol[]) then true else if (I = RouteVol, EnVol[]) then true else false
-            Couleur := if (Prochain?) then "22C55E" else if (Achetee[I]) then "38BDF8" else if (Touche[I, Position]) then "FBBF24" else "475569"
+            Couleur := if (Prochain?) then "22C55E" else if (Achetee[I]) then "38BDF8" else if (Touche[I, Position]) then "FBBF24" else "CBD5E1"
             Taille := if (Prochain?) then 6.0 else if (Achetee[I] or Touche[I, Position]) then 4.0 else 3.0
-            for (K := 0..29):
-                Pt := Courbe(A, B, (K * 1.0 + 0.5) / 30.0)
-                set S += array{PlaceC(Rect(Couleur, 0.9), Pt.X, Pt.Y, 0.0, 0.0, Taille, Taille, 4)}
+            for (K := 0..19):
+                Pt := Courbe(A, B, (K * 1.0 + 0.5) / 20.0)
+                Pastille := if (Prochain? or Achetee[I] or Touche[I, Position]) then Rect(Couleur, 1.0) else Rect(Couleur, 0.55)
+                set S += array{PlaceC(Pastille, Pt.X, Pt.Y, 0.0, 0.0, Taille, Taille, 4)}
+        # les 2 noms affichés : l'un au-dessus, l'autre en dessous, pour ne pas se chevaucher
+        Cible := if (EnVol[]) then Vers else Autre(Choisie, Position)
+        DessusIci := if (VilleIci := LesVilles[Position], VilleCible := LesVilles[Cible], VilleCible.V < VilleIci.V) then 32.0 else -32.0
         for (I -> Ville : LesVilles):
             Ici := if (I = Position) then true else false
-            Voisine := if (not EnVol[], Autre(Choisie, Position) = I) then true else false
+            Voisine := if (I = Cible, I <> Position) then true else false
             Couleur := if (Ici?) then "22C55E" else if (Voisine?) then "FBBF24" else "E2E8F0"
             Cote := if (Ici?) then 16.0 else 10.0
             set S += array{PlaceC(Rect("0B1620", 1.0), Ville.U, Ville.V, 0.0, 0.0, Cote + 6.0, Cote + 6.0, 5)}
             set S += array{PlaceC(Rect(Couleur, 1.0), Ville.U, Ville.V, 0.0, 0.0, Cote, Cote, 6)}
+            # le nom de la ville où on est et de la prochaine destination
+            if (Ici? or Voisine?):
+                Decale := if (Ici?) then DessusIci else -DessusIci
+                set S += array{PlaceC(Etiquette(Ville.Nom, Couleur), Ville.U, Ville.V, 0.0, Decale, 320.0, 40.0, 7)}
+            if (not FicheOuverte[], not Ici?):
+                set S += array{PlaceC(Zone(8, I), Ville.U, Ville.V, 0.0, 0.0, 22.0, 22.0, 30)}
         # l'avion : sur la ville au sol, sur la ligne pendant le vol
         Depart := PointVille(Position)
         Arrivee := if (EnVol[]) then PointVille(Vers) else PointVille(Autre(Choisie, Position))

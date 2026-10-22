@@ -208,9 +208,10 @@ pc_destinations := class(creative_device):
     TexteTemps:text_block = text_block{DefaultTextColor := MakeColorFromHex("FFDE6E"), DefaultJustification := text_justification.Center, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
 
     OnBegin<override>()<suspends>:void =
-        # au départ : seule la ligne PARIS - LONDON est à nous (offerte)
-        set Achetees = for (I -> R : Routes) { if (I = 0) then true else false }
-        set Choisie = 0
+        # au départ : aucune ligne ; la première (PARIS - LONDON) est gratuite, mais il faut
+        # quand même l'acheter sur le PC (BUY - FREE)
+        set Achetees = for (I -> R : Routes) { false }
+        set Choisie = -1
         if (B := BoutonDecollage?) { spawn{AttendreDecollage(B)} }
         spawn{BoucleBarre()}
         loop:
@@ -251,7 +252,14 @@ pc_destinations := class(creative_device):
     ArriveeDe(T:int)<transacts>:int = Autre(RouteDe(T), DepartDe(T))
 
     Palier(R:int)<transacts>:int = if (Rt := Routes[R]) then Rt.Palier else 1
-    PrixRoute(R:int)<transacts>:int = if (P := PrixPalier[Palier(R) - 1]) then P else 0
+    # La ligne 0 (PARIS - LONDON) est gratuite.
+    PrixRoute(R:int)<transacts>:int = if (R = 0) then 0 else if (P := PrixPalier[Palier(R) - 1]) then P else 0
+    TextePrix(P:int)<transacts>:string = if (P = 0) then "FREE" else "${Abreger(P)}"
+
+    # On peut décoller : au sol, avec une ligne achetée qui part d'ici.
+    PretADecoller()<transacts><decides>:void =
+        not EnVol[]
+        (Touche[Choisie, Position] and Achetee[Choisie]) or PremiereRoute() >= 0
     MinutesRoute(R:int)<transacts>:float = if (M := MinutesPalier[Palier(R) - 1]) then M else 5.0
 
     # La ligne du vol en cours, sinon celle du prochain vol.
@@ -268,7 +276,11 @@ pc_destinations := class(creative_device):
     Niveau()<transacts>:int = Palier(RouteCourante())
 
     VilleDepart()<transacts>:string = NomVille(Position)
-    VilleArrivee()<transacts>:string = if (DebutVol >= 0.0) then NomVille(Vers) else NomVille(Autre(Choisie, Position))
+    # (avant le tout premier achat : la destination de la ligne gratuite)
+    VilleArrivee()<transacts>:string =
+        if (DebutVol >= 0.0) then NomVille(Vers)
+        else if (Routes[Choisie]) then NomVille(Autre(Choisie, Position))
+        else NomVille(Autre(0, Position))
 
     # Avancement du vol entre 0 (départ) et 1 (arrivée).
     Progression():float =
@@ -288,6 +300,8 @@ pc_destinations := class(creative_device):
         PortesOuvertes := for (Porte : Portes, Porte.Ouverte?) { Porte }
         if (EnVol[]):
             Annoncer(Joueur, "ALREADY FLYING")
+        else if (not PretADecoller[]):
+            Annoncer(Joueur, "BUY A FLIGHT ON THE PC FIRST")
         else if (PortesOuvertes.Length > 0):
             Annoncer(Joueur, "CLOSE ALL DOORS BEFORE TAKE OFF")
         else:
@@ -624,7 +638,7 @@ pc_destinations := class(creative_device):
         set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "E2E8F0"), X, Y + 280.0, L, 36.0, 9)}
         set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "FDE047"), X, Y + 322.0, L, 36.0, 9)}
         # le gros bouton (toute la carte est cliquable)
-        Texte := if (Choisi?) then "NEXT FLIGHT" else if (Achat?) then "FLY HERE" else "BUY  ${Abreger(Prix)}"
+        Texte := if (Choisi?) then "NEXT FLIGHT" else if (Achat?) then "FLY HERE" else "BUY  -  {TextePrix(Prix)}"
         Fond := if (Choisi?) then "15803D" else if (Achat?) then "0369A1" else if (Assez?) then "CA8A04" else "475569"
         set S += array{Bloc(Rect(Fond, 1.0), X + 16.0, Y + 400.0, L - 32.0, 130.0, 9)}
         set S += array{Bloc(Etiquette(Texte, "FFFFFF"), X + 16.0, Y + 445.0, L - 32.0, 40.0, 10)}
@@ -742,11 +756,11 @@ pc_destinations := class(creative_device):
             set S += Info("FLIGHT TIME", "{Minutes} MIN", 678.0)
             set S += Info("LEVEL", "{Palier(R)}  (ORDERS x{MultiTexte})", 720.0)
             set S += Info("FLIGHT VALUE", "${Abreger(Valeur)}", 762.0)
-            Prix := if (Achat?) then "OWNED" else "${Abreger(PrixRoute(R))}"
+            Prix := if (Achat?) then "OWNED" else TextePrix(PrixRoute(R))
             set S += Info("PRICE", Prix, 804.0)
             # les boutons
             if (not Achat?):
-                set S += BoutonEcran("BUY  ${Abreger(PrixRoute(R))}", "15803D", 600.0, 900.0, 380.0, 120.0, 2, T)
+                set S += BoutonEcran("BUY  -  {TextePrix(PrixRoute(R))}", "15803D", 600.0, 900.0, 380.0, 120.0, 2, T)
             else if (EnVol[]):
                 set S += array{Bloc(Ecrit("WAIT FOR LANDING", "94A3B8", text_justification.Center), 600.0, 940.0, 380.0, 40.0, 16)}
             else if (Prochain?):
@@ -811,8 +825,13 @@ pc_destinations := class(creative_device):
                 Sec := if (X := Mod[Secondes, 60]) then X else 0
                 Chrono := if (Sec < 10) then "{Mn}:0{Sec}" else "{Mn}:{Sec}"
                 TexteDepart.SetText(Msg(VilleDepart()))
-                TexteArrivee.SetText(Msg(VilleArrivee()))
-                TexteTemps.SetText(Msg(if (EnVol[]) then Chrono else "NEXT  {Chrono}"))
+                if (EnVol[] or Routes[Choisie]):
+                    TexteArrivee.SetText(Msg(VilleArrivee()))
+                    TexteTemps.SetText(Msg(if (EnVol[]) then Chrono else "NEXT  {Chrono}"))
+                else:
+                    # pas encore de vol : on dit quoi faire
+                    TexteArrivee.SetText(Msg("?"))
+                    TexteTemps.SetText(Msg("BUY A FLIGHT ON THE PC"))
                 # la piste remplie et l'avion
                 for (W : BarreMobile) { Toile.RemoveWidget(W) }
                 # le remplissage jaune : un rond au début, un rond au bout, un rectangle entre les deux

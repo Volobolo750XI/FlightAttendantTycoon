@@ -268,6 +268,9 @@ passagers := class(creative_device):
                 # STOP BOARDING : plus personne n'arrive, ceux qui sont dehors repartent
                 set Arret = true
                 spawn{FinEmbarquement()}
+            else if (EtatBouton = 2, Ordi := DevicePC?, not Ordi.PretADecoller[], not Ordi.EnVol[]):
+                # pas encore de vol acheté sur le PC : on ne décolle pas
+                Ordi.Annoncer(Joueur, "BUY A FLIGHT ON THE PC FIRST")
             else if (EtatBouton = 2):
                 # TAKE OFF : écran noir en fondu puis la cinématique
                 set EtatBouton = 3

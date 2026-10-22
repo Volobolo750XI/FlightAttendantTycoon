@@ -1,6 +1,6 @@
-Tu travailles pour mon jeu Fortnite (UEFN) "Flight Attendant Tycoon". J'ai besoin de 20 images de villes pour les fiches de destinations.
+Tu travailles pour mon jeu Fortnite (UEFN) "Flight Attendant Tycoon". J'ai besoin de 10 nouvelles images de villes pour les fiches de destinations.
 
-Dans le dossier que je t'ai donné, il y a le fichier "prompts_gemini.md". Il contient 20 consignes : une par ville, chacune sous un titre comme "## 1. Paris.png".
+Dans le dossier que je t'ai donné, il y a le fichier "prompts_gemini_2.md". Il contient 10 consignes : une par ville, chacune sous un titre comme "## 21. Amsterdam.png".
 
 Ce que tu dois faire :
 
@@ -20,9 +20,9 @@ Ce que tu dois faire :
    - si l'image est trop haute, coupe surtout le ciel en haut ;
    - le monument doit rester entier.
 5. Enregistre les images en PNG dans un dossier "Villes", avec exactement ces noms :
-   Paris, London, Rome, Madrid, Istanbul, Cairo, NewYork, Dubai, Rio, MexicoCity, LosAngeles, Delhi, Singapore, Tokyo, Sydney, BoraBora, Bangkok, HongKong, Seoul, Vancouver (.png)
+   Amsterdam, Athens, Marrakech, CapeTown, Miami, SanFrancisco, Shanghai, Maldives, Bali, Cusco (.png)
 6. À la fin :
-   - fais une planche d'aperçu "apercu_villes.png" avec les 20 images en petit, chacune avec son nom ;
+   - fais une planche d'aperçu "apercu_villes.png" avec les 10 images en petit, chacune avec son nom ;
    - donne-moi un tableau avec chaque ville, sa note finale et le nombre d'essais.
 
 Important : ne change rien d'autre dans mon dossier. Si Gemini bloque (limite atteinte, connexion demandée), arrête-toi et dis-moi exactement où tu en es.

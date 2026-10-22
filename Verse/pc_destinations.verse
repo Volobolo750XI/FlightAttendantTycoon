@@ -25,9 +25,10 @@ using { /UnrealEngine.com/Temporary/UI }
 #
 # Dans le Tiroir à contenu :
 #   dossier "Destinations" : CarteMonde (la carte du monde), AvionDroite, AvionGauche (déjà là) ;
-#   dossier "Villes" : les 20 illustrations (Textures/Villes) : Paris, London, Rome, Madrid,
+#   dossier "Villes" : les 30 illustrations (Textures/Villes) : Paris, London, Rome, Madrid,
 #   Istanbul, Cairo, NewYork, Dubai, Rio, MexicoCity, LosAngeles, Delhi, Singapore, Tokyo,
-#   Sydney, BoraBora, Bangkok, HongKong, Seoul, Vancouver.
+#   Sydney, BoraBora, Bangkok, HongKong, Seoul, Vancouver, Amsterdam, Athens, Marrakech,
+#   CapeTown, Miami, SanFrancisco, Shanghai, Maldives, Bali, Cusco.
 #
 # Dans l'éditeur :
 #   Bouton          : un Appareil Bouton posé sur le PC (modèle invisible, texte "Open").
@@ -110,10 +111,22 @@ pc_destinations := class(creative_device):
         ville_reseau{Nom := "HONG KONG", Pays := "CHINA", Description := "Skyscrapers above the harbour.", U := 0.8418, V := 0.4888, Image := Villes.HongKong}
         ville_reseau{Nom := "SEOUL", Pays := "SOUTH KOREA", Description := "Palaces, K-pop and city lights.", U := 0.8679, V := 0.4523, Image := Villes.Seoul}
         ville_reseau{Nom := "VANCOUVER", Pays := "CANADA", Description := "Mountains, forests and the ocean.", U := 0.3585, V := 0.4212, Image := Villes.Vancouver}
+        ville_reseau{Nom := "AMSTERDAM", Pays := "NETHERLANDS", Description := "Canals, bikes and tulips.", U := 0.6193, V := 0.4125, Image := Villes.Amsterdam}
+        ville_reseau{Nom := "ATHENS", Pays := "GREECE", Description := "The Acropolis above the city.", U := 0.6576, V := 0.4512, Image := Villes.Athens}
+        ville_reseau{Nom := "MARRAKECH", Pays := "MOROCCO", Description := "Red walls and busy souks.", U := 0.5930, V := 0.4669, Image := Villes.Marrakech}
+        ville_reseau{Nom := "CAPE TOWN", Pays := "SOUTH AFRICA", Description := "Table Mountain over the sea.", U := 0.6468, V := 0.6152, Image := Villes.CapeTown}
+        ville_reseau{Nom := "MIAMI", Pays := "USA", Description := "Neon nights and sunny beaches.", U := 0.4459, V := 0.4809, Image := Villes.Miami}
+        ville_reseau{Nom := "SAN FRANCISCO", Pays := "USA", Description := "The Golden Gate in the fog.", U := 0.3598, V := 0.4517, Image := Villes.SanFrancisco}
+        ville_reseau{Nom := "SHANGHAI", Pays := "CHINA", Description := "A skyline from the future.", U := 0.8569, V := 0.4679, Image := Villes.Shanghai}
+        ville_reseau{Nom := "MALDIVES", Pays := "MALDIVES", Description := "Crystal water, private islands.", U := 0.7591, V := 0.5292, Image := Villes.Maldives}
+        ville_reseau{Nom := "BALI", Pays := "INDONESIA", Description := "Rice terraces and temples.", U := 0.8441, V := 0.5571, Image := Villes.Bali}
+        ville_reseau{Nom := "CUSCO", Pays := "PERU", Description := "The gate to Machu Picchu.", U := 0.4626, V := 0.5678, Image := Villes.Cusco}
 
     # 0 PARIS 1 LONDON 2 ROME 3 MADRID 4 ISTANBUL 5 CAIRO 6 NEW YORK 7 DUBAI 8 RIO 9 MEXICO CITY
     # 10 LOS ANGELES 11 DELHI 12 SINGAPORE 13 TOKYO 14 SYDNEY 15 BORA BORA
     # 16 BANGKOK 17 HONG KONG 18 SEOUL 19 VANCOUVER
+    # 20 AMSTERDAM 21 ATHENS 22 MARRAKECH 23 CAPE TOWN 24 MIAMI 25 SAN FRANCISCO 26 SHANGHAI
+    # 27 MALDIVES 28 BALI 29 CUSCO
     Routes:[]route_reseau = array:
         route_reseau{A := 0, B := 1, Palier := 1}
         route_reseau{A := 0, B := 2, Palier := 1}
@@ -140,6 +153,26 @@ pc_destinations := class(creative_device):
         route_reseau{A := 13, B := 14, Palier := 8}
         route_reseau{A := 19, B := 15, Palier := 8}
         route_reseau{A := 10, B := 15, Palier := 8}
+        route_reseau{A := 0, B := 20, Palier := 1}
+        route_reseau{A := 1, B := 20, Palier := 2}
+        route_reseau{A := 2, B := 21, Palier := 2}
+        route_reseau{A := 21, B := 4, Palier := 2}
+        route_reseau{A := 3, B := 22, Palier := 2}
+        route_reseau{A := 22, B := 5, Palier := 3}
+        route_reseau{A := 5, B := 23, Palier := 5}
+        route_reseau{A := 23, B := 8, Palier := 6}
+        route_reseau{A := 6, B := 24, Palier := 4}
+        route_reseau{A := 24, B := 9, Palier := 4}
+        route_reseau{A := 10, B := 25, Palier := 5}
+        route_reseau{A := 25, B := 19, Palier := 5}
+        route_reseau{A := 17, B := 26, Palier := 6}
+        route_reseau{A := 26, B := 13, Palier := 7}
+        route_reseau{A := 7, B := 27, Palier := 6}
+        route_reseau{A := 27, B := 12, Palier := 7}
+        route_reseau{A := 12, B := 28, Palier := 7}
+        route_reseau{A := 28, B := 14, Palier := 8}
+        route_reseau{A := 8, B := 29, Palier := 5}
+        route_reseau{A := 29, B := 9, Palier := 5}
 
     # Par niveau de ligne (1..8) : prix, valeur d'un vol (ce que rapportent passagers et missions,
     # voir passagers / feuille_mission), durée (minutes), multiplicateur (commandes des passagers).

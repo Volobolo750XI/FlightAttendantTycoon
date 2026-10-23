@@ -338,13 +338,13 @@ passagers := class(creative_device):
                 set Reste -= Entier * 1.0
                 set GainVol += Entier
                 set DeviceAvion.Argent += Entier
-            set DeviceAvion.RevenuParSeconde = if (R := Round[Taux]) then R else 0
+            set DeviceAvion.RevenuVol = if (R := Round[Taux]) then R else 0
             DeviceAvion.MettreAJourUI()
             set DerniersPayants = Payants.Length
             Ecoule := GetSimulationElapsedTime() - Debut
             if (Ecoule >= Duree) { break }
         # atterrissage
-        set DeviceAvion.RevenuParSeconde = 0
+        set DeviceAvion.RevenuVol = 0
         DeviceAvion.MettreAJourUI()
         set DernierGainBillets = GainVol
         if (C := DeviceCinematique?):

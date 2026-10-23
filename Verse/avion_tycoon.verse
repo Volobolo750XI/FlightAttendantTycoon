@@ -47,6 +47,8 @@ reglages_rangee := class<concrete>:
     @editable Panneau:creative_prop = creative_prop{}
     # Les sièges de la rangée (et tout ce qui doit apparaître avec : PNJ, écrans...).
     @editable Sieges:[]creative_prop = array{}
+    # Argent gagné EN PLUS chaque seconde, pour toujours, une fois cette dalle achetée (ex : 10).
+    @editable Revenu:int = 0
 
 # ---------- 3. REGLAGES ----------
 reglages_generaux := class<concrete>:
@@ -75,7 +77,10 @@ avion_tycoon := class(creative_device):
     var Argent:int = 0
     # Nombre de rangées achetées (utilisé par le device passagers).
     var RangeesAchetees:int = 0
+    # Argent par seconde : achats (dalles, pour toujours) + vol en cours (passagers assis).
     var RevenuParSeconde:int = 0
+    var RevenuAchats:int = 0
+    var RevenuVol:int = 0
     var Rebirths:int = 0
     # Bonus des AMELIORATIONS du PC (calcules par menu_pc, lus par passagers et demandes).
     var MultiBillet:float = 1.0
@@ -109,6 +114,7 @@ avion_tycoon := class(creative_device):
         if (Joueur := Proprio?):
             Teleporter(Joueur)
         spawn{BoucleRetourAvion()}
+        spawn{BoucleRevenu()}
 
         # 2. Rangées, dans l'ordre
         for (R : Rangees):
@@ -147,6 +153,7 @@ avion_tycoon := class(creative_device):
         R.Panneau.Hide()
         for (S : R.Sieges) { S.Show() }
         set RangeesAchetees += 1
+        set RevenuAchats += R.Revenu
         if (not UICree?):
             set UICree = true
             CreerUI()
@@ -263,7 +270,19 @@ avion_tycoon := class(creative_device):
                                 Cadre(Interface.FondRebirth, TexteRebirth)
             UI.AddWidget(Ecran)
 
+    # Chaque seconde : l'argent des achats tombe (x le bonus de rebirth).
+    BoucleRevenu()<suspends>:void =
+        var Reste:float = 0.0
+        loop:
+            Sleep(1.0)
+            set Reste += RevenuAchats * MultiRebirth
+            if (Entier := Floor[Reste], Entier > 0):
+                set Reste -= Entier * 1.0
+                set Argent += Entier
+            MettreAJourUI()
+
     MettreAJourUI():void =
+        set RevenuParSeconde = RevenuAchats + RevenuVol
         TexteArgent.SetText(Msg("${Abreger(Argent)}"))
         TexteRevenu.SetText(Msg("${Abreger(RevenuParSeconde)}/Sec"))
         TexteRebirth.SetText(Msg("{Rebirths} Rebirths"))

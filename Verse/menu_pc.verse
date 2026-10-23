@@ -60,10 +60,12 @@ menu_pc := class(creative_device):
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     # Son joue a chaque paiement : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
-    # Les avions de l'onglet UPGRADES > AIRPLANE, dans l'ordre : 1er = l'A320 du depart,
-    # 2e = MIDDLE ROW, etc. (chacun = ton Blueprint Avion_NiveauX pose dans la map, au meme endroit).
-    # Un seul est visible a la fois. Tant qu'un avion n'est pas dans la liste, sa carte affiche COMING SOON.
-    @editable AvionsNiveaux:[]creative_prop = array{}
+    # L'avion pose dans la map au depart (ton Blueprint Avion_Niveau1). Un SEUL avion dans la map :
+    # a chaque amelioration, le Verse fait apparaitre le nouveau a la meme place et supprime l'ancien.
+    @editable AvionDepart:?creative_prop = false
+    # Les Blueprints des avions, dans l'ordre : 1er = Avion_Niveau1, 2e = Avion_Niveau2 (MIDDLE ROW), etc.
+    # (rien a poser dans la map, juste les choisir ici). Tant qu'un avion manque, sa carte affiche COMING SOON.
+    @editable ModelesAvions:[]creative_prop_asset = array{}
 
     ListeProduits:[]produit = array:
         produit{Nom := "WATER", Lot := 20, PrixLot := 20, PrixDeblocage := 0, Appareil := "", Image := Produits.Produit_01_Eau}
@@ -79,7 +81,7 @@ menu_pc := class(creative_device):
     # sans compter les bonus. Une amelioration coute ~2 a 10 vols du niveau ou on l'achete ;
     # les dernieres demandent des bonus et des rebirths (fin du jeu tres longue).
     ListeAmeliorations:[]amelioration = array:
-        # 0 AIRPLANE (chaque avion = un Blueprint Avion_NiveauX, champ AvionsNiveaux)
+        # 0 AIRPLANE (chaque avion = un Blueprint Avion_NiveauX, champ ModelesAvions)
         amelioration{Nom := "A320", Effet := "YOUR FIRST PLANE", Prix := 0, Cat := 0, Image := Ameliorations.Avion_01}
         amelioration{Nom := "MIDDLE ROW", Effet := "TICKETS x1.5", Prix := 300000, Cat := 0, Image := Ameliorations.Avion_02, Billet := 1.5}
         amelioration{Nom := "LONGER PLANE", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 0, Image := Ameliorations.Avion_03, Billet := 1.5}
@@ -121,6 +123,9 @@ menu_pc := class(creative_device):
     var Achete:[]logic = array{}
     # Onglet ouvert dans UPGRADES
     var Onglet:int = 0
+    # L'avion actuellement dans la map, et son niveau (0 = A320)
+    var AvionActuel:?creative_prop = false
+    var NiveauAvion:int = 0
 
     # Ce que le joueur possede (le galley s'en servira).
     var Debloque:[]logic = array{}
@@ -144,8 +149,8 @@ menu_pc := class(creative_device):
         set Debloque = for (P : ListeProduits) { if (P.PrixDeblocage = 0) then true else false }
         set Stock = for (P : ListeProduits) { 0 }
         ViderPanier()
+        set AvionActuel = AvionDepart
         RemettreAmeliorations()
-        ChangerAvion(0)
 
     ViderPanier():void =
         set PanierLots = for (P : ListeProduits) { 0 }
@@ -243,12 +248,17 @@ menu_pc := class(creative_device):
         Ok
 
     AvionExiste(Niveau:int)<transacts>:logic =
-        if (Niveau = 0) then true else if (AvionsNiveaux[Niveau]) then true else false
+        if (Niveau = 0) then true else if (ModelesAvions[Niveau]) then true else false
 
-    # Un seul avion visible : celui du niveau donne.
+    # Remplace l'avion de la map par celui du niveau donne (meme position, meme rotation).
     ChangerAvion(Niveau:int):void =
-        for (I -> Av : AvionsNiveaux):
-            if (I = Niveau) then Av.Show() else Av.Hide()
+        if (Niveau <> NiveauAvion, Modele := ModelesAvions[Niveau], Ancien := AvionActuel?):
+            T := Ancien.GetTransform()
+            Resultat := SpawnProp(Modele, T.Translation, T.Rotation)
+            if (Nouveau := Resultat(0)?):
+                Ancien.Dispose()
+                set AvionActuel = option{Nouveau}
+                set NiveauAvion = Niveau
 
     AppliquerEffets():void =
         var Billet:float = 1.0

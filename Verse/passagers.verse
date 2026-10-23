@@ -332,7 +332,8 @@ passagers := class(creative_device):
         loop:
             Sleep(1.0)
             Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
-            Taux := ParPassager * Payants.Length
+            # passagers assis + l'argent par seconde des dalles achetées (x rebirth)
+            Taux := ParPassager * Payants.Length + DeviceAvion.RevenuAchats * DeviceAvion.MultiRebirth
             set Reste += Taux
             if (Entier := Floor[Reste], Entier > 0):
                 set Reste -= Entier * 1.0

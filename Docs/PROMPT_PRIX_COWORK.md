@@ -1,6 +1,7 @@
 # Prompt pour Claude Cowork : les prix de toutes les dalles
 
-Copier tout ce qui est dans le bloc ci-dessous et le donner à Claude Cowork.
+Copier tout ce qui est dans le bloc ci-dessous et le donner à Claude Cowork,
+avec l'image de référence du panneau "SEAT ROW / FREE" en pièce jointe.
 
 ---
 
@@ -91,4 +92,18 @@ Abréviations affichées en jeu : K, M, B, T, Qa (10^15), Qi (10^18).
    - Durée visée pour finir le jeu une première fois (avion 7) : environ 15 à 25 heures. Ensuite le rebirth.
    - Prix "ronds" et lisibles (1 500, 25K, 3M...).
 5. Écris en français, explique tes hypothèses en quelques lignes au début.
+
+=== LES PANNEAUX DES DALLES (images) ===
+Au-dessus de chaque dalle il y a un panneau. Je te joins une IMAGE DE RÉFÉRENCE ("SEAT ROW / FREE") :
+fais un panneau par dalle EXACTEMENT dans ce style :
+- Ligne 1 : le nom de la dalle en MAJUSCULES, lettres blanches très grasses et arrondies (style Fortnite / cartoon),
+  gros contour noir épais.
+- Ligne 2 : le prix, mêmes lettres, en VERT vif (#5BE15B) avec le même contour noir.
+  Prix 0 = "FREE", sinon le prix abrégé avec le dollar : "$750", "$1.5K", "$25M", "$3B"...
+- Les deux lignes centrées, la 2e un peu plus petite si besoin, rien d'autre (pas de cadre, pas d'icône).
+- Fond TRANSPARENT, PNG 1024 x 1024.
+- Le nom du fichier = Panneau_<N°>.png avec le N° du tableau (ex. Panneau_001.png, Panneau_002.png...).
+Fais-les tous avec un script (Python + Pillow, police très grasse type "Lilita One" ou "Luckiest Guy"
+de Google Fonts) pour que TOUS soient identiques au pixel près, au lieu de les générer un par un en image IA.
+Rends un .zip avec tous les panneaux + une planche d'aperçu de 20 panneaux.
 ```

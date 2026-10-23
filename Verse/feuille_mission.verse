@@ -143,12 +143,12 @@ feuille_mission := class(creative_device):
     # (1260 x 1000) en 756 x 600 (assez grand pour la taille du texte de Fortnite). Les images sont en puissance de 2 avec du vide autour : on les
     # affiche donc plus grandes et décalées pour que le dessin tombe ici.
     # Les positions des valeurs sont celles de Outils/feuille_mission.py.
-    BilletX:float = 20.0
-    BilletY:float = 165.0
-    BilletK:float = 0.62
-    PassX:float = 1144.0
-    PassY:float = 165.0
-    PassK:float = 0.6
+    BilletX:float = 40.0
+    BilletY:float = 225.0
+    BilletK:float = 0.58
+    PassX:float = 1176.0
+    PassY:float = 225.0
+    PassK:float = 0.56
 
     TextesTaches:[]string = array{"Close the overhead bins", "", ""}
 
@@ -952,19 +952,19 @@ feuille_mission := class(creative_device):
         Bloc(B, X, Y, L, H, 5)
 
     # ---------- les papiers en gros plan ----------
-    # En haut le jour et le vol en cours, à gauche le billet, à droite le passeport, en dessous
-    # le vrai visage du passager, les boutons et les règles.
+    # Meme style que le PC : fond vert a rayons, titre cartoon, bandeau, gros boutons arrondis.
+    # En haut le jour et le vol en cours ; a gauche le billet, a droite le passeport ;
+    # sous le billet VALID / REFUSE ; en bas les 3 regles.
     PageBillet(B:billet_passager):[]canvas_slot =
         var S:[]canvas_slot = array{}
-        P := B.Passager
-        set S += array{Bloc(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.75}, 0.0, 0.0, 1920.0, 1080.0, 0)}
+        set S += array{Bloc(Vignette(InterfacePC.Fond, 1920.0, 1080.0), 0.0, 0.0, 1920.0, 1080.0, 0)}
+        set S += array{Bloc(Cartoon("TICKET CONTROL", "FFFFFF", text_justification.Left), 40.0, 18.0, 700.0, 44.0, 5)}
+        set S += BoutonImage("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 3)
         # aujourd'hui et le vol en cours, pour comparer
-        set S += array{Bloc(Ecrit("TODAY  {Aujourdhui()}      FLIGHT  {NumeroVol}      {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), 0.0, 95.0, 1920.0, 44.0, 3)}
-        # le billet (image en puissance de 2 : affichée plus grande et décalée)
-        set S += array{Bloc(Vignette(FeuilleMission.Billet, 2048.0 * BilletK, 1024.0 * BilletK), BilletX - 124.0 * BilletK, BilletY - 152.0 * BilletK, 2048.0 * BilletK, 1024.0 * BilletK, 1)}
-        # on cache le petit avion et l'étiquette "SEQ No." de l'image pour laisser la place aux villes
-        set S += array{CacheBillet(430.0, 330.0, 220.0, 100.0)}
-        set S += array{CacheBillet(1040.0, 290.0, 260.0, 120.0)}
+        set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1100.0, 110.0), 410.0, 82.0, 1100.0, 110.0, 2)}
+        set S += array{Bloc(Cartoon("TODAY  {Aujourdhui()}      FLIGHT  {NumeroVol}      {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), 410.0, 117.0, 1100.0, 40.0, 5)}
+        # le billet (image en puissance de 2 : affichee plus grande et decalee)
+        set S += array{Bloc(Vignette(FeuilleMission.Billet, 2048.0 * BilletK, 1024.0 * BilletK), BilletX - 124.0 * BilletK, BilletY - 152.0 * BilletK, 2048.0 * BilletK, 1024.0 * BilletK, 2)}
         set S += array{SurBillet(B.NomBillet, 60.0, 205.0, 980.0)}
         set S += array{SurBillet(B.DateBillet, 1050.0, 205.0, 260.0)}
         set S += array{SurBillet(VilleDepart(), 60.0, 345.0, 640.0)}
@@ -977,9 +977,7 @@ feuille_mission := class(creative_device):
         set S += array{SurBillet(B.Siege, 1390.0, 345.0, 410.0)}
         set S += array{SurBillet(B.Vers, 1390.0, 455.0, 410.0)}
         # le passeport
-        set S += array{Bloc(Vignette(FeuilleMission.Passeport, 2048.0 * PassK, 1024.0 * PassK), PassX - 394.0 * PassK, PassY - 12.0 * PassK, 2048.0 * PassK, 1024.0 * PassK, 1)}
-        # pas de photo : on cache le cadre photo et la signature de l'image
-        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("ECF0E2"), DefaultOpacity := 1.0}, PassX + 40.0 * PassK, PassY + 172.0 * PassK, 405.0 * PassK, 500.0 * PassK, 2)}
+        set S += array{Bloc(Vignette(FeuilleMission.Passeport, 2048.0 * PassK, 1024.0 * PassK), PassX - 394.0 * PassK, PassY - 12.0 * PassK, 2048.0 * PassK, 1024.0 * PassK, 2)}
         set S += array{SurPasseport(B.Nom, 470.0, 228.0, 430.0)}
         set S += array{SurPasseport(B.Numero, 900.0, 228.0, 340.0)}
         set S += array{SurPasseport(B.Prenom, 470.0, 348.0, 760.0)}
@@ -989,37 +987,52 @@ feuille_mission := class(creative_device):
         set S += array{SurPasseport(B.Expiration, 900.0, 588.0, 340.0)}
         set S += array{SurPasseport(B.Mrz1, 60.0, 800.0, 1170.0)}
         set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1170.0)}
-        # le tampon, ou les boutons
+        # le tampon sur le billet, ou les boutons sous le billet
+        MilieuBillet := BilletX + 900.0 * BilletK
         if (B.Decision = 1):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponOk, 560.0, 280.0), MilieuBillet - 280.0, BilletY + 70.0, 560.0, 280.0, 6)}
         else if (B.Decision = 2):
-            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 600.0, 300.0), 129.0, 238.0, 600.0, 300.0, 6)}
+            set S += array{Bloc(Vignette(FeuilleMission.TamponRefus, 560.0, 280.0), MilieuBillet - 280.0, BilletY + 70.0, 560.0, 280.0, 6)}
         if (B.Decision = 0):
-            set S += BoutonEcran("VALID", "15803D", 180.0, 680.0, 330.0, 80.0, 1)
-            set S += BoutonEcran("REFUSE", "B91C1C", 630.0, 680.0, 330.0, 80.0, 2)
+            set S += BoutonImage("VALID", InterfacePC.BoutonVert, MilieuBillet - 380.0, 668.0, 360.0, 120.0, 1)
+            set S += BoutonImage("REFUSE", InterfacePC.BoutonRouge, MilieuBillet + 20.0, 668.0, 360.0, 120.0, 2)
         else:
-            set S += array{Bloc(Ecrit("Documents already checked.", "CBD5E1", text_justification.Center), 20.0, 700.0, 1100.0, 40.0, 3)}
+            set S += array{Bloc(Cartoon("DOCUMENTS ALREADY CHECKED", "BBF7D0", text_justification.Center), MilieuBillet - 500.0, 708.0, 1000.0, 40.0, 5)}
         set S += Regles()
-        set S += BoutonEcran("CLOSE", "374151", 1700.0, 20.0, 180.0, 50.0, 3)
         S
 
-    # Le règlement en bas : les 3 choses à comparer.
+    # Le reglement en bas : les 3 choses a comparer, dans un bandeau du PC.
     Regles():[]canvas_slot =
-        Toutes := array{"1. FLIGHT No. = this flight", "2. TO = this flight's city", "3. NAME: ticket = passport"}
+        Toutes := array{"1. FLIGHT No. = THIS FLIGHT", "2. TO = THIS FLIGHT'S CITY", "3. NAME: TICKET = PASSPORT"}
         var S:[]canvas_slot = array{}
-        set S += array{Bloc(color_block{DefaultColor := MakeColorFromHex("0F172A"), DefaultOpacity := 0.95}, 150.0, 850.0, 1620.0, 110.0, 1)}
-        set S += array{Bloc(Ecrit("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "86EFAC", text_justification.Center), 150.0, 858.0, 1620.0, 40.0, 3)}
+        set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1640.0, 150.0), 140.0, 860.0, 1640.0, 150.0, 2)}
+        set S += array{Bloc(Cartoon("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "FDE68A", text_justification.Center), 140.0, 885.0, 1640.0, 40.0, 5)}
         for (I -> R : Toutes):
-            set S += array{Bloc(Ecrit(R, "E2E8F0", text_justification.Center), 150.0 + I * 540.0, 906.0, 540.0, 40.0, 3)}
+            set S += array{Bloc(Cartoon(R, "FFFFFF", text_justification.Center), 200.0 + I * 507.0, 937.0, 507.0, 40.0, 5)}
         S
+
+    # Texte cartoon du PC : ombre vert tres fonce.
+    Cartoon(Texte:string, Hex:string, J:text_justification):text_block =
+        text_block:
+            DefaultText := Msg(Texte)
+            DefaultTextColor := MakeColorFromHex(Hex)
+            DefaultJustification := J
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
+
+    # Bouton du PC : l'image arrondie + le texte + la zone de clic par-dessus.
+    BoutonImage(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int):[]canvas_slot =
+        B := button_quiet{DefaultText := Msg("")}
+        B.OnClick().Subscribe(clic_feuille{Feuille := Self, Action := Action}.Clique)
+        array:
+            Bloc(Vignette(Img, L, H), X, Y, L, H, 6)
+            Bloc(Cartoon(Texte, "FFFFFF", text_justification.Center), X, Y + H / 2.0 - 20.0, L, 40.0, 7)
+            Bloc(B, X, Y, L, H, 30)
 
     # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).
     SurBillet(Texte:string, X:float, Y:float, L:float):canvas_slot =
         Bloc(Ecrit(Texte, "111827", text_justification.Left), BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 40.0, 3)
-
-    # Un rectangle blanc posé sur le billet (cache une partie de l'image).
-    CacheBillet(X:float, Y:float, L:float, H:float):canvas_slot =
-        Bloc(color_block{DefaultColor := NamedColors.White, DefaultOpacity := 1.0}, BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, H * BilletK, 2)
 
     SurPasseport(Texte:string, X:float, Y:float, L:float):canvas_slot =
         Bloc(Ecrit(Texte, "1F2937", text_justification.Left), PassX + X * PassK, PassY + Y * PassK, L * PassK, 40.0, 3)

@@ -673,7 +673,8 @@ passagers := class(creative_device):
             D := Distance(S.GetTransform().Translation, Pos)
             if (D < Meilleur):
                 set Meilleur = D
-                set Achete = if (K < DeviceAvion.RangeesAchetees) then true else false
+                # acheté ET dans l'avion actuel (pas les sièges de l'ancien avion)
+                set Achete = if (K >= DeviceAvion.DebutAvionActuel, K < DeviceAvion.RangeesAchetees) then true else false
         Achete
 
     EchellePerso()<transacts>:vector3 =

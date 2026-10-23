@@ -49,6 +49,11 @@ reglages_rangee := class<concrete>:
     @editable Sieges:[]creative_prop = array{}
     # Argent gagné EN PLUS chaque seconde DE VOL, une fois cette dalle achetée (ex : 10).
     @editable Revenu:int = 0
+    # DALLE "WIDER CABIN" (changer d'avion) : mets ici le repère d'arrivée dans le nouvel avion.
+    # A l'achat, le joueur y est téléporté et la plaque de la passerelle l'y ramène ensuite.
+    # Dans Sieges, mets les sièges / toilettes du NOUVEL avion déjà achetés avant (ils apparaissent).
+    # Les dalles suivantes de la liste Rangees = celles du nouvel avion, dans l'ordre.
+    @editable NouvelAvion:?creative_prop = false
 
 # ---------- 3. REGLAGES ----------
 reglages_generaux := class<concrete>:
@@ -77,6 +82,9 @@ avion_tycoon := class(creative_device):
     var Argent:int = 0
     # Nombre de rangées achetées (utilisé par le device passagers).
     var RangeesAchetees:int = 0
+    # Index (dans Rangees) de la 1re dalle de l'avion actuel : les sièges d'avant = ancien avion.
+    var DebutAvionActuel:int = 0
+    var Arrivee:?creative_prop = false
     # Argent par seconde pendant le vol : dalles achetées (RevenuAchats) + passagers assis.
     # (c'est le device passagers qui verse l'argent, seconde par seconde, seulement en vol)
     var RevenuParSeconde:int = 0
@@ -98,7 +106,9 @@ avion_tycoon := class(creative_device):
         Print("Avion : device démarré")
         # Tout est caché au départ, sauf le claim.
         Claim.Arrivee.Hide()
+        set Arrivee = option{Claim.Arrivee}
         for (R : Rangees):
+            if (A := R.NouvelAvion?) { A.Hide() }
             R.Plaque.Hide()
             R.Panneau.Hide()
             for (S : R.Sieges) { S.Hide() }
@@ -124,7 +134,8 @@ avion_tycoon := class(creative_device):
     # TeleportTo échoue sans rien dire si l'endroit est bloqué (collision, sol trop proche).
     # On essaie donc à la position du repère, puis un peu plus haut, et on l'écrit dans le journal.
     Teleporter(Joueur:agent):void =
-        Destination := Claim.Arrivee.GetTransform()
+        Repere := if (A := Arrivee?) then A else Claim.Arrivee
+        Destination := Repere.GetTransform()
         if (Perso := Joueur.GetFortCharacter[]):
             var Reussi:logic = false
             for (Hauteur : array{0.0, 50.0, 100.0, 150.0}, not Reussi?):
@@ -154,6 +165,11 @@ avion_tycoon := class(creative_device):
         for (S : R.Sieges) { S.Show() }
         set RangeesAchetees += 1
         set RevenuAchats += R.Revenu
+        # Dalle "WIDER CABIN" : on passe dans le nouvel avion.
+        if (A := R.NouvelAvion?):
+            set DebutAvionActuel = RangeesAchetees - 1
+            set Arrivee = option{A}
+            if (Joueur := Proprio?) { Teleporter(Joueur) }
         if (not UICree?):
             set UICree = true
             CreerUI()

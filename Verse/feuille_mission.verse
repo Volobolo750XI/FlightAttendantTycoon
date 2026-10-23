@@ -957,7 +957,14 @@ feuille_mission := class(creative_device):
     # sous le billet VALID / REFUSE ; en bas les 3 regles.
     PageBillet(B:billet_passager):[]canvas_slot =
         var S:[]canvas_slot = array{}
-        set S += array{Bloc(Vignette(InterfacePC.Fond, 1920.0, 1080.0), 0.0, 0.0, 1920.0, 1080.0, 0)}
+        # fond vert du PC sur TOUT l'ecran (ancre aux 4 bords, quelle que soit la taille de l'ecran)
+        set S += array:
+            canvas_slot:
+                Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
+                Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
+                SizeToContent := false
+                ZOrder := 0
+                Widget := texture_block{DefaultImage := InterfacePC.Fond}
         set S += array{Bloc(Cartoon("TICKET CONTROL", "FFFFFF", text_justification.Left), 40.0, 18.0, 700.0, 44.0, 5)}
         set S += BoutonImage("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 3)
         # aujourd'hui et le vol en cours, pour comparer

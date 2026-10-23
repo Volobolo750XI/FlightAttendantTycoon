@@ -53,7 +53,7 @@ reglages_rangee := class<concrete>:
     # A l'achat, le joueur y est téléporté et la plaque de la passerelle l'y ramène ensuite.
     # Dans Sieges, mets les sièges / toilettes du NOUVEL avion déjà achetés avant (ils apparaissent).
     # Les dalles suivantes de la liste Rangees = celles du nouvel avion, dans l'ordre.
-    @editable NouvelAvion:?creative_prop = false
+    @editable ArriveeNouvelAvion:?creative_prop = false
 
 # ---------- 3. REGLAGES ----------
 reglages_generaux := class<concrete>:
@@ -108,7 +108,7 @@ avion_tycoon := class(creative_device):
         Claim.Arrivee.Hide()
         set Arrivee = option{Claim.Arrivee}
         for (R : Rangees):
-            if (A := R.NouvelAvion?) { A.Hide() }
+            if (A := R.ArriveeNouvelAvion?) { A.Hide() }
             R.Plaque.Hide()
             R.Panneau.Hide()
             for (S : R.Sieges) { S.Hide() }
@@ -166,7 +166,7 @@ avion_tycoon := class(creative_device):
         set RangeesAchetees += 1
         set RevenuAchats += R.Revenu
         # Dalle "WIDER CABIN" : on passe dans le nouvel avion.
-        if (A := R.NouvelAvion?):
+        if (A := R.ArriveeNouvelAvion?):
             set DebutAvionActuel = RangeesAchetees - 1
             set Arrivee = option{A}
             if (Joueur := Proprio?) { Teleporter(Joueur) }

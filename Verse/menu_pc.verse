@@ -62,8 +62,8 @@ menu_pc := class(creative_device):
     @editable AvionTycoon:avion_tycoon = avion_tycoon{}
     # Son joue a chaque paiement : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
-    # L'avion pose dans la map au depart (ton Blueprint Avion_Niveau1). Un SEUL avion dans la map :
-    # a chaque amelioration, le Verse fait apparaitre le nouveau a la meme place et supprime l'ancien.
+    # ANCIENNE METHODE (changer d'avion depuis le PC) : NE PLUS REMPLIR, laisser vide.
+    # On change maintenant d'avion avec la dalle WIDER CABIN (avion_tycoon, ArriveeNouvelAvion).
     @editable AvionDepart:?creative_prop = false
     # Les Blueprints des avions, dans l'ordre : 1er = Avion_Niveau1, 2e = Avion_Niveau2 (MIDDLE ROW), etc.
     # (rien a poser dans la map, juste les choisir ici). Tant qu'un avion manque, sa carte affiche COMING SOON.

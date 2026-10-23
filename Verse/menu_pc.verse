@@ -34,7 +34,7 @@ produit := class:
     Image:texture
 
 # Une amelioration de l'onglet UPGRADES.
-# Cat : 0 AIRPLANE, 1 SPACES, 2 CLASSES, 3 COMFORT, 4 STAFF, 5 REBIRTH.
+# Cat : 0 AIRPLANE, 1 SPACES, 2 CLASSES, 3 STAFF, 4 REBIRTH.
 # Requis : nom d'une autre amelioration a acheter avant (ex : BARMAN demande BAR).
 # Les bonus se multiplient entre eux (ex : PREMIUM x2 puis BUSINESS x2.5 = billets x5).
 amelioration := class:
@@ -83,46 +83,38 @@ menu_pc := class(creative_device):
     # sans compter les bonus. Une amelioration coute ~2 a 10 vols du niveau ou on l'achete ;
     # les dernieres demandent des bonus et des rebirths (fin du jeu tres longue).
     ListeAmeliorations:[]amelioration = array:
-        # 0 AIRPLANE (chaque avion = un Blueprint Avion_NiveauX, champ ModelesAvions)
-        amelioration{Nom := "A320", Effet := "YOUR FIRST PLANE", Prix := 0, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_01"}
-        amelioration{Nom := "MIDDLE ROW", Effet := "TICKETS x1.5", Prix := 300000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_02", Billet := 1.5}
-        amelioration{Nom := "LONGER PLANE", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_03", Billet := 1.5}
-        amelioration{Nom := "JUMBO JET", Effet := "TICKETS x2", Prix := 500000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_04", Billet := 2.0}
-        amelioration{Nom := "2ND FLOOR", Effet := "TICKETS x2", Prix := 20000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_05", Billet := 2.0}
-        amelioration{Nom := "3RD FLOOR", Effet := "TICKETS x2", Prix := 1000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_06", Billet := 2.0}
-        amelioration{Nom := "6 ENGINES", Effet := "TICKETS x3", Prix := 50000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_07", Billet := 3.0}
-        amelioration{Nom := "GOLDEN GIANT", Effet := "TICKETS x5", Prix := 5000000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_08", Billet := 5.0}
-        # 1 SPACES (debloquent les employes)
+        # 0 AIRPLANE : d'abord plus large (1|1 -> 2|2 -> 3|3|3), ensuite des etages
+        amelioration{Nom := "A320", Effet := "1 | 1 SEATS", Prix := 0, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_01"}
+        amelioration{Nom := "WIDER CABIN", Effet := "2 | 2 SEATS", Prix := 300000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_02", Billet := 1.5}
+        amelioration{Nom := "WIDE BODY", Effet := "3 | 3 | 3 SEATS", Prix := 50000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_03", Billet := 2.0}
+        amelioration{Nom := "2ND FLOOR", Effet := "TICKETS x2", Prix := 20000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_04", Billet := 2.0}
+        amelioration{Nom := "3RD FLOOR", Effet := "TICKETS x2", Prix := 1000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_05", Billet := 2.0}
+        amelioration{Nom := "4TH FLOOR", Effet := "TICKETS x3", Prix := 50000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_06", Billet := 3.0}
+        amelioration{Nom := "GOLDEN GIANT", Effet := "TICKETS x5", Prix := 5000000000000000, Cat := 0, Image := InterfacePC.IconeUpgrades, Fichier := "Avion_07", Billet := 5.0}
+        # 1 SPACES (debloquent certains employes)
         amelioration{Nom := "BAR", Effet := "SERVICE x1.5", Prix := 50000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_Bar", Service := 1.5}
         amelioration{Nom := "LOUNGE", Effet := "PATIENCE x1.5", Prix := 3000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_Salon", Patience := 1.5}
         amelioration{Nom := "RESTAURANT", Effet := "MEALS x2", Prix := 200000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_Restaurant", Repas := 2.0}
         amelioration{Nom := "CINEMA", Effet := "PATIENCE x2", Prix := 8000000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_Cinema", Patience := 2.0}
-        amelioration{Nom := "SPA", Effet := "TICKETS x2", Prix := 400000000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_Spa", Billet := 2.0}
-        amelioration{Nom := "DUTY FREE", Effet := "TICKETS x3", Prix := 20000000000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_DutyFree", Billet := 3.0}
-        # 2 CLASSES
-        amelioration{Nom := "PREMIUM", Effet := "TICKETS x2", Prix := 20000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Premium", Billet := 2.0}
-        amelioration{Nom := "BUSINESS", Effet := "TICKETS x2.5", Prix := 1000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Business", Billet := 2.5}
-        amelioration{Nom := "FIRST CLASS", Effet := "TICKETS x3", Prix := 80000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_First", Billet := 3.0}
-        amelioration{Nom := "ROYAL SUITE", Effet := "TICKETS x3.5", Prix := 5000000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Suite", Billet := 3.5}
-        # 3 COMFORT
-        amelioration{Nom := "SCREENS", Effet := "SERVICE x1.25", Prix := 3000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Confort_Ecrans", Service := 1.25}
-        amelioration{Nom := "WI-FI", Effet := "PATIENCE x1.5", Prix := 60000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Confort_Wifi", Patience := 1.5}
-        amelioration{Nom := "BLANKETS", Effet := "SERVICE x1.5", Prix := 2000000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Confort_Couvertures", Service := 1.5}
-        amelioration{Nom := "MASSAGE SEATS", Effet := "TICKETS x2", Prix := 150000000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Confort_Massage", Billet := 2.0}
-        # 4 STAFF (chaque employe demande son espace)
-        amelioration{Nom := "ATTENDANT", Effet := "SERVICE x1.5", Prix := 10000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Hotesse", Service := 1.5}
-        amelioration{Nom := "BARMAN", Effet := "SERVICE x2", Prix := 150000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Barman", Requis := "BAR", Service := 2.0}
-        amelioration{Nom := "BUTLER", Effet := "TICKETS x1.5", Prix := 10000000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Majordome", Requis := "LOUNGE", Billet := 1.5}
-        amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 800000000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Chef", Requis := "RESTAURANT", Repas := 3.0}
-        amelioration{Nom := "MASSEUR", Effet := "TICKETS x2", Prix := 1500000000000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Masseur", Requis := "SPA", Billet := 2.0}
-        amelioration{Nom := "SELLER", Effet := "TICKETS x3", Prix := 80000000000000, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Vendeuse", Requis := "DUTY FREE", Billet := 3.0}
+        amelioration{Nom := "DUTY FREE", Effet := "TICKETS x2", Prix := 400000000000, Cat := 1, Image := InterfacePC.IconeUpgrades, Fichier := "Espace_DutyFree", Billet := 2.0}
+        # 2 CLASSES : chacune = toute une zone de l'avion (ses rangees, ses sieges, un rideau)
+        amelioration{Nom := "PREMIUM ZONE", Effet := "TICKETS x2", Prix := 20000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Premium", Billet := 2.0}
+        amelioration{Nom := "BUSINESS ZONE", Effet := "TICKETS x2.5", Prix := 1000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Business", Billet := 2.5}
+        amelioration{Nom := "FIRST ZONE", Effet := "TICKETS x3", Prix := 80000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_First", Billet := 3.0}
+        amelioration{Nom := "ROYAL SUITES", Effet := "TICKETS x3.5", Prix := 5000000000, Cat := 2, Image := InterfacePC.IconeUpgrades, Fichier := "Classe_Suite", Billet := 3.5}
+        # 3 STAFF : des employes qui font une partie du travail
+        amelioration{Nom := "TICKET AGENT", Effet := "CHECKS TICKETS", Prix := 10000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Billets", Billet := 1.5}
+        amelioration{Nom := "BIN AGENT", Effet := "CLOSES THE BINS", Prix := 400000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Coffres", Patience := 1.5}
+        amelioration{Nom := "GALLEY STEWARD", Effet := "SERVES WITH YOU", Prix := 20000000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Galley", Service := 2.0}
+        amelioration{Nom := "BARMAN", Effet := "SERVICE x2", Prix := 500000000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Barman", Requis := "BAR", Service := 2.0}
+        amelioration{Nom := "CHEF", Effet := "MEALS x3", Prix := 30000000000, Cat := 3, Image := InterfacePC.IconeUpgrades, Fichier := "Equipe_Chef", Requis := "RESTAURANT", Repas := 3.0}
         # 5 REBIRTH (se rachete a l'infini, demande le GOLDEN GIANT)
-        amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 5, Image := InterfacePC.IconeUpgrades, Fichier := "Rebirth"}
+        amelioration{Nom := "REBIRTH", Effet := "RESTART, EARN MORE", Prix := 0, Cat := 4, Image := InterfacePC.IconeUpgrades, Fichier := "Rebirth"}
 
     # En attendant les images du dossier Ameliorations : l'icone UPGRADES (la cle) partout.
     # Quand les 29 images seront importees, on remplace par Ameliorations.<Fichier>.
 
-    NomsOnglets:[]string = array{"AIRPLANE", "SPACES", "CLASSES", "COMFORT", "STAFF", "REBIRTH"}
+    NomsOnglets:[]string = array{"AIRPLANE", "SPACES", "CLASSES", "STAFF", "REBIRTH"}
 
     # Ameliorations achetees (meme ordre que ListeAmeliorations)
     var Achete:[]logic = array{}
@@ -221,7 +213,7 @@ menu_pc := class(creative_device):
 
     # ---------- UPGRADES ----------
     RemettreAmeliorations():void =
-        set Achete = for (A : ListeAmeliorations) { if (A.Prix = 0, A.Cat <> 5) then true else false }
+        set Achete = for (A : ListeAmeliorations) { if (A.Prix = 0, A.Cat <> 4) then true else false }
         AppliquerEffets()
 
     # Place de l'amelioration dans sa categorie (0 = la 1re).
@@ -283,7 +275,7 @@ menu_pc := class(creative_device):
 
     AcheterAmelioration(I:int):void =
         if (A := ListeAmeliorations[I]):
-            if (A.Cat = 5):
+            if (A.Cat = 4):
                 Renaitre()
             else if (Achete[I]?):
                 AfficherMessage("ALREADY OWNED", true)
@@ -554,8 +546,8 @@ menu_pc := class(creative_device):
         # onglets
         for (K -> Nom : NomsOnglets):
             Img := if (K = Onglet) then InterfacePC.OngletVert else InterfacePC.OngletSombre
-            set Slots += Bouton(Nom, Img, 172.0 + K * 265.0, 86.0, 250.0, 64.0, 11, K)
-        if (Onglet = 5):
+            set Slots += Bouton(Nom, Img, 270.0 + K * 280.0, 86.0, 260.0, 64.0, 11, K)
+        if (Onglet = 4):
             set Slots += PageRebirth()
         else:
             Indices := for (I -> A : ListeAmeliorations, A.Cat = Onglet) { I }

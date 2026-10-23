@@ -1,6 +1,6 @@
 # Icônes de l'onglet UPGRADES du PC — prompts
 
-29 images. Même style que les icônes actuelles du PC (le globe, le chariot, la clé) : autocollant cartoon,
+22 images. Même style que les icônes actuelles du PC (le globe, le chariot, la clé) : autocollant cartoon,
 contour bleu nuit épais, couleurs vives.
 
 ## La règle la plus importante : UN SEUL objet, ultra clair
@@ -21,20 +21,19 @@ Pas de scène, pas de décor, pas de cadre, pas de pièce autour, pas de vue en 
 
 ---
 
-## AIRPLANE (8)
+## AIRPLANE (7)
 
 | Fichier | Prompt (après le bloc) |
 |---|---|
 | `Avion_01.png` | A small white passenger airplane seen from the side, two engines, blue windows. |
-| `Avion_02.png` | Three blue airplane seats side by side seen from the front, the middle seat is bright green with a big green "+" above it. |
-| `Avion_03.png` | A long white passenger airplane seen from the side, with one big green arrow under it pointing left and right (double arrow). |
-| `Avion_04.png` | A big white jumbo jet seen from the front, four engines under the wings. |
-| `Avion_05.png` | A white staircase going up to the right, with a round green sign on the top step showing big white text "2F". |
-| `Avion_06.png` | A silver elevator door (closed, two panels) with a round green button next to it showing big white text "3F". |
-| `Avion_07.png` | A huge white airplane seen from the front with SIX engines (three under each wing). |
-| `Avion_08.png` | A shiny golden airplane seen from the side with a small golden crown on top. |
+| `Avion_02.png` | Two pairs of blue airplane seats seen from the front: 2 seats, a gap (aisle), 2 seats. |
+| `Avion_03.png` | Three groups of 3 blue airplane seats seen from the front: 3 seats, gap, 3 seats, gap, 3 seats. |
+| `Avion_04.png` | A white staircase going up to the right, with a round green sign on the top step showing big white text "2F". |
+| `Avion_05.png` | A silver elevator door (closed, two panels) with a round green button next to it showing big white text "3F". |
+| `Avion_06.png` | A silver elevator door (closed, two panels) with a round green button next to it showing big white text "4F". |
+| `Avion_07.png` | A shiny golden airplane seen from the side with a small golden crown on top. |
 
-## SPACES (6)
+## SPACES (5)
 
 | Fichier | Prompt (après le bloc) |
 |---|---|
@@ -42,37 +41,26 @@ Pas de scène, pas de décor, pas de cadre, pas de pièce autour, pas de vue en 
 | `Espace_Salon.png` | One comfortable dark blue sofa with two cushions. |
 | `Espace_Restaurant.png` | One white plate with a steaming roasted chicken leg, a fork on the left and a knife on the right. |
 | `Espace_Cinema.png` | One red and white popcorn bucket full of popcorn. |
-| `Espace_Spa.png` | One white rolled towel with a pink flower and two smooth grey stones. |
 | `Espace_DutyFree.png` | One white shopping bag with a small perfume bottle and a gift box sticking out. |
 
-## CLASSES (4)
+## CLASSES (4) — chaque classe = une zone de l'avion
 
 | Fichier | Prompt (après le bloc) |
 |---|---|
-| `Classe_Premium.png` | One blue airplane seat with a small green "+" badge. |
+| `Classe_Premium.png` | One blue airplane seat with extra legroom and a small green "+" badge. |
 | `Classe_Business.png` | One grey airplane seat fully reclined flat like a bed, with a small pillow. |
 | `Classe_First.png` | One big beige leather airplane armchair with gold details. |
 | `Classe_Suite.png` | One double bed with white sheets and a golden headboard with a small crown. |
 
-## COMFORT (4)
+## STAFF (5) — juste la tête et les épaules de l'employé, avec SON objet bien visible
 
 | Fichier | Prompt (après le bloc) |
 |---|---|
-| `Confort_Ecrans.png` | One small TV screen showing a big white "play" triangle, with headphones hanging on its side. |
-| `Confort_Wifi.png` | One big green Wi-Fi symbol (three curved bars and a dot). |
-| `Confort_Couvertures.png` | One folded blue blanket with a white pillow on top. |
-| `Confort_Massage.png` | One purple massage armchair with small vibration lines around it. |
-
-## STAFF (6) — juste la tête et les épaules de l'employé
-
-| Fichier | Prompt (après le bloc) |
-|---|---|
-| `Equipe_Hotesse.png` | Head and shoulders of a smiling female flight attendant, navy uniform, small red neck scarf, small navy hat. |
+| `Equipe_Billets.png` | Head and shoulders of a smiling airline ticket agent in a navy uniform, holding up a boarding pass ticket in one hand. |
+| `Equipe_Coffres.png` | Head and shoulders of a smiling flight attendant in a navy uniform, one hand up closing a grey overhead luggage bin above the head. |
+| `Equipe_Galley.png` | Head and shoulders of a smiling male steward in a navy vest, holding a tray with a cup of coffee and a croissant. |
 | `Equipe_Barman.png` | Head and shoulders of a smiling bartender with a black bow tie and black vest, holding a silver cocktail shaker. |
-| `Equipe_Majordome.png` | Head and shoulders of a smiling old butler in a black tailcoat with white gloves, holding a silver tray. |
 | `Equipe_Chef.png` | Head and shoulders of a smiling chef with a tall white chef hat and white chef jacket. |
-| `Equipe_Masseur.png` | Head and shoulders of a smiling massage therapist in a white spa tunic with a towel on the shoulder. |
-| `Equipe_Vendeuse.png` | Head and shoulders of a smiling shop seller in a red vest holding a small perfume bottle. |
 
 ## REBIRTH (1)
 
@@ -84,5 +72,5 @@ Pas de scène, pas de décor, pas de cadre, pas de pièce autour, pas de vue en 
 
 ## Dans UEFN
 
-Créer le dossier **Ameliorations** dans le Tiroir à contenu et y importer les 29 PNG avec exactement ces noms
+Créer le dossier **Ameliorations** dans le Tiroir à contenu et y importer les 22 PNG avec exactement ces noms
 (le Verse les appelle `Ameliorations.Avion_02`, `Ameliorations.Equipe_Barman`, etc.).

@@ -75,6 +75,11 @@ avion_tycoon := class(creative_device):
     @editable Reglages:reglages_generaux = reglages_generaux{}
     # Son joué à chaque achat de rangée (même gratuite) : un Appareil Lecteur audio.
     @editable SonAchat:?audio_player_device = false
+    # (facultatif) Lecteurs audio : chaque gain (commande, mission, fraudeur attrapé), chaque
+    # perte (faux billet raté), et le petit "tic" du récap de fin de vol qui compte l'argent.
+    @editable SonArgent:?audio_player_device = false
+    @editable SonPerte:?audio_player_device = false
+    @editable SonCompteur:?audio_player_device = false
     # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
     @editable TestArgentInfini:logic = false
 
@@ -98,6 +103,18 @@ avion_tycoon := class(creative_device):
     var MultiPatience:float = 1.0
     var MultiRebirth:float = 1.0
     var UICree:logic = false
+    # Le device passagers de cet avion (il s'inscrit tout seul au démarrage).
+    var Passagers:?passagers = false
+    # Les comptes du vol, pour le récap de fin de vol (remis à 0 à chaque récap).
+    var StatBillets:int = 0
+    var StatService:int = 0
+    var StatMissions:int = 0
+    var StatFraudeurs:int = 0
+    var StatPertes:int = 0
+    var StatDepenses:int = 0
+    var NumeroPopup:int = 0
+    var NumeroRecap:int = 0
+    var EcranRecap:?canvas = false
     TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
@@ -178,12 +195,23 @@ avion_tycoon := class(creative_device):
     AttendrePaiement(R:reglages_rangee)<suspends>:void =
         loop:
             AttendreSurPlaque(R.Plaque, Proprio)
-            if (Argent >= R.Prix):
-                set Argent -= R.Prix
+            if (R.ArriveeNouvelAvion?, not AuSolEtVide[]):
+                # WIDER CABIN : seulement entre deux vols (pas en vol, pas pendant l'embarquement)
+                Avertir("FINISH THE FLIGHT FIRST!")
+                Sleep(3.0)
+            else if (Argent >= R.Prix):
+                Depenser(R.Prix)
                 if (Son := SonAchat?) { Son.Play() }
                 break
-            # Pas assez d'argent : on réessaie dans 1 seconde.
-            Sleep(1.0)
+            else:
+                # Pas assez d'argent : on réessaie dans 1 seconde.
+                Sleep(1.0)
+
+    # Entre deux vols : pas d'embarquement en cours, pas de vol, plus personne à bord.
+    AuSolEtVide()<transacts><decides>:void =
+        P := Passagers?
+        P.EtatBouton = 0
+        P.EnCours.Length = 0
 
     # ---------- Plaques ----------
     # Attend qu'un joueur soit sur la plaque. Si Seul est rempli, seul ce joueur compte.
@@ -309,3 +337,204 @@ avion_tycoon := class(creative_device):
             "{A}.{B}K"
         else:
             "{N}"
+
+    # ---------- l'argent qui rentre et qui sort ----------
+    # Cat : 0 billets (argent par seconde du vol : pas d'animation), 1 commandes servies,
+    # 2 missions, 3 fraudeurs attrapés.
+    Gagner(Montant:int, Cat:int):void =
+        if (Montant > 0):
+            set Argent += Montant
+            if (Cat = 0):
+                set StatBillets += Montant
+            else if (Cat = 1):
+                set StatService += Montant
+            else if (Cat = 2):
+                set StatMissions += Montant
+            else:
+                set StatFraudeurs += Montant
+            MettreAJourUI()
+            if (Cat > 0):
+                if (Son := SonArgent?) { Son.Play() }
+                Popup("+${Abreger(Montant)}", "86EFAC")
+
+    # Une perte (faux billet laissé passer...) : l'argent ne descend pas sous 0.
+    Perdre(Montant:int, Texte:string):void =
+        Perte := Min(Montant, Argent)
+        if (Perte > 0):
+            set Argent -= Perte
+            set StatPertes += Perte
+            MettreAJourUI()
+            if (Son := SonPerte?) { Son.Play() }
+            Popup("-${Abreger(Perte)}  {Texte}", "FCA5A5")
+
+    # Un achat (dalle, ligne, produits, amélioration) : compté dans les dépenses du récap.
+    Depenser(Montant:int):void =
+        set Argent -= Montant
+        set StatDepenses += Montant
+        MettreAJourUI()
+
+    # Un message rouge qui saute à l'écran (même animation que les gains, sans billets).
+    Avertir(Texte:string):void =
+        if (Son := SonPerte?) { Son.Play() }
+        Popup(Texte, "FCA5A5")
+
+    # ---------- l'icône d'argent qui saute à côté du compteur ----------
+    Popup(Texte:string, Couleur:string):void =
+        if (Joueur := Proprio?, P := player[Joueur], UI := GetPlayerUI[P]):
+            set NumeroPopup += 1
+            # plusieurs gains d'affilée : ils se décalent un peu pour ne pas se cacher
+            Decalage := if (D := Mod[NumeroPopup, 3]) then D * 56.0 else 0.0
+            spawn{AnimerPopup(UI, Texte, Couleur, Decalage)}
+
+    AnimerPopup(UI:player_ui, Texte:string, Couleur:string, Decalage:float)<suspends>:void =
+        Toile := canvas{}
+        UI.AddWidget(Toile)
+        Icone := texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 96.0, Y := 96.0}}
+        Ecrit := text_block:
+            DefaultText := Msg(Texte)
+            DefaultTextColor := MakeColorFromHex(Couleur)
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
+        var Slots:[]canvas_slot = array{}
+        Etapes := 45
+        for (K := 0..Etapes):
+            T := K * 1.0 / (Etapes * 1.0)
+            # pop (grossit, rebondit), puis monte doucement, puis rétrécit et disparaît
+            Taille := if (T < 0.12) then 96.0 * 1.3 * T / 0.12 else if (T < 0.22) then 96.0 * (1.3 - 0.3 * (T - 0.12) / 0.1) else if (T > 0.85) then 96.0 * Max(0.0, 1.0 - (T - 0.85) / 0.15) else 96.0
+            Monte := -Decalage - 70.0 * T
+            for (S : Slots) { Toile.RemoveWidget(S.Widget) }
+            set Slots = array:
+                PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)
+                PlaceGauche(Ecrit, 404.0, Monte - 20.0, 700.0, 44.0)
+            if (T > 0.9) { set Slots = array{PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)} }
+            for (S : Slots) { Toile.AddWidget(S) }
+            Sleep(0.033)
+        UI.RemoveWidget(Toile)
+
+    # Un widget placé depuis le milieu du bord gauche de l'écran (là où est le compteur d'argent).
+    PlaceGauche(W:widget, X:float, Y:float, L:float, H:float):canvas_slot =
+        canvas_slot:
+            Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.5}, Maximum := vector2{X := 0.0, Y := 0.5}}
+            Alignment := vector2{X := 0.0, Y := 0.0}
+            Offsets := margin{Left := X, Top := Y, Right := L, Bottom := H}
+            SizeToContent := false
+            Widget := W
+
+    # ---------- le récap de fin de vol ----------
+    # Appelé par le device passagers juste après l'atterrissage (le temps que la feuille de
+    # mission compte les faux billets ratés).
+    RecapApres(Delai:float)<suspends>:void =
+        Sleep(Delai)
+        AfficherRecap()
+
+    AfficherRecap():void =
+        if (Joueur := Proprio?, P := player[Joueur], UI := GetPlayerUI[P]):
+            FermerRecap()
+            set NumeroRecap += 1
+            Valeurs := array{StatBillets, StatService, StatMissions, StatFraudeurs, StatPertes, StatDepenses}
+            set StatBillets = 0
+            set StatService = 0
+            set StatMissions = 0
+            set StatFraudeurs = 0
+            set StatPertes = 0
+            set StatDepenses = 0
+            spawn{AnimerRecap(P, UI, Valeurs, NumeroRecap)}
+
+    FermerRecap():void =
+        if (C := EcranRecap?, Joueur := Proprio?, P := player[Joueur], UI := GetPlayerUI[P]):
+            UI.RemoveWidget(C)
+        set EcranRecap = false
+
+    AnimerRecap(P:player, UI:player_ui, Valeurs:[]int, Numero:int)<suspends>:void =
+        Noms := array{"TICKETS", "ORDERS SERVED", "MISSIONS", "FAKE TICKETS CAUGHT", "FAKE TICKETS MISSED", "SPENT"}
+        # les 4 premières lignes ajoutent, les 2 dernières enlèvent
+        Toile := canvas:
+            Slots := array:
+                PlaceRecap(texture_block{DefaultImage := InterfacePC.PanneauRecap, DefaultDesiredSize := vector2{X := 760.0, Y := 760.0}}, 580.0, 210.0, 760.0, 760.0, 1)
+                PlaceRecap(texture_block{DefaultImage := InterfacePC.Ruban, DefaultDesiredSize := vector2{X := 900.0, Y := 225.0}}, 510.0, 110.0, 900.0, 225.0, 3)
+                PlaceRecap(TexteRecap("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center), 510.0, 190.0, 900.0, 44.0, 4)
+        UI.AddWidget(Toile, player_ui_slot{InputMode := ui_input_mode.All})
+        set EcranRecap = option{Toile}
+        var Total:int = 0
+        for (I -> Valeur : Valeurs, Nom := Noms[I]):
+            if (Numero <> NumeroRecap) { return }
+            Moins := if (I >= 4) then true else false
+            Y := 330.0 + I * 66.0
+            Couleur := if (Moins?) then "FCA5A5" else "86EFAC"
+            Chiffre := TexteRecap("", Couleur, text_justification.Right)
+            Toile.AddWidget(PlaceRecap(TexteRecapGauche(Nom), 650.0, Y, 400.0, 44.0, 4))
+            Toile.AddWidget(PlaceRecap(Chiffre, 1010.0, Y, 260.0, 44.0, 4))
+            # ça monte vite au début puis ralentit, comme une machine à sous
+            Etapes := 18
+            for (K := 1..Etapes):
+                F := K * 1.0 / (Etapes * 1.0)
+                Montre := if (V := Round[Valeur * (1.0 - (1.0 - F) * (1.0 - F))]) then V else Valeur
+                Signe := if (Moins?) then "-" else "+"
+                Chiffre.SetText(Msg("{Signe}${Abreger(Montre)}"))
+                if (Mod[K, 3] = 0, Son := SonCompteur?) { Son.Play() }
+                Sleep(0.035)
+            if (Moins?):
+                set Total -= Valeur
+            else:
+                set Total += Valeur
+            Sleep(0.18)
+        if (Numero <> NumeroRecap) { return }
+        # le total, plus gros, avec l'icône d'argent
+        Toile.AddWidget(PlaceRecap(color_block{DefaultColor := MakeColorFromHex("BBF7D0"), DefaultOpacity := 0.6}, 650.0, 735.0, 620.0, 4.0, 4))
+        Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 110.0, Y := 110.0}}, 640.0, 745.0, 110.0, 110.0, 5))
+        Toile.AddWidget(PlaceRecap(TexteRecapGauche("TOTAL"), 760.0, 778.0, 250.0, 44.0, 5))
+        CouleurTotal := if (Total >= 0) then "FFFFFF" else "FCA5A5"
+        Grand := TexteRecap("", CouleurTotal, text_justification.Right)
+        Toile.AddWidget(PlaceRecap(Grand, 990.0, 778.0, 280.0, 44.0, 5))
+        Etapes := 30
+        Absolu := if (Total >= 0) then Total else -Total
+        for (K := 1..Etapes):
+            F := K * 1.0 / (Etapes * 1.0)
+            Montre := if (V := Round[Absolu * (1.0 - (1.0 - F) * (1.0 - F) * (1.0 - F))]) then V else Absolu
+            SigneTotal := if (Total >= 0) then "+" else "-"
+            Grand.SetText(Msg("{SigneTotal}${Abreger(Montre)}"))
+            if (Mod[K, 2] = 0, Son := SonCompteur?) { Son.Play() }
+            Sleep(0.04)
+        if (Son := SonArgent?) { Son.Play() }
+        # le bouton CONTINUE (ou ça se ferme tout seul après 10 secondes)
+        Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.BoutonVert, DefaultDesiredSize := vector2{X := 300.0, Y := 150.0}}, 810.0, 870.0, 300.0, 120.0, 6))
+        Toile.AddWidget(PlaceRecap(TexteRecap("CONTINUE", "FFFFFF", text_justification.Center), 810.0, 908.0, 300.0, 44.0, 7))
+        Bouton := button_quiet{DefaultText := Msg("")}
+        Bouton.OnClick().Subscribe(clic_recap{Avion := Self}.Clique)
+        Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))
+        Sleep(10.0)
+        if (Numero = NumeroRecap) { FermerRecap() }
+
+    # Placé comme sur un écran 1920 x 1080 (X, Y = coin haut gauche).
+    PlaceRecap(W:widget, X:float, Y:float, L:float, H:float, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
+        canvas_slot:
+            Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.5}, Maximum := vector2{X := 0.5, Y := 0.5}}
+            Alignment := vector2{X := 0.0, Y := 0.0}
+            Offsets := margin{Left := X - 960.0, Top := Y - 540.0, Right := L, Bottom := H}
+            SizeToContent := false
+            ZOrder := Couche
+            Widget := W
+
+    TexteRecap(S:string, Couleur:string, J:text_justification):text_block =
+        text_block:
+            DefaultText := Msg(S)
+            DefaultTextColor := MakeColorFromHex(Couleur)
+            DefaultJustification := J
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
+
+    TexteRecapGauche(S:string):text_block =
+        text_block:
+            DefaultText := Msg(S)
+            DefaultTextColor := NamedColors.White
+            DefaultJustification := text_justification.Left
+            DefaultShadowColor := MakeColorFromHex("052E16")
+            DefaultShadowOpacity := 1.0
+            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
+
+# Le bouton CONTINUE du récap.
+clic_recap := class:
+    Avion:avion_tycoon
+    Clique(Clic:widget_message):void = Avion.FermerRecap()

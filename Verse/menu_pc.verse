@@ -288,7 +288,7 @@ menu_pc := class(creative_device):
             else if (AvionTycoon.Argent < A.Prix):
                 AfficherMessage("NOT ENOUGH MONEY", false)
             else:
-                set AvionTycoon.Argent -= A.Prix
+                AvionTycoon.Depenser(A.Prix)
                 if (set Achete[I] = true) {}
                 AppliquerEffets()
                 AvionTycoon.MettreAJourUI()
@@ -315,8 +315,7 @@ menu_pc := class(creative_device):
             if (AvionTycoon.Argent < P.PrixDeblocage):
                 AfficherMessage("NOT ENOUGH MONEY", false)
             else:
-                set AvionTycoon.Argent -= P.PrixDeblocage
-                AvionTycoon.MettreAJourUI()
+                AvionTycoon.Depenser(P.PrixDeblocage)
                 if (Son := SonAchat?) { Son.Play() }
                 if (set Debloque[Index] = true) {}
                 AfficherMessage("{P.Nom} UNLOCKED!", true)
@@ -334,8 +333,7 @@ menu_pc := class(creative_device):
         else if (AvionTycoon.Argent < Total):
             AfficherMessage("NOT ENOUGH MONEY", false)
         else:
-            set AvionTycoon.Argent -= Total
-            AvionTycoon.MettreAJourUI()
+            AvionTycoon.Depenser(Total)
             if (Son := SonAchat?) { Son.Play() }
             # le stock augmente tout de suite
             for (I -> P : ListeProduits, N := PanierLots[I], N > 0):

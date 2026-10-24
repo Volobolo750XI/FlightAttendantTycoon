@@ -423,8 +423,7 @@ demandes_device := class(creative_device):
             if (EstRepas[D.Choix]) { set Ameliore *= A.MultiRepas }
         Gain := if (G := Round[Unite * Marge * Multi * Bonus * Ameliore]) then Max(1, G) else 1
         if (A := DeviceAvion?):
-            set A.Argent += Gain
-            A.MettreAJourUI()
+            A.Gagner(Gain, 1)
             Message("+${A.Abreger(Gain)}")
         Pr := Profil(D.Passager)
         if (not EstRepas[D.Choix]) { set Pr.ABu = true }

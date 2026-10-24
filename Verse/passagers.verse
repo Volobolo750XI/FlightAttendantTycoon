@@ -237,6 +237,8 @@ passagers := class(creative_device):
     var GainVol:int = 0
 
     OnBegin<override>()<suspends>:void =
+        # on s'inscrit dans le device avion (il sait ainsi si un vol / embarquement est en cours)
+        set DeviceAvion.Passagers = option{Self}
         MesurerExemples()
         if (B := BoutonVisuel?) { set BoutonRepos = option{B.GetTransform()} }
         if (B := CapuchonStart?) { set BoutonRepos = option{B.GetTransform()} }
@@ -338,7 +340,7 @@ passagers := class(creative_device):
             if (Entier := Floor[Reste], Entier > 0):
                 set Reste -= Entier * 1.0
                 set GainVol += Entier
-                set DeviceAvion.Argent += Entier
+                DeviceAvion.Gagner(Entier, 0)
             set DeviceAvion.RevenuVol = if (R := Round[Taux]) then R else 0
             DeviceAvion.MettreAJourUI()
             set DerniersPayants = Payants.Length
@@ -355,6 +357,8 @@ passagers := class(creative_device):
             M.SetText(Msg("LANDED! {DerniersPayants} passengers earned you ${DeviceAvion.Abreger(GainVol)}"))
             for (J : GetPlayspace().GetPlayers()) { M.Show(J) }
         Debarquer()
+        # le récap de fin de vol, juste après (le temps que la feuille compte les faux billets)
+        spawn{DeviceAvion.RecapApres(1.0)}
 
     # Tout le monde descend : passagers et bagages disparaissent, les places se libèrent,
     # les coffres se rouvrent et le bouton redevient START BOARDING.

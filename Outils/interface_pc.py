@@ -102,6 +102,65 @@ def fond():
     im.resize((2048, 1024), Image.LANCZOS).save(os.path.join(SORTIE, "Fond.png"))
 
 
+def icone_argent():
+    """Une liasse de billets verts cartoon avec une pièce : l'icône des gains."""
+    T = 512 * K
+    s = T / 512
+    im = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+
+    def poser(dessin, couleur, contour=14):
+        m = Image.new("L", (T, T), 0)
+        dessin(ImageDraw.Draw(m))
+        if contour:
+            im.paste(Image.new("RGBA", (T, T), NOIR), (0, 0), m.filter(ImageFilter.MaxFilter(int(contour * 2 * s) | 1)))
+        im.paste(Image.new("RGBA", (T, T), hexa(couleur)), (0, 0), m)
+        return m
+
+    def billet(dx, dy, angle, c1, c2):
+        b = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+        d = ImageDraw.Draw(b)
+        box = [96 * s + dx, 170 * s + dy, 416 * s + dx, 330 * s + dy]
+        d.rounded_rectangle([box[0] - 12 * s, box[1] - 12 * s, box[2] + 12 * s, box[3] + 12 * s], 34 * s, fill=NOIR)
+        d.rounded_rectangle(box, 24 * s, fill=hexa(c1))
+        d.rounded_rectangle([box[0] + 22 * s, box[1] + 20 * s, box[2] - 22 * s, box[3] - 20 * s], 16 * s, outline=hexa(c2), width=int(8 * s))
+        cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+        d.ellipse([cx - 46 * s, cy - 46 * s, cx + 46 * s, cy + 46 * s], fill=hexa(c2))
+        d.text((cx, cy + 2 * s), "$", font=ImageFont.truetype(POLICE, int(76 * s)), fill=hexa(c1), anchor="mm")
+        return b.rotate(angle, center=(T / 2, T / 2), resample=Image.BICUBIC)
+
+    im.alpha_composite(billet(-10 * s, 40 * s, 14, "16A34A", "BBF7D0"))
+    im.alpha_composite(billet(0, 0, -6, "22C55E", "DCFCE7"))
+    # la pièce (argent / blanc, pas de jaune)
+    poser(lambda d: d.ellipse([300 * s, 280 * s, 450 * s, 430 * s], fill=255), "E2E8F0")
+    ImageDraw.Draw(im).ellipse([322 * s, 302 * s, 428 * s, 408 * s], outline=hexa("94A3B8"), width=int(8 * s))
+    ImageDraw.Draw(im).text((375 * s, 357 * s), "$", font=ImageFont.truetype(POLICE, int(70 * s)), fill=hexa("475569"), anchor="mm")
+    # reflet
+    ImageDraw.Draw(im).ellipse([330 * s, 300 * s, 370 * s, 330 * s], fill=(255, 255, 255, 150))
+    im.resize((256, 256), Image.LANCZOS).save(os.path.join(SORTIE, "IconeArgent.png"))
+
+
+def ruban():
+    """Ruban cartoon vert avec les bouts repliés (titre du récap)."""
+    L, H = 1024 * K, 256 * K
+    s = L / 1024
+    im = Image.new("RGBA", (L, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    P = lambda pts: [(x * s, y * s) for x, y in pts]
+    # bouts repliés (derrière)
+    for pts in ([(20, 90), (190, 90), (190, 230), (20, 230), (80, 160)], [(1004, 90), (834, 90), (834, 230), (1004, 230), (944, 160)]):
+        d.polygon(P(pts), fill=NOIR)
+        inner = [(x + (8 if x < 512 else -8), y + (8 if y < 160 else -8)) for x, y in pts]
+        d.polygon(P(inner), fill=hexa("15803D"))
+    # bande principale
+    d.rounded_rectangle(P([(130, 30), (894, 200)]), 30 * s, fill=NOIR)
+    m = masque_arrondi(L, H, [140 * s, 40 * s, 884 * s, 190 * s], 22 * s)
+    im.paste(degrade(L, H, "4ADE80", "15803D"), (0, 0), m)
+    rf = Image.new("L", (L, H), 0)
+    ImageDraw.Draw(rf).rounded_rectangle([170 * s, 52 * s, 854 * s, 82 * s], 15 * s, fill=90)
+    im.paste(Image.new("RGBA", (L, H), (255, 255, 255, 255)), (0, 0), ImageChops.multiply(rf, m))
+    im.resize((1024, 256), Image.LANCZOS).save(os.path.join(SORTIE, "Ruban.png"))
+
+
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     fond()
@@ -123,4 +182,8 @@ if __name__ == "__main__":
     forme("CarteCarreeGrise", 512, 512, 70, 14, "3F4F5F", "2A3542", bague="64748B", bague_ep=8, reflet=0)
     # bandeau du prochain vol
     forme("Bandeau", 1024, 128, 56, 10, "22C55E", "116D35", reflet=70)
+    # récap de fin de vol
+    forme("PanneauRecap", 1024, 1024, 90, 18, "1B7A43", "0B3D24", bague="4ADE80", bague_ep=14, reflet=0)
+    icone_argent()
+    ruban()
     print("ok")

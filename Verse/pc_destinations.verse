@@ -370,8 +370,7 @@ pc_destinations := class(creative_device):
         if (Routes[R], not Achetee[R]):
             Prix := PrixRoute(R)
             if (AvionTycoon.Argent >= Prix):
-                set AvionTycoon.Argent -= Prix
-                AvionTycoon.MettreAJourUI()
+                AvionTycoon.Depenser(Prix)
                 if (S := SonAchat?) { S.Play() }
                 if (set Achetees[R] = true) {}
                 # elle devient tout de suite le prochain vol (au sol : depuis ici ; en vol : depuis

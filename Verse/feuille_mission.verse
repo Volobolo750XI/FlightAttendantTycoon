@@ -30,7 +30,8 @@ using { /UnrealEngine.com/Temporary/UI }
 # cliquer VALID ou REFUSE (tampon). À la porte pendant l'embarquement, les passagers s'arrêtent
 # devant toi (poste de contrôle, device passagers) ; refusé, il repart par la passerelle.
 # La plupart des papiers sont bons. Un "cerveau" (Fabriquer) glisse parfois UNE erreur
-# (ChanceBilletFaux, rare), de plus en plus subtile avec les destinations et selon ta forme.
+# (au moins 1 par vol, environ 1 passager sur 8 : PartFaux), de plus en plus subtile avec les
+# destinations et selon ta forme. Un faux laissé passer fait perdre de l'argent à l'atterrissage.
 #   REFUSE sur des faux  = fraudeur attrapé, tu gagnes de l'argent.
 #   VALID sur des vrais  = c'est bon (compte pour la mission).
 #   REFUSE sur des vrais = plainte (le passager s'en va si c'est à la porte).
@@ -109,7 +110,11 @@ feuille_mission := class(creative_device):
 
     # Chance (%) que des papiers soient faux. Peu : la plupart des passagers sont en règle.
     # +2 par niveau du cerveau (grosses destinations).
-    @editable ChanceBilletFaux:int = 8
+    # Faux billets : au moins 1 par vol, et environ PartFaux des passagers (0.12 = 1 sur 8) :
+    # un avion plein = plusieurs faux. Chaque faux laissé passer coûte PartPerteFaux x la
+    # valeur du vol (perdu à l'atterrissage).
+    @editable PartFaux:float = 0.12
+    @editable PartPerteFaux:float = 0.3
     # Nombre de passagers à contrôler / à servir (au hasard entre les deux)
     @editable BilletsMin:int = 3
     @editable BilletsMax:int = 6
@@ -162,6 +167,10 @@ feuille_mission := class(creative_device):
     var Embarquement:string = ""
     var GainsMissions:int = 0
     var FraudeursRates:int = 0
+    var Attendus:int = 1
+    var FauxVoulus:int = 1
+    var FauxFaits:int = 0
+    var BilletsFaits:int = 0
     var Plaintes:int = 0
     var Rangs:[]int = array{}
     # La date du jour (un trajet = un jour)
@@ -220,6 +229,13 @@ feuille_mission := class(creative_device):
         Minutes := GetRandomInt(0, 11) * 5
         set Embarquement = if (Minutes < 10) then "{Heure}:0{Minutes}" else "{Heure}:{Minutes}"
         set Billets = array{}
+        # le quota de faux billets de ce vol (selon le nombre de places achetées)
+        Achetees := for (Pl : Passagers.Places, Passagers.SiegeAchete(Pl)?) { Pl }
+        set Attendus = Max(1, Achetees.Length)
+        Quota := if (F := Round[Attendus * PartFaux]) then F else 1
+        set FauxVoulus = Max(1, Quota)
+        set FauxFaits = 0
+        set BilletsFaits = 0
         set GainsMissions = 0
         set FraudeursRates = 0
         set Plaintes = 0
@@ -269,6 +285,9 @@ feuille_mission := class(creative_device):
         # les coffres, c'était avant le décollage
         for (T : Taches, not T.Fait?, T.Genre = 0):
             set T.Rate = true
+        # ceux qui sont montés sans contrôle ont quand même un billet (peut-être un faux !)
+        for (P : Passagers.EnCours, not ABillet[P]):
+            BilletDe(P)
         Rafraichir()
 
     Atterrissage():void =
@@ -278,9 +297,12 @@ feuille_mission := class(creative_device):
                 set T.Rate = true
             Reussies := for (T : Taches, T.Fait?) { T }
             if (Taches.Length > 0, Reussies.Length = Taches.Length):
-                Payer(Gain(PartParfait), "PERFECT FLIGHT!")
+                Payer(Gain(PartParfait), "PERFECT FLIGHT!", 2)
             Passes := for (B : Billets, B.Probleme > 0, B.Decision <> 2) { B }
             set FraudeursRates = Passes.Length
+            # chaque faux billet laissé passer coûte cher
+            if (Passes.Length > 0):
+                DeviceAvion.Perdre(Gain(PartPerteFaux) * Passes.Length, "FAKE TICKETS MISSED x{Passes.Length}")
             set Bilan = true
             Message("Flight complete! Check your briefing sheet.")
             Rafraichir()
@@ -379,9 +401,15 @@ feuille_mission := class(creative_device):
     BilletDe(P:passager):billet_passager =
         for (B : Billets, B.Passager = P):
             return B
-        # plus on avance dans le jeu, plus il y a de faux papiers
-        Chances := ChanceBilletFaux + (NiveauActuel() - 1) * 2
-        Fabriquer(P, if (Chance[Chances]) then true else false)
+        # le quota de faux du vol : il en reste FauxVoulus - FauxFaits à placer parmi les passagers
+        # pas encore contrôlés ; le dernier en reçoit forcément un s'il en manque encore
+        Restants := FauxVoulus - FauxFaits
+        Libres := Max(1, Attendus - BilletsFaits)
+        Faux := if (Restants > 0, GetRandomInt(1, Libres) <= Restants) then true else false
+        Nouveau := Fabriquer(P, Faux)
+        set BilletsFaits += 1
+        if (Nouveau.Probleme > 0) { set FauxFaits += 1 }
+        Nouveau
 
     # ----- le cerveau des faux papiers -----
     # Il fabrique des papiers cohérents (billet pour CE vol, CE jour, même nom que le passeport),
@@ -532,7 +560,7 @@ feuille_mission := class(creative_device):
                 set P.Fraudeur = false
                 CompterBillet()
                 Raison := if (R := Raisons[B.Probleme]) then R else ""
-                Payer(Gain(PartFraudeur), "FAKE PAPERS: {Raison}")
+                Payer(Gain(PartFraudeur), "FAKE PAPERS: {Raison}", 3)
                 Expulser(P)
             else:
                 # REFUSE sur des papiers en règle : il se plaint (et à la porte, il s'en va)
@@ -732,12 +760,12 @@ feuille_mission := class(creative_device):
 
     Reussir(T:tache_feuille, Texte:string):void =
         set T.Fait = true
-        Payer(Gain(PartMission), Texte)
+        Payer(Gain(PartMission), Texte, 2)
 
-    Payer(Montant:int, Texte:string):void =
+    # Cat : 2 mission / vol parfait, 3 fraudeur attrapé (pour le récap de fin de vol).
+    Payer(Montant:int, Texte:string, Cat:int):void =
         set GainsMissions += Montant
-        set DeviceAvion.Argent += Montant
-        DeviceAvion.MettreAJourUI()
+        DeviceAvion.Gagner(Montant, Cat)
         if (S := SonMission?) { S.Play() }
         Message("{Texte}  +${DeviceAvion.Abreger(Montant)}")
         if (Page = 1) { Afficher() }

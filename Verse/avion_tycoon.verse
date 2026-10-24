@@ -462,6 +462,7 @@ avion_tycoon := class(creative_device):
                 PlaceRecap(TexteRecap("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center), 510.0, 190.0, 900.0, 44.0, 4)
         UI.AddWidget(Toile, player_ui_slot{InputMode := ui_input_mode.All})
         set EcranRecap = option{Toile}
+        spawn{ScintillerEtoiles(Toile, Numero)}
         var Total:int = 0
         for (I -> Valeur : Valeurs, Nom := Noms[I]):
             if (Numero <> NumeroRecap) { return }
@@ -511,6 +512,34 @@ avion_tycoon := class(creative_device):
         Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))
         Sleep(10.0)
         if (Numero = NumeroRecap) { FermerRecap() }
+
+    # Les étoiles du fond du récap : chacune grossit puis rapetisse à son propre rythme.
+    ScintillerEtoiles(Toile:canvas, Numero:int)<suspends>:void =
+        # des étoiles autour du panneau (pas dessus)
+        var Etoiles:[]tuple(float, float, float, int, int) = array{}
+        for (I := 0..21):
+            Gauche := if (Mod[I, 2] = 0) then true else false
+            X := if (Gauche?) then GetRandomFloat(40.0, 520.0) else GetRandomFloat(1400.0, 1880.0)
+            Y := GetRandomFloat(40.0, 1040.0)
+            Taille := GetRandomFloat(30.0, 70.0)
+            Periode := GetRandomInt(14, 30)
+            Decale := GetRandomInt(0, 30)
+            set Etoiles += array{(X, Y, Taille, Periode, Decale)}
+        Images := for (E : Etoiles) { texture_block{DefaultImage := InterfacePC.Etoile, DefaultDesiredSize := vector2{X := 64.0, Y := 64.0}} }
+        var Places:[]canvas_slot = array{}
+        var K:int = 0
+        loop:
+            if (Numero <> NumeroRecap or not EcranRecap?) { break }
+            for (S : Places) { Toile.RemoveWidget(S.Widget) }
+            set Places = for (I -> E : Etoiles, Img := Images[I]):
+                # aller-retour 0 -> 1 -> 0 (triangle), la taille varie entre 15 % et 100 %
+                Pas := if (M := Mod[K + E(4), E(3)]) then M * 1.0 / (E(3) * 1.0) else 0.0
+                Vague := if (Pas < 0.5) then Pas * 2.0 else (1.0 - Pas) * 2.0
+                T := E(2) * (0.15 + 0.85 * Vague)
+                PlaceRecap(Img, E(0) - T / 2.0, E(1) - T / 2.0, T, T, 1)
+            for (S : Places) { Toile.AddWidget(S) }
+            set K += 1
+            Sleep(0.05)
 
     # Placé comme sur un écran 1920 x 1080 (X, Y = coin haut gauche).
     PlaceRecap(W:widget, X:float, Y:float, L:float, H:float, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =

@@ -186,16 +186,22 @@ def fond_recap():
         px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(60, 220)
         bd.ellipse([px - r, py - r, px + r, py + r], fill=(255, 255, 255, rnd.randint(18, 40)))
     im.alpha_composite(bulles.filter(ImageFilter.GaussianBlur(28)))
-    # petites étincelles (étoiles à 4 branches)
-    et = Image.new("RGBA", (L, H), (0, 0, 0, 0))
-    ed = ImageDraw.Draw(et)
-    for i in range(40):
-        px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(6, 16)
-        a_ = rnd.randint(120, 220)
-        ed.polygon([(px, py - r * 2), (px + r * 0.35, py - r * 0.35), (px + r * 2, py), (px + r * 0.35, py + r * 0.35),
-                    (px, py + r * 2), (px - r * 0.35, py + r * 0.35), (px - r * 2, py), (px - r * 0.35, py - r * 0.35)], fill=(255, 255, 255, a_))
-    im.alpha_composite(et.filter(ImageFilter.GaussianBlur(0.8)))
+    # (les étoiles ne sont plus dans le fond : elles scintillent dans le jeu, image Etoile.png)
     im.save(os.path.join(SORTIE, "FondRecap.png"))
+
+
+def etoile():
+    """Une étoile blanche à 4 branches avec un petit halo : elle scintille sur le fond du récap."""
+    T = 256
+    im = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    halo = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    ImageDraw.Draw(halo).ellipse([88, 88, 168, 168], fill=(255, 255, 255, 110))
+    im.alpha_composite(halo.filter(ImageFilter.GaussianBlur(14)))
+    c, r = T / 2, 110
+    pts = [(c, c - r), (c + r * 0.16, c - r * 0.16), (c + r, c), (c + r * 0.16, c + r * 0.16),
+           (c, c + r), (c - r * 0.16, c + r * 0.16), (c - r, c), (c - r * 0.16, c - r * 0.16)]
+    ImageDraw.Draw(im).polygon(pts, fill=(255, 255, 255, 255))
+    im.filter(ImageFilter.GaussianBlur(0.6)).save(os.path.join(SORTIE, "Etoile.png"))
 
 
 if __name__ == "__main__":
@@ -222,6 +228,7 @@ if __name__ == "__main__":
     # récap de fin de vol
     forme("PanneauRecap", 1024, 1024, 90, 18, "15803D", "0B3D24", bague="FFFFFF", bague_ep=14, reflet=0)
     fond_recap()
+    etoile()
     icone_argent()
     ruban()
     print("ok")

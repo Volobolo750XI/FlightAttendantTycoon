@@ -162,45 +162,40 @@ def ruban():
 
 
 def fond_recap():
-    """Fond du récap : rayons cartoon multicolores (vert, turquoise, bleu, violet), confettis et pièces."""
+    """Fond du récap : un beau dégradé doux (turquoise -> vert -> bleu ciel), quelques grosses
+    bulles de lumière floues et de petites étincelles. Joyeux, propre, presque uni."""
     import numpy as np
-    L, H = 2048 * 2, 1024 * 2
-    cx, cy = L / 2, H * 0.45
+    L, H = 2048, 1024
     y, x = np.mgrid[0:H, 0:L].astype(np.float32)
-    ang = (np.arctan2(y - cy, x - cx) + np.pi) / (2 * np.pi)
-    d = np.clip(np.sqrt(((x - cx) / (L * 0.6)) ** 2 + ((y - cy) / (H * 0.9)) ** 2), 0, 1)
-    couleurs = np.array([hexa(c)[:3] for c in ("22C55E", "14B8A6", "3B82F6", "8B5CF6", "EC4899", "10B981")], np.float32)
-    secteur = (ang * 24).astype(int)
-    base = couleurs[secteur % len(couleurs)]
-    clair = np.where((secteur % 2 == 0)[..., None], base, base * 0.82)
-    c = clair * (1 - 0.55 * d[..., None]) + np.array([10, 20, 40], np.float32) * 0.55 * d[..., None]
-    # halo blanc au centre
-    halo = np.clip(1 - d * 2.2, 0, 1) ** 2
-    c = c * (1 - 0.6 * halo[..., None]) + 255 * 0.6 * halo[..., None]
+    t = np.clip((x / L) * 0.65 + (y / H) * 0.35, 0, 1)
+    pts = [(0.0, "0EA5A4"), (0.45, "22C55E"), (1.0, "38BDF8")]
+    c = np.zeros((H, L, 3), np.float32)
+    for (t0, c0), (t1, c1) in zip(pts, pts[1:]):
+        m = ((t >= t0) & (t <= t1))[..., None]
+        k = ((t - t0) / (t1 - t0))[..., None]
+        c = np.where(m, np.array(hexa(c0)[:3], np.float32) * (1 - k) + np.array(hexa(c1)[:3], np.float32) * k, c)
+    # lumière douce au centre, bords un peu plus profonds
+    d = np.sqrt(((x - L / 2) / (L * 0.55)) ** 2 + ((y - H * 0.45) / (H * 0.75)) ** 2)
+    c = c * (1 + 0.18 * np.clip(1 - d, 0, 1)[..., None]) * (1 - 0.18 * np.clip(d - 0.7, 0, 1)[..., None])
     im = Image.fromarray(np.clip(c, 0, 255).astype(np.uint8)).convert("RGBA")
-    deco = Image.new("RGBA", (L, H), (0, 0, 0, 0))
-    dd = ImageDraw.Draw(deco)
-    rnd = random.Random(3)
-    tons = ["FFFFFF", "F472B6", "60A5FA", "34D399", "A78BFA", "F87171"]
-    for i in range(260):
-        px, py = rnd.uniform(0, L), rnd.uniform(0, H)
-        c1 = hexa(rnd.choice(tons), 230)
-        if rnd.random() < 0.55:
-            w, h = rnd.uniform(16, 34), rnd.uniform(40, 70)
-            conf = Image.new("RGBA", (90, 90), (0, 0, 0, 0))
-            ImageDraw.Draw(conf).rounded_rectangle([45 - w / 2, 45 - h / 2, 45 + w / 2, 45 + h / 2], 6, fill=c1, outline=NOIR, width=4)
-            conf = conf.rotate(rnd.uniform(0, 180), resample=Image.BICUBIC)
-            deco.alpha_composite(conf, (int(px - 45), int(py - 45)))
-        else:
-            r = rnd.uniform(12, 22)
-            dd.ellipse([px - r, py - r, px + r, py + r], fill=c1, outline=NOIR, width=4)
-    for i in range(14):
-        px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(50, 80)
-        dd.ellipse([px - r - 8, py - r - 8, px + r + 8, py + r + 8], fill=NOIR)
-        dd.ellipse([px - r, py - r, px + r, py + r], fill=hexa("E2E8F0"))
-        dd.text((px, py), "$", font=ImageFont.truetype(POLICE, int(r * 1.3)), fill=hexa("475569"), anchor="mm")
-    im.alpha_composite(deco)
-    im.resize((2048, 1024), Image.LANCZOS).save(os.path.join(SORTIE, "FondRecap.png"))
+    # grosses bulles de lumière très floues
+    bulles = Image.new("RGBA", (L, H), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(bulles)
+    rnd = random.Random(11)
+    for i in range(16):
+        px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(60, 220)
+        bd.ellipse([px - r, py - r, px + r, py + r], fill=(255, 255, 255, rnd.randint(18, 40)))
+    im.alpha_composite(bulles.filter(ImageFilter.GaussianBlur(28)))
+    # petites étincelles (étoiles à 4 branches)
+    et = Image.new("RGBA", (L, H), (0, 0, 0, 0))
+    ed = ImageDraw.Draw(et)
+    for i in range(40):
+        px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(6, 16)
+        a_ = rnd.randint(120, 220)
+        ed.polygon([(px, py - r * 2), (px + r * 0.35, py - r * 0.35), (px + r * 2, py), (px + r * 0.35, py + r * 0.35),
+                    (px, py + r * 2), (px - r * 0.35, py + r * 0.35), (px - r * 2, py), (px - r * 0.35, py - r * 0.35)], fill=(255, 255, 255, a_))
+    im.alpha_composite(et.filter(ImageFilter.GaussianBlur(0.8)))
+    im.save(os.path.join(SORTIE, "FondRecap.png"))
 
 
 if __name__ == "__main__":
@@ -225,7 +220,7 @@ if __name__ == "__main__":
     # bandeau du prochain vol
     forme("Bandeau", 1024, 128, 56, 10, "22C55E", "116D35", reflet=70)
     # récap de fin de vol
-    forme("PanneauRecap", 1024, 1024, 90, 18, "1E3A8A", "172554", bague="FFFFFF", bague_ep=14, reflet=0)
+    forme("PanneauRecap", 1024, 1024, 90, 18, "15803D", "0B3D24", bague="FFFFFF", bague_ep=14, reflet=0)
     fond_recap()
     icone_argent()
     ruban()

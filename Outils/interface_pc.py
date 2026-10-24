@@ -161,6 +161,48 @@ def ruban():
     im.resize((1024, 256), Image.LANCZOS).save(os.path.join(SORTIE, "Ruban.png"))
 
 
+def fond_recap():
+    """Fond du récap : rayons cartoon multicolores (vert, turquoise, bleu, violet), confettis et pièces."""
+    import numpy as np
+    L, H = 2048 * 2, 1024 * 2
+    cx, cy = L / 2, H * 0.45
+    y, x = np.mgrid[0:H, 0:L].astype(np.float32)
+    ang = (np.arctan2(y - cy, x - cx) + np.pi) / (2 * np.pi)
+    d = np.clip(np.sqrt(((x - cx) / (L * 0.6)) ** 2 + ((y - cy) / (H * 0.9)) ** 2), 0, 1)
+    couleurs = np.array([hexa(c)[:3] for c in ("22C55E", "14B8A6", "3B82F6", "8B5CF6", "EC4899", "10B981")], np.float32)
+    secteur = (ang * 24).astype(int)
+    base = couleurs[secteur % len(couleurs)]
+    clair = np.where((secteur % 2 == 0)[..., None], base, base * 0.82)
+    c = clair * (1 - 0.55 * d[..., None]) + np.array([10, 20, 40], np.float32) * 0.55 * d[..., None]
+    # halo blanc au centre
+    halo = np.clip(1 - d * 2.2, 0, 1) ** 2
+    c = c * (1 - 0.6 * halo[..., None]) + 255 * 0.6 * halo[..., None]
+    im = Image.fromarray(np.clip(c, 0, 255).astype(np.uint8)).convert("RGBA")
+    deco = Image.new("RGBA", (L, H), (0, 0, 0, 0))
+    dd = ImageDraw.Draw(deco)
+    rnd = random.Random(3)
+    tons = ["FFFFFF", "F472B6", "60A5FA", "34D399", "A78BFA", "F87171"]
+    for i in range(260):
+        px, py = rnd.uniform(0, L), rnd.uniform(0, H)
+        c1 = hexa(rnd.choice(tons), 230)
+        if rnd.random() < 0.55:
+            w, h = rnd.uniform(16, 34), rnd.uniform(40, 70)
+            conf = Image.new("RGBA", (90, 90), (0, 0, 0, 0))
+            ImageDraw.Draw(conf).rounded_rectangle([45 - w / 2, 45 - h / 2, 45 + w / 2, 45 + h / 2], 6, fill=c1, outline=NOIR, width=4)
+            conf = conf.rotate(rnd.uniform(0, 180), resample=Image.BICUBIC)
+            deco.alpha_composite(conf, (int(px - 45), int(py - 45)))
+        else:
+            r = rnd.uniform(12, 22)
+            dd.ellipse([px - r, py - r, px + r, py + r], fill=c1, outline=NOIR, width=4)
+    for i in range(14):
+        px, py, r = rnd.uniform(0, L), rnd.uniform(0, H), rnd.uniform(50, 80)
+        dd.ellipse([px - r - 8, py - r - 8, px + r + 8, py + r + 8], fill=NOIR)
+        dd.ellipse([px - r, py - r, px + r, py + r], fill=hexa("E2E8F0"))
+        dd.text((px, py), "$", font=ImageFont.truetype(POLICE, int(r * 1.3)), fill=hexa("475569"), anchor="mm")
+    im.alpha_composite(deco)
+    im.resize((2048, 1024), Image.LANCZOS).save(os.path.join(SORTIE, "FondRecap.png"))
+
+
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     fond()
@@ -183,7 +225,8 @@ if __name__ == "__main__":
     # bandeau du prochain vol
     forme("Bandeau", 1024, 128, 56, 10, "22C55E", "116D35", reflet=70)
     # récap de fin de vol
-    forme("PanneauRecap", 1024, 1024, 90, 18, "1B7A43", "0B3D24", bague="4ADE80", bague_ep=14, reflet=0)
+    forme("PanneauRecap", 1024, 1024, 90, 18, "1E3A8A", "172554", bague="FFFFFF", bague_ep=14, reflet=0)
+    fond_recap()
     icone_argent()
     ruban()
     print("ok")

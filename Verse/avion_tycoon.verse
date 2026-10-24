@@ -451,6 +451,12 @@ avion_tycoon := class(creative_device):
         # les 4 premières lignes ajoutent, les 2 dernières enlèvent
         Toile := canvas:
             Slots := array:
+                # fond cartoon multicolore sur tout l'écran
+                canvas_slot:
+                    Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.0}, Maximum := vector2{X := 1.0, Y := 1.0}}
+                    Offsets := margin{Left := 0.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
+                    SizeToContent := false
+                    Widget := texture_block{DefaultImage := InterfacePC.FondRecap}
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.PanneauRecap, DefaultDesiredSize := vector2{X := 760.0, Y := 760.0}}, 580.0, 210.0, 760.0, 760.0, 1)
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.Ruban, DefaultDesiredSize := vector2{X := 900.0, Y := 225.0}}, 510.0, 110.0, 900.0, 225.0, 3)
                 PlaceRecap(TexteRecap("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center), 510.0, 190.0, 900.0, 44.0, 4)

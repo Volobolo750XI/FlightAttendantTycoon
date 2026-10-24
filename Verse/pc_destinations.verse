@@ -168,7 +168,8 @@ pc_destinations := class(creative_device):
     # Par niveau de ligne (1..8) : prix, valeur d'un vol (ce que rapportent passagers et missions,
     # voir passagers / feuille_mission), durée (minutes), multiplicateur (commandes des passagers).
     PrixPalier:[]int = array{2000, 5000, 50000, 400000, 3000000, 25000000, 200000000, 1500000000}
-    ValeurPalier:[]float = array{1000.0, 8000.0, 60000.0, 500000.0, 4000000.0, 30000000.0, 250000000.0, 2000000000.0}
+    # (x5 : on gagne beaucoup plus qu'avant)
+    ValeurPalier:[]float = array{5000.0, 40000.0, 300000.0, 2500000.0, 20000000.0, 150000000.0, 1250000000.0, 10000000000.0}
     MinutesPalier:[]float = array{5.0, 6.0, 7.0, 8.0, 9.0, 11.0, 13.0, 15.0}
     MultiPalier:[]float = array{1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0}
 

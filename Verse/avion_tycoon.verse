@@ -474,19 +474,19 @@ avion_tycoon := class(creative_device):
             Toile.AddWidget(PlaceRecap(TexteRecapGauche(Nom), 650.0, Y, 400.0, 44.0, 4))
             Toile.AddWidget(PlaceRecap(Chiffre, 1010.0, Y, 260.0, 44.0, 4))
             # ça monte vite au début puis ralentit, comme une machine à sous
-            Etapes := 18
+            Etapes := 10
             for (K := 1..Etapes):
                 F := K * 1.0 / (Etapes * 1.0)
                 Montre := if (V := Round[Valeur * (1.0 - (1.0 - F) * (1.0 - F))]) then V else Valeur
                 Signe := if (Moins?) then "-" else "+"
                 Chiffre.SetText(Msg("{Signe}${Abreger(Montre)}"))
-                if (Mod[K, 3] = 0, Son := SonCompteur?) { Son.Play() }
-                Sleep(0.035)
+                if (Mod[K, 2] = 0, Son := SonCompteur?) { Son.Play() }
+                Sleep(0.03)
             if (Moins?):
                 set Total -= Valeur
             else:
                 set Total += Valeur
-            Sleep(0.18)
+            Sleep(0.06)
         if (Numero <> NumeroRecap) { return }
         # le total, plus gros, avec l'icône d'argent
         Toile.AddWidget(PlaceRecap(color_block{DefaultColor := MakeColorFromHex("BBF7D0"), DefaultOpacity := 0.6}, 650.0, 735.0, 620.0, 4.0, 4))
@@ -495,7 +495,7 @@ avion_tycoon := class(creative_device):
         CouleurTotal := if (Total >= 0) then "FFFFFF" else "FCA5A5"
         Grand := TexteRecap("", CouleurTotal, text_justification.Right)
         Toile.AddWidget(PlaceRecap(Grand, 990.0, 778.0, 280.0, 44.0, 5))
-        EtapesTotal := 30
+        EtapesTotal := 16
         Absolu := if (Total >= 0) then Total else -Total
         for (K := 1..EtapesTotal):
             F := K * 1.0 / (EtapesTotal * 1.0)
@@ -503,7 +503,7 @@ avion_tycoon := class(creative_device):
             SigneTotal := if (Total >= 0) then "+" else "-"
             Grand.SetText(Msg("{SigneTotal}${Abreger(Montre)}"))
             if (Mod[K, 2] = 0, Son := SonCompteur?) { Son.Play() }
-            Sleep(0.04)
+            Sleep(0.03)
         if (Son := SonArgent?) { Son.Play() }
         # le bouton CONTINUE (ou ça se ferme tout seul après 10 secondes)
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.BoutonVert, DefaultDesiredSize := vector2{X := 300.0, Y := 150.0}}, 810.0, 870.0, 300.0, 120.0, 6))
@@ -511,7 +511,7 @@ avion_tycoon := class(creative_device):
         Bouton := button_quiet{DefaultText := Msg("")}
         Bouton.OnClick().Subscribe(clic_recap{Device := Self}.Clique)
         Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))
-        Sleep(10.0)
+        Sleep(6.0)
         if (Numero = NumeroRecap) { FermerRecap() }
 
     # Les étoiles du fond du récap : chacune grossit puis rapetisse à son propre rythme.

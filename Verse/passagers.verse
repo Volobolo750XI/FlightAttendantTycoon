@@ -139,6 +139,8 @@ passagers := class(creative_device):
     # Ce que rapporte UN passager sur un vol complet : PartParPassager x la valeur du vol
     # (0.05 = 5 % ; avec 30 passagers, un vol rapporte 1.5 fois la valeur du vol).
     @editable PartParPassager:float = 0.05
+    # Argent par seconde de vol de CHAQUE passager assis (le même pour tous).
+    @editable GainParPassager:int = 1
     # Sans DevicePC : ce que rapporte un passager sur un vol complet.
     @editable PrixBillet:int = 10
     # (facultatif) Appareil Message HUD pour "+$..." à l'atterrissage.
@@ -325,11 +327,12 @@ passagers := class(creative_device):
             set Duree = Ordi.DureeVol * (1.0 - Ordi.Progression())
         set Duree = Max(5.0, Duree)
         # pendant tout le vol, chaque seconde :
-        #   chaque passager assis (qui a payé) rapporte un montant FIXE (selon la ligne) ;
-        #   chaque rangée achetée rapporte son Revenu SEULEMENT si un passager y est assis.
+        #   chaque passager assis (qui a payé) rapporte GainParPassager (le même pour tous) ;
+        #   une rangée de sièges achetée rapporte son Revenu seulement si un passager y est assis ;
+        #   les autres dalles (toilettes, décor...) rapportent toujours leur Revenu.
         # x bonus des améliorations (classes, confort, équipe) et du rebirth
         Bonus := DeviceAvion.MultiBillet * DeviceAvion.MultiRebirth
-        ParPassager := if (Ordi := DevicePC?) then Ordi.ParPassagerSeconde() else 1
+        ParPassager := GainParPassager
         # la rangée de chaque place (calculée une fois)
         RangeeDesPlaces := for (Pl : Places) { RangeeDe(Pl) }
         set GainVol = 0
@@ -339,8 +342,9 @@ passagers := class(creative_device):
             Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
             var Rangees:int = 0
             for (K -> R : DeviceAvion.Rangees, K < DeviceAvion.RangeesAchetees, R.Revenu > 0):
+                APlaces := for (Rg : RangeeDesPlaces, Rg = K) { Rg }
                 Occupee := for (P : Payants, Rg := RangeeDesPlaces[P.NumeroPlace], Rg = K) { P }
-                if (Occupee.Length > 0) { set Rangees += R.Revenu }
+                if (APlaces.Length = 0 or Occupee.Length > 0) { set Rangees += R.Revenu }
             Base := ParPassager * Payants.Length + Rangees
             Taux := if (T := Round[Base * 1.0 * Bonus]) then T else Base
             if (Taux > 0):

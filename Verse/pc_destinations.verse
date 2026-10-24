@@ -169,8 +169,6 @@ pc_destinations := class(creative_device):
     # voir passagers / feuille_mission), durée (minutes), multiplicateur (commandes des passagers).
     PrixPalier:[]int = array{2000, 5000, 50000, 400000, 3000000, 25000000, 200000000, 1500000000}
     ValeurPalier:[]float = array{1000.0, 8000.0, 60000.0, 500000.0, 4000000.0, 30000000.0, 250000000.0, 2000000000.0}
-    # Argent FIXE par seconde de vol pour chaque passager assis, selon le niveau de la ligne.
-    ParSecondePalier:[]int = array{1, 3, 10, 40, 150, 600, 2500, 10000}
     MinutesPalier:[]float = array{5.0, 6.0, 7.0, 8.0, 9.0, 11.0, 13.0, 15.0}
     MultiPalier:[]float = array{1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0}
 
@@ -272,7 +270,6 @@ pc_destinations := class(creative_device):
 
     # Valeur d'un vol (passagers + missions en dépendent) et multiplicateur des commandes.
     ValeurVol()<transacts>:float = if (V := ValeurPalier[Palier(RouteCourante()) - 1]) then V else 1000.0
-    ParPassagerSeconde()<transacts>:int = if (V := ParSecondePalier[Palier(RouteCourante()) - 1]) then V else 1
     MultiplicateurActif()<transacts>:float = if (M := MultiPalier[Palier(RouteCourante()) - 1]) then M else 1.0
     DureeVolActive()<transacts>:float = MinutesRoute(Choisie) * 60.0
     # Niveau de la ligne (1..8)

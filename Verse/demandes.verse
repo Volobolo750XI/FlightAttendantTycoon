@@ -421,8 +421,7 @@ demandes_device := class(creative_device):
         if (A := DeviceAvion?):
             set Ameliore = A.MultiService * A.MultiRebirth
             if (EstRepas[D.Choix]) { set Ameliore *= A.MultiRepas }
-        # x5 : on gagne beaucoup plus qu'avant
-        Gain := if (G := Round[Unite * Marge * Multi * Bonus * Ameliore * 5.0]) then Max(1, G) else 1
+        Gain := if (G := Round[Unite * Marge * Multi * Bonus * Ameliore]) then Max(1, G) else 1
         if (A := DeviceAvion?):
             A.Gagner(Gain, 1)
             Message("+${A.Abreger(Gain)}")

@@ -324,24 +324,29 @@ passagers := class(creative_device):
             if (not Ordi.EnVol[]) { Ordi.Decollage() }
             set Duree = Ordi.DureeVol * (1.0 - Ordi.Progression())
         set Duree = Max(5.0, Duree)
-        # pendant tout le vol : chaque seconde, chaque passager assis rapporte de l'argent
+        # pendant tout le vol, chaque seconde :
+        #   chaque passager assis (qui a payé) rapporte un montant FIXE (selon la ligne) ;
+        #   chaque rangée achetée rapporte son Revenu SEULEMENT si un passager y est assis.
         # x bonus des améliorations (classes, confort, équipe) et du rebirth
         Bonus := DeviceAvion.MultiBillet * DeviceAvion.MultiRebirth
-        ParPassager := (if (Ordi := DevicePC?) then Ordi.ValeurVol() * PartParPassager else PrixBillet * 1.0) * Bonus / Duree
+        ParPassager := if (Ordi := DevicePC?) then Ordi.ParPassagerSeconde() else 1
+        # la rangée de chaque place (calculée une fois)
+        RangeeDesPlaces := for (Pl : Places) { RangeeDe(Pl) }
         set GainVol = 0
-        var Reste:float = 0.0
         Debut := GetSimulationElapsedTime()
         loop:
             Sleep(1.0)
             Payants := for (P : EnCours, P.Etat = 2, not P.Fraudeur?) { P }
-            # passagers assis + l'argent par seconde des dalles achetées (x rebirth)
-            Taux := ParPassager * Payants.Length + DeviceAvion.RevenuAchats * DeviceAvion.MultiRebirth
-            set Reste += Taux
-            if (Entier := Floor[Reste], Entier > 0):
-                set Reste -= Entier * 1.0
-                set GainVol += Entier
-                DeviceAvion.Gagner(Entier, 0)
-            set DeviceAvion.RevenuVol = if (R := Round[Taux]) then R else 0
+            var Rangees:int = 0
+            for (K -> R : DeviceAvion.Rangees, K < DeviceAvion.RangeesAchetees, R.Revenu > 0):
+                Occupee := for (P : Payants, Rg := RangeeDesPlaces[P.NumeroPlace], Rg = K) { P }
+                if (Occupee.Length > 0) { set Rangees += R.Revenu }
+            Base := ParPassager * Payants.Length + Rangees
+            Taux := if (T := Round[Base * 1.0 * Bonus]) then T else Base
+            if (Taux > 0):
+                set GainVol += Taux
+                DeviceAvion.Gagner(Taux, 0)
+            set DeviceAvion.RevenuVol = Taux
             DeviceAvion.MettreAJourUI()
             set DerniersPayants = Payants.Length
             Ecoule := GetSimulationElapsedTime() - Debut
@@ -669,6 +674,18 @@ passagers := class(creative_device):
 
     # Un siège est acheté si le siège le plus proche de son repère (dans DeviceAvion)
     # appartient à une rangée déjà achetée. Rien à numéroter à la main.
+    # L'index (dans DeviceAvion.Rangees) de la rangée du siège de cette place (-1 si aucune).
+    RangeeDe(Place:place_passager):int =
+        Pos := Place.Siege.GetTransform().Translation
+        var Meilleur:float = 1000000.0
+        var Rang:int = -1
+        for (K -> R : DeviceAvion.Rangees, S : R.Sieges):
+            D := Distance(S.GetTransform().Translation, Pos)
+            if (D < Meilleur):
+                set Meilleur = D
+                set Rang = K
+        Rang
+
     SiegeAchete(Place:place_passager):logic =
         Pos := Place.Siege.GetTransform().Translation
         var Meilleur:float = 1000000.0

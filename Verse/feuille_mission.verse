@@ -230,7 +230,8 @@ feuille_mission := class(creative_device):
         set Embarquement = if (Minutes < 10) then "{Heure}:0{Minutes}" else "{Heure}:{Minutes}"
         set Billets = array{}
         # le quota de faux billets de ce vol (selon le nombre de places achetées)
-        Achetees := for (Pl : Passagers.Places, Passagers.SiegeAchete(Pl)?) { Pl }
+        Etats := for (Pl : Passagers.Places) { Passagers.SiegeAchete(Pl) }
+        Achetees := for (E : Etats, E?) { E }
         set Attendus = Max(1, Achetees.Length)
         Quota := if (F := Round[Attendus * PartFaux]) then F else 1
         set FauxVoulus = Max(1, Quota)

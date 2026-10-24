@@ -2,6 +2,7 @@ using { /Fortnite.com/Devices }
 using { /Fortnite.com/Characters }
 using { /Fortnite.com/UI }
 using { /Verse.org/Simulation }
+using { /Verse.org/Random }
 using { /Verse.org/Colors }
 using { /Verse.org/Assets }
 using { /UnrealEngine.com/Temporary/SpatialMath }
@@ -494,10 +495,10 @@ avion_tycoon := class(creative_device):
         CouleurTotal := if (Total >= 0) then "FFFFFF" else "FCA5A5"
         Grand := TexteRecap("", CouleurTotal, text_justification.Right)
         Toile.AddWidget(PlaceRecap(Grand, 990.0, 778.0, 280.0, 44.0, 5))
-        Etapes := 30
+        EtapesTotal := 30
         Absolu := if (Total >= 0) then Total else -Total
-        for (K := 1..Etapes):
-            F := K * 1.0 / (Etapes * 1.0)
+        for (K := 1..EtapesTotal):
+            F := K * 1.0 / (EtapesTotal * 1.0)
             Montre := if (V := Round[Absolu * (1.0 - (1.0 - F) * (1.0 - F) * (1.0 - F))]) then V else Absolu
             SigneTotal := if (Total >= 0) then "+" else "-"
             Grand.SetText(Msg("{SigneTotal}${Abreger(Montre)}"))
@@ -508,7 +509,7 @@ avion_tycoon := class(creative_device):
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.BoutonVert, DefaultDesiredSize := vector2{X := 300.0, Y := 150.0}}, 810.0, 870.0, 300.0, 120.0, 6))
         Toile.AddWidget(PlaceRecap(TexteRecap("CONTINUE", "FFFFFF", text_justification.Center), 810.0, 908.0, 300.0, 44.0, 7))
         Bouton := button_quiet{DefaultText := Msg("")}
-        Bouton.OnClick().Subscribe(clic_recap{Avion := Self}.Clique)
+        Bouton.OnClick().Subscribe(clic_recap{Device := Self}.Clique)
         Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))
         Sleep(10.0)
         if (Numero = NumeroRecap) { FermerRecap() }
@@ -571,5 +572,5 @@ avion_tycoon := class(creative_device):
 
 # Le bouton CONTINUE du récap.
 clic_recap := class:
-    Avion:avion_tycoon
-    Clique(Clic:widget_message):void = Avion.FermerRecap()
+    Device:avion_tycoon
+    Clique(Clic:widget_message):void = Device.FermerRecap()

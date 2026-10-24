@@ -390,27 +390,28 @@ avion_tycoon := class(creative_device):
     AnimerPopup(UI:player_ui, Texte:string, Couleur:string, Decalage:float)<suspends>:void =
         Toile := canvas{}
         UI.AddWidget(Toile)
-        Icone := texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 96.0, Y := 96.0}}
+        Icone := texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 80.0, Y := 80.0}}
         Ecrit := text_block:
             DefaultText := Msg(Texte)
             DefaultTextColor := MakeColorFromHex(Couleur)
             DefaultShadowColor := MakeColorFromHex("052E16")
             DefaultShadowOpacity := 1.0
             DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
-        var Slots:[]canvas_slot = array{}
-        Etapes := 45
+        # l'icône et le texte restent toujours ensemble ; seuls leur taille et leur hauteur bougent
+        Etapes := 24
         for (K := 0..Etapes):
             T := K * 1.0 / (Etapes * 1.0)
-            # pop (grossit, rebondit), puis monte doucement, puis rétrécit et disparaît
-            Taille := if (T < 0.12) then 96.0 * 1.3 * T / 0.12 else if (T < 0.22) then 96.0 * (1.3 - 0.3 * (T - 0.12) / 0.1) else if (T > 0.85) then 96.0 * Max(0.0, 1.0 - (T - 0.85) / 0.15) else 96.0
-            Monte := -Decalage - 70.0 * T
-            for (S : Slots) { Toile.RemoveWidget(S.Widget) }
-            set Slots = array:
-                PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)
-                PlaceGauche(Ecrit, 404.0, Monte - 20.0, 700.0, 44.0)
-            if (T > 0.9) { set Slots = array{PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)} }
-            for (S : Slots) { Toile.AddWidget(S) }
-            Sleep(0.033)
+            # pop rapide (rebond), puis on monte un peu, puis tout rétrécit d'un coup
+            Echelle := if (T < 0.15) then 1.25 * T / 0.15 else if (T < 0.25) then 1.25 - 0.25 * (T - 0.15) / 0.1 else if (T > 0.8) then Max(0.0, 1.0 - (T - 0.8) / 0.2) else 1.0
+            Taille := 80.0 * Echelle
+            Y := -Decalage - 50.0 * T
+            # on replace les 2 dans la même frame (pas de clignotement)
+            Toile.RemoveWidget(Icone)
+            Toile.RemoveWidget(Ecrit)
+            Toile.AddWidget(PlaceGauche(Icone, 300.0 + 40.0 - Taille / 2.0, Y - Taille / 2.0, Taille, Taille))
+            if (Echelle > 0.3):
+                Toile.AddWidget(PlaceGauche(Ecrit, 390.0, Y - 20.0, 600.0, 44.0))
+            Sleep(0.03)
         UI.RemoveWidget(Toile)
 
     # Un widget placé depuis le milieu du bord gauche de l'écran (là où est le compteur d'argent).

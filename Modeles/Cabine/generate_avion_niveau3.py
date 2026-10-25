@@ -47,12 +47,18 @@ LARGE = {"WALL": W, "BIN_BOTTOM": BB, "BIN_FACE": BF, "CEILING": C, "WALL_FULL":
 for k, v in LARGE.items():
     setattr(G, k, v)
 G.CENTER_BINS = True
+# zone equipage (cuisine, chambre, cockpit) : portes au centre de l'avion, lit contre la paroi
+import generate_avion_2x2 as A2  # noqa: E402
+A2.DOOR_X = 0.0
+G.BED_X = 2.4
 G.CENTER_BIN = CB
 G.CENTER_BIN_SECTION = G.outline([CB])
 
 # ---------------------------------------------------------------- exterieur : A320 a l'echelle
 # rayon exterieur : la cabine (7,6 m de large, 3,3 m de haut) tient dedans avec de la marge
-E.CY_EXT = 1.35
+# le plancher est place a la meme hauteur RELATIVE que dans l'A320 (0,445 x le rayon sous le centre) :
+# sinon le caisson d'aile et le carenage du ventre traversent le plancher de la cabine
+E.CY_EXT = 1.89
 E.R_EXT = 4.25
 E.K = E.R_EXT / E.A_R
 # l'avant du troncon droit de l'A320 tombe sur l'avant de la porte avant (la cuisine / chambre
@@ -88,16 +94,40 @@ G.PAX_REVEAL = profondeur(W.s_at_x(float(W.x.max())), WF)
 DEBUT_FIRST = B.FIN_ECO - N_FIRST * G.PITCH
 
 
+# ---------------------------------------------------------------- cloisons entre les classes
+# Une cloison sur TOUTE la largeur de la cabine, avec 2 passages (un dans chaque allee),
+# chacun avec sa tringle et ses 2 rideaux ouverts.
+ALLEES_X = (-1.35, 1.35)
+
+
+def cloison(parts, z):
+    import trimesh
+    from shapely.geometry import box as sbox
+    from shapely.ops import unary_union
+    passages = unary_union([G.arch(x, B.PASSAGE_L, B.PASSAGE_H) for x in ALLEES_X])
+    contour = LARGE["OUTLINE_BINS"]
+    plein = contour.difference(passages).intersection(sbox(-9, 0, 9, 9))
+    parts.add("panel", G.extrude_xy(plein, z - 0.03, z + 0.03))
+    cadre = passages.buffer(0.04).difference(passages).intersection(sbox(-9, 0, 9, 9))
+    parts.add("reveal", G.extrude_xy(cadre, z - 0.045, z + 0.045))
+    for x in ALLEES_X:
+        tr = trimesh.creation.cylinder(radius=0.012, height=B.PASSAGE_L + 0.10, sections=16)
+        tr.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+        tr.apply_translation([x, B.PASSAGE_H - 0.03, z + 0.06])
+        parts.add("steel", tr)
+        for cote in (-1, 1):
+            r = B.rideau(cote, z + 0.06)
+            r.apply_translation([x, 0, 0])
+            parts.add("curtain", r)
+
+
 def ajouter_separations():
     cabine = G.build_cabin
 
     def build_cabin(parts):
         cabine(parts)
-        z = B.DEBUT_BUSINESS
-        B.separation(parts)                  # eco / Business
-        B.DEBUT_BUSINESS = DEBUT_FIRST
-        B.separation(parts)                  # Business / First
-        B.DEBUT_BUSINESS = z
+        cloison(parts, B.DEBUT_BUSINESS)     # eco / Business
+        cloison(parts, DEBUT_FIRST)          # Business / First
     G.build_cabin = build_cabin
 
 

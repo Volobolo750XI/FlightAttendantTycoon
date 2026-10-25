@@ -84,6 +84,12 @@ avion_tycoon := class(creative_device):
     # (facultatif) Appareils Panneau d'affichage (Billboard) posés devant l'écran blanc d'un
     # objet 3D (ATM, borne...) : ils affichent l'argent du joueur en direct.
     @editable EcransArgent:[]billboard_device = array{}
+    # (facultatif) La plaque verte de la borne MONEY (modèle MoneyATM_Pad posé dans la map).
+    # Si elle est remplie, l'argent par seconde du vol s'accumule DANS la borne : il faut marcher
+    # sur la plaque pour le récupérer (les écrans EcransArgent affichent alors l'argent à récupérer).
+    @editable PlaqueATM:?creative_prop = false
+    # De combien la plaque s'enfonce quand on marche dessus (cm).
+    @editable EnfoncementATM:float = 4.0
     # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
     @editable TestArgentInfini:logic = false
 
@@ -119,6 +125,8 @@ avion_tycoon := class(creative_device):
     var NumeroPopup:int = 0
     var NumeroRecap:int = 0
     var EcranRecap:?canvas = false
+    # L'argent qui attend dans la borne MONEY.
+    var StockATM:int = 0
     TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
@@ -146,6 +154,7 @@ avion_tycoon := class(creative_device):
         if (Joueur := Proprio?):
             Teleporter(Joueur)
         spawn{BoucleRetourAvion()}
+        if (Pad := PlaqueATM?) { spawn{BoucleATM(Pad)} }
 
         # 2. Rangées, dans l'ordre
         for (R : Rangees):
@@ -321,7 +330,8 @@ avion_tycoon := class(creative_device):
     MettreAJourUI():void =
         set RevenuParSeconde = RevenuVol
         TexteArgent.SetText(Msg("${Abreger(Argent)}"))
-        for (E : EcransArgent) { E.SetText(Msg("${Abreger(Argent)}")) }
+        Affiche := if (PlaqueATM?) then StockATM else Argent
+        for (E : EcransArgent) { E.SetText(Msg("${Abreger(Affiche)}")) }
         TexteRevenu.SetText(Msg("${Abreger(RevenuParSeconde)}/Sec"))
         TexteRebirth.SetText(Msg("{Rebirths} Rebirths"))
 
@@ -348,7 +358,11 @@ avion_tycoon := class(creative_device):
     # 2 missions, 3 fraudeurs attrapés.
     Gagner(Montant:int, Cat:int):void =
         if (Montant > 0):
-            set Argent += Montant
+            # l'argent du vol va dans la borne MONEY (s'il y en a une), le reste directement
+            if (Cat = 0, PlaqueATM?):
+                set StockATM += Montant
+            else:
+                set Argent += Montant
             if (Cat = 0):
                 set StatBillets += Montant
             else if (Cat = 1):
@@ -391,6 +405,8 @@ avion_tycoon := class(creative_device):
             Decalage := if (D := Mod[NumeroPopup, 3]) then D * 56.0 else 0.0
             spawn{AnimerPopup(UI, Texte, Couleur, Decalage)}
 
+    # Animation fluide : calculée sur le temps réel et mise à jour à CHAQUE image (Sleep(0.0)).
+    # Un petit "pop" au début, puis l'icône et le texte montent doucement et disparaissent.
     AnimerPopup(UI:player_ui, Texte:string, Couleur:string, Decalage:float)<suspends>:void =
         Toile := canvas{}
         UI.AddWidget(Toile)
@@ -401,21 +417,51 @@ avion_tycoon := class(creative_device):
             DefaultShadowColor := MakeColorFromHex("052E16")
             DefaultShadowOpacity := 1.0
             DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
-        var Slots:[]canvas_slot = array{}
-        Etapes := 45
-        for (K := 0..Etapes):
-            T := K * 1.0 / (Etapes * 1.0)
-            # pop (grossit, rebondit), puis monte doucement, puis rétrécit et disparaît
-            Taille := if (T < 0.12) then 96.0 * 1.3 * T / 0.12 else if (T < 0.22) then 96.0 * (1.3 - 0.3 * (T - 0.12) / 0.1) else if (T > 0.85) then 96.0 * Max(0.0, 1.0 - (T - 0.85) / 0.15) else 96.0
-            Monte := -Decalage - 70.0 * T
-            for (S : Slots) { Toile.RemoveWidget(S.Widget) }
-            set Slots = array:
-                PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)
-                PlaceGauche(Ecrit, 404.0, Monte - 20.0, 700.0, 44.0)
-            if (T > 0.9) { set Slots = array{PlaceGauche(Icone, 300.0 + 48.0 - Taille / 2.0, Monte - Taille / 2.0, Taille, Taille)} }
-            for (S : Slots) { Toile.AddWidget(S) }
-            Sleep(0.033)
+        Duree := 1.4
+        Debut := GetSimulationElapsedTime()
+        loop:
+            T := (GetSimulationElapsedTime() - Debut) / Duree
+            if (T >= 1.0) { break }
+            # taille : grossit vite (rebond), reste stable, rétrécit à la fin
+            Echelle := if (T < 0.1) then 1.2 * T / 0.1 else if (T < 0.2) then 1.2 - 0.2 * (T - 0.1) / 0.1 else if (T > 0.85) then (1.0 - T) / 0.15 else 1.0
+            # montée douce (ralentit en haut)
+            Montee := 1.0 - (1.0 - T) * (1.0 - T)
+            Taille := 96.0 * Echelle
+            Y := -Decalage - 80.0 * Montee
+            Toile.RemoveWidget(Icone)
+            Toile.RemoveWidget(Ecrit)
+            Toile.AddWidget(PlaceGauche(Icone, 348.0 - Taille / 2.0, Y - Taille / 2.0, Taille, Taille))
+            if (Echelle > 0.35) { Toile.AddWidget(PlaceGauche(Ecrit, 404.0, Y - 20.0, 700.0, 44.0)) }
+            Sleep(0.0)
         UI.RemoveWidget(Toile)
+
+    # ---------- la borne MONEY ----------
+    BoucleATM(Pad:creative_prop)<suspends>:void =
+        Repos := Pad.GetTransform()
+        Bas := Repos.Translation - vector3{X := 0.0, Y := 0.0, Z := EnfoncementATM}
+        loop:
+            Joueur := AttendreSurPlaque(Pad, Proprio)
+            # la plaque s'enfonce un peu
+            Pad.MoveTo(Bas, Repos.Rotation, 0.08)
+            if (StockATM > 0):
+                Montant := StockATM
+                set StockATM = 0
+                set Argent += Montant
+                MettreAJourUI()
+                if (Son := SonArgent?) { Son.Play() }
+                Popup("+${Abreger(Montant)}", "86EFAC")
+            # on attend que le joueur descende, puis la plaque remonte
+            loop:
+                Sleep(0.1)
+                if (not SurPlaque(Pad, Joueur)?) { break }
+            Pad.MoveTo(Repos.Translation, Repos.Rotation, 0.15)
+
+    SurPlaque(Plaque:creative_prop, Joueur:agent):logic =
+        Centre := Plaque.GetTransform().Translation
+        if (Perso := Joueur.GetFortCharacter[]):
+            if (Distance(Perso.GetTransform().Translation, Centre) < Reglages.RayonPlaque) then true else false
+        else:
+            false
 
     # Un widget placé depuis le milieu du bord gauche de l'écran (là où est le compteur d'argent).
     PlaceGauche(W:widget, X:float, Y:float, L:float, H:float):canvas_slot =

@@ -5,7 +5,7 @@
   la deplacer de 0,74 m vers l'avant (-Z) ;
 - grand fauteuil en cuir creme capitonne, accoudoirs larges, appui-tete a oreilles ;
 - pouf / repose-pieds a la meme hauteur que l'assise (le siege + le pouf = un lit) ;
-- console laterale en noyer : lampe doree, minibar vitre, carafe et verres, commande du siege ;
+- console laterale en noyer : lampe doree, petit frigo vitre, carafe d'eau et verres, commande du siege ;
 - grand ecran 32 pouces dans la paroi avant, patere, coussin, plaid plie, chaussons.
 Repere : metres, Y en haut, le passager regarde vers -Z. Origine au sol, au centre de la suite.
 La paroi cote hublot est a gauche (-X), la porte cote allee a droite (+X) ; le fichier "gauche" est le miroir.
@@ -49,7 +49,7 @@ def tex_capitonne(rgb, n=512, pas=64):
 
 
 def tex_plaid(n=256):
-    """Plaid vert emeraude avec deux fines bandes champagne."""
+    """Plaid vert emeraude avec deux fines bandes dorees."""
     y = np.arange(n)[:, None].repeat(n, 1) / n
     bande = np.abs((y * 2) % 1 - 0.5) < 0.04
     c = np.where(bande[..., None], np.array([214, 190, 140]), np.array([22, 92, 64]))
@@ -66,7 +66,7 @@ M = {
     "cuir": mat("CuirCreme", tex_cuir(CREME), 0.5),
     "cuir_vert": mat("CuirEmeraude", tex_cuir(EMERAUDE), 0.5),
     "laque": mat("LaqueCreme", tex_uni((238, 230, 214)), 0.25),
-    "or": mat("OrChampagne", tex_uni((200, 164, 104)), 0.22, 1.0),
+    "or": mat("OrDore", tex_uni((200, 164, 104)), 0.22, 1.0),
     "noir": mat("LaqueNoire", tex_uni((22, 22, 26)), 0.3),
     "ecran": mat("EcranVeille", tex_uni((10, 16, 28), var=0.4), 0.06, 0.0, [0.02, 0.04, 0.08]),
     "verre": mat("VerreFume", tex_uni((40, 52, 50)), 0.05),
@@ -229,7 +229,7 @@ def console(z_dos):
     boite("laque", lg, yt - 0.03, pz, xc, (yt - 0.03) / 2, zc, 0.02)
     boite("noyer", lg + 0.01, 0.03, pz + 0.01, xc, yt - 0.015, zc, 0.008, 0.6)
     boite("or", lg + 0.014, 0.008, pz + 0.014, xc, yt - 0.032, zc, 0.003)
-    # minibar vitre sur la face cote passager (+X), cadre dore, 2 bouteilles visibles derriere
+    # petit frigo vitre sur la face cote passager (+X), cadre dore, 2 bouteilles visibles derriere
     xm = xc + lg / 2 + 0.002
     zm = z0 + 0.24
     boite("or", 0.006, 0.30, 0.32, xm, 0.36, zm, 0.003)

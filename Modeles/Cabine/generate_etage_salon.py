@@ -331,7 +331,7 @@ def bar():
         for a in np.linspace(0, 2 * np.pi, 12, endpoint=False):
             k = ("ambre", "bouteille", "cristal")[int(rng.integers(3))]
             bouteille(o, 0.36 * np.cos(a), y + 0.01, zc + 0.36 * np.sin(a), k, 0.26 + 0.06 * rng.random())
-    # sur le comptoir : verres, seau a champagne, shaker
+    # sur le comptoir : verres, seau a glace, shaker
     for z in (10.75, 11.25, 13.05, 13.55):
         for s in (-1, 1):
             verre(o, s * 0.80, 1.05, z)
@@ -459,7 +459,7 @@ def transats():
         for z in (1.45, 3.80):
             o.meuble("Transat")
             transat(o, s * 2.12, z)
-        o.meuble("TableCocktail")
+        o.meuble("PetiteTable")
         table_ronde(o, s * 2.30, 2.62, 0.18, 0.45)
         verre(o, s * 2.30, 0.45, 2.62)
     return o
@@ -608,8 +608,6 @@ def cinema():
             for i in (-1, 0, 1):
                 o.boite("siege", 0.56, 0.12, 0.66, x + i * 0.60, 0.44, z - 0.08, 0.05, 0.45, bombe=0.02)
                 o.boite("siege", 0.54, 0.44, 0.14, x + i * 0.60, 0.75, z + 0.24, 0.06, 0.45, rx=8, bombe=0.03)
-            for i in (-0.30, 0.30):                                   # porte-gobelets dores
-                o.cyl("or", 0.04, 0.01, x + i, 0.665, z - 0.25)
             o.boite("noir", 2.0, 0.08, 0.02, x, 0.10, z - 0.48, 0.005)
             o.boite("neon", 1.9, 0.01, 0.01, x, 0.06, z - 0.49, 0.003)
     # seau de pop-corn sur les accoudoirs centraux
@@ -655,9 +653,12 @@ def lustres():
 # ------------------------------------------------------------------ 11 plantes
 def palmier(o, x, z):
     sens = -np.sign(x)                                                   # le palmier penche vers l'allee
-    o.cyl("or", 0.26, 0.48, x, 0.24, z, sec=32)
-    o.cyl("noir", 0.265, 0.04, x, 0.46, z, sec=32)
-    o.cyl("tronc", 0.23, 0.02, x, 0.47, z, sec=32)
+    o.cyl("or", 0.26, 0.44, x, 0.22, z, sec=32)                         # pot dore
+    bord = trimesh.creation.annulus(0.235, 0.268, 0.05, sections=32)      # bord noir (anneau, sans face commune)
+    bord.apply_transform(rotation_matrix(np.pi / 2, [1, 0, 0]))
+    bord.apply_translation([x, 0.465, z])
+    o.add("noir", bord)
+    o.cyl("tronc", 0.236, 0.025, x, 0.4575, z, sec=32)                    # terre, en retrait sous le bord
     base = np.array([x, 0.48, z])
     sommet = np.array([x + sens * 0.12, 1.65, z])
     for i in range(6):

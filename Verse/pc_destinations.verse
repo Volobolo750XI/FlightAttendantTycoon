@@ -75,6 +75,8 @@ pc_destinations := class(creative_device):
     # La barre de vol en haut de l'écran : sa distance au bord du haut (pixels, sur un écran
     # 1920 x 1080). Laisse de la place pour le code de la map.
     @editable HautBarre:float = 64.0
+    # Le texte cartoon (images du dossier TexteCartoon) : ecriture_cartoon.verse
+    Ecriture:ecriture_cartoon = ecriture_cartoon{}
 
     # La carte du monde à l'écran (onglet MAP) : 1800 x 900 pixels, sous les onglets.
     LargeurCarte:float = 1800.0
@@ -484,10 +486,11 @@ pc_destinations := class(creative_device):
     # Un bouton cartoon (image du kit InterfacePC) + son texte + la zone de clic par-dessus
     # (écran 1920 x 1080).
     BoutonKit(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
-        array:
-            Bloc(Vignette(Img, L, H), X, Y, L, H, 16)
-            Bloc(Etiquette(Texte, "FFFFFF"), X, Y + H / 2.0 - 22.0, L, 40.0, 17)
-            Bloc(Zone(Action, Index), X, Y, L, H, 30)
+        # le texte est un peu au-dessus du centre : le bas du bouton est son epaisseur 3D
+        var Slots:[]canvas_slot = array{Bloc(Vignette(Img, L, H), X, Y, L, H, 16)}
+        set Slots += Ecriture.Ecrire(Texte, "FFFFFF", text_justification.Center, X + L * 0.08, Y + H * 0.20, L * 0.84, H * 0.50, 17)
+        set Slots += array{Bloc(Zone(Action, Index), X, Y, L, H, 30)}
+        Slots
 
     Abreger(N:int):string = AvionTycoon.Abreger(N)
 
@@ -543,8 +546,8 @@ pc_destinations := class(creative_device):
             set Slots += Onglets()
             if (MessageErreur <> ""):
                 set Slots += array{Bloc(Rect("7F1D1D", 0.95), 610.0, 170.0, 700.0, 50.0, 25)}
-                set Slots += array{Bloc(Ecrit(MessageErreur, "FFFFFF", text_justification.Center), 610.0, 175.0, 700.0, 40.0, 26)}
-            set Slots += BoutonKit("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 5, 0)
+                set Slots += Ecriture.Ecrire(MessageErreur, "FFFFFF", text_justification.Center, 610.0, 175.0, 700.0, 40.0, 26)
+            set Slots += BoutonKit("", InterfacePC.Fermer, 1824.0, 0.0, 88.0, 88.0, 5, 0)
             for (S : Slots) { Toile.AddWidget(S) }
             set Dynamiques = for (S : Slots) { S.Widget }
             if (EnVol[], IconeAvion := IconeVol?):
@@ -561,8 +564,8 @@ pc_destinations := class(creative_device):
         # le titre et ce qu'il faut faire
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Base)}"
         Aide := if (EnVol[]) then "CHOOSE YOUR FLIGHT AFTER LANDING" else "CLICK A FLIGHT TO BUY IT OR CHOOSE IT"
-        set S += array{Bloc(Etiquette(Titre, "FFFFFF"), 360.0, 165.0, 1200.0, 44.0, 6)}
-        set S += array{Bloc(Etiquette(Aide, "BBF7D0"), 360.0, 208.0, 1200.0, 40.0, 6)}
+        set S += Ecriture.Ecrire(Titre, "FFFFFF", text_justification.Center, 360.0, 165.0, 1200.0, 44.0, 6)
+        set S += Ecriture.Ecrire(Aide, "BBF7D0", text_justification.Center, 360.0, 208.0, 1200.0, 40.0, 6)
         # les cartes, triées du moins cher au plus cher
         var Lignes:[]int = array{}
         for (Niv := 1..8):
@@ -578,11 +581,11 @@ pc_destinations := class(creative_device):
             Minutes := if (M := Round[MinutesRoute(Prochain)]) then M else 5
             Debut := if (EnVol[]) then "AFTER LANDING" else "NEXT FLIGHT"
             set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1000.0, 125.0), 460.0, 882.0, 1000.0, 125.0, 6)}
-            set S += array{Bloc(Etiquette("{Debut} :  {NomVille(Base)}  >  {Arrivee.Nom}  -  {Minutes} MIN", "FFFFFF"), 460.0, 904.0, 1000.0, 40.0, 8)}
+            set S += Ecriture.Ecrire("{Debut} :  {NomVille(Base)}  >  {Arrivee.Nom}  -  {Minutes} MIN", "FFFFFF", text_justification.Center, 460.0, 904.0, 1000.0, 40.0, 8)
             Ensuite := if (EnVol[]) then "IT STARTS WHEN YOU LAND" else "CLOSE THE DOORS AND TAKE OFF !"
-            set S += array{Bloc(Etiquette(Ensuite, "DCFCE7"), 460.0, 942.0, 1000.0, 36.0, 8)}
+            set S += Ecriture.Ecrire(Ensuite, "DCFCE7", text_justification.Center, 460.0, 942.0, 1000.0, 36.0, 8)
         else:
-            set S += array{Bloc(Etiquette("BUY A FLIGHT ABOVE TO START", "FFFFFF"), 460.0, 920.0, 1000.0, 44.0, 8)}
+            set S += Ecriture.Ecrire("BUY A FLIGHT ABOVE TO START", "FFFFFF", text_justification.Center, 460.0, 920.0, 1000.0, 44.0, 8)
         S
 
     # Une carte de vol cartoon (300 x 600) : l'image de la ville, son nom, durée, gain, et un
@@ -598,19 +601,19 @@ pc_destinations := class(creative_device):
         Gain := if (V := ValeurPalier[Palier(R) - 1], Arrondi := Round[V]) then Arrondi else 0
         Fond := if (Choisi?) then InterfacePC.CarteChoisie else if (Achat?) then InterfacePC.CarteAchetee else if (Assez?) then InterfacePC.Carte else InterfacePC.CarteGrise
         set S += array{Bloc(Vignette(Fond, L, 600.0), X, Y, L, 600.0, 6)}
-        set S += array{Bloc(Rect("052E16", 1.0), X + 19.0, Y + 19.0, L - 38.0, 134.0, 7)}
+        set S += array{Bloc(Rect("16213A", 1.0), X + 19.0, Y + 19.0, L - 38.0, 134.0, 7)}
         set S += array{Bloc(Vignette(Ville.Image, L - 44.0, 128.0), X + 22.0, Y + 22.0, L - 44.0, 128.0, 8)}
-        set S += array{Bloc(Etiquette(Ville.Nom, "FFFFFF"), X, Y + 165.0, L, 40.0, 9)}
-        set S += array{Bloc(Etiquette(Ville.Pays, "A7F3D0"), X, Y + 204.0, L, 34.0, 9)}
-        set S += array{Bloc(Etiquette("{Minutes} MIN FLIGHT", "FFFFFF"), X, Y + 260.0, L, 36.0, 9)}
-        set S += array{Bloc(Etiquette("EARNS ~${Abreger(Gain)}", "86EFAC"), X, Y + 300.0, L, 36.0, 9)}
+        set S += Ecriture.Ecrire(Ville.Nom, "FFFFFF", text_justification.Center, X, Y + 165.0, L, 40.0, 9)
+        set S += Ecriture.Ecrire(Ville.Pays, "A7F3D0", text_justification.Center, X, Y + 204.0, L, 34.0, 9)
+        set S += Ecriture.Ecrire("{Minutes} MIN FLIGHT", "FFFFFF", text_justification.Center, X, Y + 260.0, L, 36.0, 9)
+        set S += Ecriture.Ecrire("EARNS ~${Abreger(Gain)}", "86EFAC", text_justification.Center, X, Y + 300.0, L, 36.0, 9)
         # le gros bouton
         if (Choisi?):
             set S += array{Bloc(Vignette(InterfacePC.BoutonChoisi, L - 44.0, 128.0), X + 22.0, Y + 440.0, L - 44.0, 128.0, 9)}
-            set S += array{Bloc(Etiquette("NEXT FLIGHT", "FFFFFF"), X + 22.0, Y + 482.0, L - 44.0, 40.0, 10)}
+            set S += Ecriture.Ecrire("NEXT FLIGHT", "FFFFFF", text_justification.Center, X + 22.0, Y + 482.0, L - 44.0, 40.0, 10)
         else:
             if (not Achat?, not Assez?):
-                set S += array{Bloc(Etiquette("NOT ENOUGH MONEY", "FECACA"), X, Y + 390.0, L, 34.0, 10)}
+                set S += Ecriture.Ecrire("NOT ENOUGH MONEY", "FECACA", text_justification.Center, X, Y + 390.0, L, 34.0, 10)
             Texte := if (Achat?) then "FLY HERE" else "BUY  {TextePrix(Prix)}"
             ImageBouton := if (Achat?) then InterfacePC.BoutonCyan else if (Assez?) then InterfacePC.BoutonVert else InterfacePC.BoutonGris
             set S += BoutonKit(Texte, ImageBouton, X + 22.0, Y + 440.0, L - 44.0, 128.0, 12, R)
@@ -628,7 +631,7 @@ pc_destinations := class(creative_device):
     CarteReseau():tuple([]canvas_slot, ?texture_block) =
         var S:[]canvas_slot = array{}
         Titre := if (EnVol[]) then "FLYING TO {NomVille(Vers)}" else "YOU ARE IN {NomVille(Position)}"
-        set S += array{Bloc(Etiquette(Titre, "FFFFFF"), 560.0, 168.0, 800.0, 40.0, 6)}
+        set S += Ecriture.Ecrire(Titre, "FFFFFF", text_justification.Center, 560.0, 168.0, 800.0, 40.0, 6)
         # seulement les lignes achetées (le prochain vol en vert, plus gros)
         Prochain := ProchainVol()
         for (I -> R : Routes, Achetee[I]):
@@ -652,7 +655,9 @@ pc_destinations := class(creative_device):
             # le nom : seulement la ville où on est et la prochaine destination
             if (Ici? or Voisine?):
                 Decale := if (Ici?) then 30.0 else -30.0
-                set S += array{PlaceC(Etiquette(Ville.Nom, Couleur), Ville.U, Ville.V, 0.0, Decale, 320.0, 40.0, 7)}
+                CX := 960.0 + (Ville.U - 0.5) * LargeurCarte
+                CY := CentreCarteY + (Ville.V - 0.5) * HauteurCarte + Decale
+                set S += Ecriture.Ecrire(Ville.Nom, Couleur, text_justification.Center, CX - 160.0, CY - 20.0, 320.0, 40.0, 7)
         # l'avion : sur la ville au sol, sur la ligne pendant le vol
         Depart := PointVille(Position)
         Arrivee := if (EnVol[]) then PointVille(Vers) else PointVille(Autre(Choisie, Position))

@@ -18,7 +18,7 @@ import generate_avion_2x2  # noqa: F401  (configure le petit avion)
 import generate_cabin as G
 
 # ---------------------------------------------------------------- allongement
-N_EN_PLUS = 16                          # hublots en plus (16 x 0,53 m = 8,48 m)
+N_EN_PLUS = int(os.environ.get("N_EN_PLUS", "16"))   # hublots en plus (16 x 0,53 m = 8,48 m)
 EXTRA = N_EN_PLUS * G.PITCH
 FIN_ECO = G.CABIN[1]                    # avant de la cabine (ne bouge pas)
 G.N_WINDOWS += N_EN_PLUS

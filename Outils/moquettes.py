@@ -60,6 +60,6 @@ if __name__ == "__main__":
     first = motif((92, 18, 34), (214, 178, 96), True)
     # avion 2 | 2 : Business de z=-9,45 a -0,97 (glTF), sol de 3,25 m de large
     moquette("Moquette_Business_Avion2", 1.58, -9.45, -0.97, business)
-    # avion 3 | 3 | 3 (elargi x2,1) : First -9,45 a -3,09 ; Business -3,09 a 5,39
-    moquette("Moquette_First_Avion3", 1.58 * 2.1, -9.45, -3.09, first)
-    moquette("Moquette_Business_Avion3", 1.58 * 2.1, -3.09, 5.39, business)
+    # avion 3 | 3 | 3 (sol de 7,1 m de large) : First -9,45 a -3,09 ; Business -3,09 a 5,39
+    moquette("Moquette_First_Avion3", 3.50, -9.45, -3.09, first)
+    moquette("Moquette_Business_Avion3", 3.50, -3.09, 5.39, business)

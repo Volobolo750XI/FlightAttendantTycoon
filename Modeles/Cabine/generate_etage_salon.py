@@ -140,11 +140,35 @@ M.update({
 
 # ------------------------------------------------------------------ objet a acheter
 class Objet:
-    def __init__(self, nom):
-        self.nom, self.pieces = nom, {}
+    """Un objet a acheter (ex. Transats), fait de plusieurs MEUBLES (ex. Transat_1 ... Transat_4).
+    Chaque meuble devient un maillage separe dans le GLB (un noeud = un meuble, plusieurs materiaux)."""
+
+    def __init__(self, nom, principal=None):
+        self.nom, self.meubles, self.compte = nom, {}, {}
+        if principal:
+            self.meuble(principal)
+
+    def meuble(self, nom):
+        """Tout ce qui est ajoute ensuite appartient a un nouveau meuble (numerote : Fauteuil_1, Fauteuil_2...)."""
+        n = self.compte.get(nom, 0) + 1
+        self.compte[nom] = n
+        self.courant = (nom, n)
+        self.meubles[self.courant] = {}
+
+    def nom_meuble(self, cle):
+        nom, n = cle
+        return nom if self.compte[nom] == 1 else f"{nom}_{n}"
+
+    @property
+    def pieces(self):
+        d = {}
+        for m in self.meubles.values():
+            for k, lst in m.items():
+                d.setdefault(k, []).extend(lst)
+        return d
 
     def add(self, k, m, echelle=1.0):
-        self.pieces.setdefault(k, []).append(uv_boite(m, echelle))
+        self.meubles[self.courant].setdefault(k, []).append(uv_boite(m, echelle))
 
     def boite(self, k, l, h, e, x, y, z, r=0.01, echelle=1.0, rx=0.0, ry=0.0, bombe=0.0):
         n = 3 if (r >= 0.02 or bombe) else 2
@@ -161,15 +185,20 @@ class Objet:
         m.apply_translation([0, y0, 0])
         self.add(k, m, echelle)
 
-    def scene(self):
-        sc = trimesh.Scene()
-        for k, lst in self.pieces.items():
-            m = trimesh.util.concatenate(lst)
-            uv = np.vstack([p.metadata["uv"] for p in lst])
-            vn = np.vstack([p.metadata["normales"] for p in lst])
-            m = trimesh.Trimesh(m.vertices + [0, UP, 0], m.faces, vertex_normals=vn, process=False)
-            m.visual = trimesh.visual.TextureVisuals(uv=uv, material=M[k])
-            sc.add_geometry(m, node_name=f"{self.nom}_{M[k].name}", geom_name=f"{self.nom}_{M[k].name}")
+    def scene(self, sc=None):
+        """Un noeud par (meuble, materiau), nomme "<meuble>__<materiau>" ; exporter() regroupe par meuble."""
+        sc = sc if sc is not None else trimesh.Scene()
+        prefixe = self.nom.split("_")[0].replace("Etage", "E")
+        for cle, pieces in self.meubles.items():
+            for k, lst in pieces.items():
+                m = trimesh.util.concatenate(lst)
+                uv = np.vstack([p.metadata["uv"] for p in lst])
+                vn = np.vstack([p.metadata["normales"] for p in lst])
+                m = trimesh.Trimesh(m.vertices + [0, UP, 0], m.faces, vertex_normals=vn, process=False)
+                m.visual = trimesh.visual.TextureVisuals(uv=uv, material=M[k])
+                m.merge_vertices()
+                nom = f"{prefixe}_{self.nom_meuble(cle)}__{M[k].name}"
+                sc.add_geometry(m, node_name=nom, geom_name=nom)
         return sc
 
     def sommets(self):
@@ -254,18 +283,21 @@ def bouteille(o, x, y, z, k="bouteille", h=0.30):
 def salon_escalier():
     o = Objet("Etage01_SalonEscalier")
     for s in (-1, 1):
+        o.meuble("Canape")
         canape(o, s * 2.36, 17.9, 3.0, s)
+        o.meuble("TableBasse")
         table_ronde(o, s * 1.38, 17.9, 0.36, 0.42)
-        o.cyl("or", 0.20, 0.55, s * 2.45, 0.275, 16.05, sec=32)        # gueridon-colonne sous la lampe
-        lampe(o, s * 2.45, 16.05, 0.55)
         for dz in (-0.12, 0.12):
             verre(o, s * 1.38 + dz * 0.5, 0.42, 17.9 + dz)
+        o.meuble("Lampe")
+        o.cyl("or", 0.20, 0.55, s * 2.45, 0.275, 16.05, sec=32)        # gueridon-colonne sous la lampe
+        lampe(o, s * 2.45, 16.05, 0.55)
     return o
 
 
 # ------------------------------------------------------------------ 02 bar
 def bar():
-    o = Objet("Etage02_Bar")
+    o = Objet("Etage02_Bar", "Bar")
     zc, lx, lz = 12.15, 1.50, 3.40
     corps = stade(lx, lz, 0, zc)
     o.extrusion("noir", stade(lx - 0.10, lz - 0.10, 0, zc), 0.0, 0.10)                 # socle en retrait
@@ -309,6 +341,7 @@ def bar():
     # tabourets : 4 de chaque cote, 1 a chaque bout
     places = [(s * 1.17, z) for s in (-1, 1) for z in (10.95, 11.75, 12.55, 13.35)] + [(0, 9.98)]          # rien devant l'arrivee de l'escalier
     for x, z in places:
+        o.meuble("Tabouret")
         o.cyl("or", 0.21, 0.02, x, 0.01, z, sec=32)
         o.cyl("or", 0.03, 0.72, x, 0.38, z)
         o.add("or", trimesh.creation.annulus(0.17, 0.19, 0.02, sections=32).apply_transform(
@@ -327,20 +360,25 @@ def salon():
     o = Objet("Etage03_Salon")
     zc = 7.35
     for s in (-1, 1):
+        o.meuble("Tapis")
         o.boite("or", 2.30, 0.008, 3.40, s * 1.62, 0.004, zc, 0.002)
         o.boite("tapis", 2.22, 0.012, 3.32, s * 1.62, 0.008, zc, 0.003, 1.6)
+        o.meuble("Canape")
         canape(o, s * 2.36, zc, 2.4, s)
+        o.meuble("TableBasse")
         table_ronde(o, s * 1.50, zc, 0.40, 0.42)
-        for dz in (-0.65, 0.65):
-            fauteuil(o, s * 0.80, zc + dz * 1.0, 180 if s > 0 else 0)
-        for dz in (-1.6, 1.6):
-            table_ronde(o, s * 2.45, zc + dz, 0.20, 0.55)
-            lampe(o, s * 2.45, zc + dz, 0.55)
         # sur la table basse : plateau dore, livres, bougie
         o.boite("or", 0.30, 0.01, 0.20, s * 1.50, 0.425, zc - 0.12, 0.004)
         o.boite("cuir_vert", 0.22, 0.04, 0.16, s * 1.50, 0.44, zc + 0.15, 0.005)
         o.boite("cuir", 0.20, 0.03, 0.15, s * 1.50, 0.475, zc + 0.15, 0.005)
         o.cyl("lumiere", 0.035, 0.08, s * 1.50, 0.47, zc - 0.12)
+        for dz in (-0.65, 0.65):
+            o.meuble("Fauteuil")
+            fauteuil(o, s * 0.80, zc + dz * 1.0, 180 if s > 0 else 0)
+        for dz in (-1.6, 1.6):
+            o.meuble("Lampe")
+            table_ronde(o, s * 2.45, zc + dz, 0.20, 0.55)
+            lampe(o, s * 2.45, zc + dz, 0.55)
     return o
 
 
@@ -349,7 +387,7 @@ PISC = (2.60, 4.40, 2.60, 0.55)           # largeur (x), longueur (z), centre z,
 
 
 def piscine():
-    o = Objet("Etage04_Piscine")
+    o = Objet("Etage04_Piscine", "Piscine")
     lx, lz, zc, h = PISC
     ext = Polygon([(-lx / 2, zc - lz / 2), (lx / 2, zc - lz / 2), (lx / 2, zc + lz / 2), (-lx / 2, zc + lz / 2)])
     inte = ext.buffer(-0.15, join_style=2)
@@ -379,6 +417,7 @@ def piscine():
     for y in (0.15, 0.30):
         o.boite("chrome", 0.50, 0.02, 0.06, 0, y, zc + lz / 2 - 0.30, 0.008)
     # bouee et ballon (ambiance tycoon) poses sur l'eau
+    o.meuble("Bouee")
     bouee = trimesh.creation.torus(0.28, 0.08, major_sections=32, minor_sections=12)
     bouee.apply_transform(rotation_matrix(np.pi / 2, [1, 0, 0]))
     bouee.apply_translation([-0.45, 0.44, zc - 0.9])
@@ -391,6 +430,7 @@ def piscine():
         t = t.slice_plane([0, 0, 0], [-np.cos(a + 0.6), 0, np.sin(a + 0.6)])
         t.apply_translation([-0.45, 0.44, zc - 0.9])
         o.add("rouge", t)
+    o.meuble("Ballon")
     ballon = trimesh.creation.icosphere(3, 0.16)
     ballon.apply_translation([0.5, 0.48, zc + 0.8])
     o.add("blanc", ballon)
@@ -417,7 +457,9 @@ def transats():
     o = Objet("Etage05_Transats")
     for s in (-1, 1):
         for z in (1.45, 3.80):
+            o.meuble("Transat")
             transat(o, s * 2.12, z)
+        o.meuble("TableCocktail")
         table_ronde(o, s * 2.30, 2.62, 0.18, 0.45)
         verre(o, s * 2.30, 0.45, 2.62)
     return o
@@ -425,7 +467,7 @@ def transats():
 
 # ------------------------------------------------------------------ 06 statue dollar
 def statue():
-    o = Objet("Etage06_StatueDollar")
+    o = Objet("Etage06_StatueDollar", "StatueDollar")
     z = -0.35
     o.boite("marbre", 0.62, 0.55, 0.62, 0, 0.275, z, 0.01, 0.9)
     o.boite("or", 0.66, 0.05, 0.66, 0, 0.575, z, 0.01)
@@ -448,7 +490,7 @@ def statue():
 
 # ------------------------------------------------------------------ 07 piano
 def piano():
-    o = Objet("Etage07_Piano")
+    o = Objet("Etage07_Piano", "Piano")
     xk, zc = -0.80, -2.45            # bord du clavier (cote allee), centre en z
     L, W = 1.75, 1.45
     # contour vu de dessus : u = distance depuis le clavier (vers -X), v = travers (z)
@@ -490,13 +532,13 @@ def piano():
     o.boite("piano", 0.08, 0.50, 0.20, xk - 0.25, 0.30, zc, 0.02)
     for dz in (-0.05, 0, 0.05):
         o.boite("or", 0.10, 0.012, 0.025, xk - 0.18, 0.06, zc + dz, 0.004)
-    # banquette
+    o.meuble("Banquette")
     o.boite("piano", 0.36, 0.06, 0.80, xk + 0.55, 0.47, zc, 0.02)
     o.boite("cuir", 0.36, 0.06, 0.78, xk + 0.55, 0.52, zc, 0.025, 0.5)
     for dx in (-1, 1):
         for dz in (-1, 1):
             o.cyl("piano", 0.025, 0.44, xk + 0.55 + dx * 0.14, 0.22, zc + dz * 0.34)
-    # chandelier dore pose sur le piano
+    o.meuble("Chandelier")                                                       # pose sur le piano
     o.cyl("or", 0.05, 0.01, xk - 1.10, 0.955, zc + 0.45)
     o.cyl("or", 0.012, 0.22, xk - 1.10, 1.07, zc + 0.45)
     o.cyl("lumiere", 0.015, 0.08, xk - 1.10, 1.22, zc + 0.45)
@@ -505,7 +547,7 @@ def piano():
 
 # ------------------------------------------------------------------ 08 casino
 def casino():
-    o = Objet("Etage08_Casino")
+    o = Objet("Etage08_Casino", "TableCasino")
     xc, zc = 1.62, -2.75
     o.extrusion("noir", stade(1.15, 2.10, xc, zc), 0.70, 0.74)
     o.extrusion("feutre", stade(0.95, 1.90, xc, zc), 0.74, 0.755, 0.8)
@@ -528,6 +570,7 @@ def casino():
     for s in (-1, 1):
         for dz in (-0.65, 0.0, 0.65):
             x = xc + s * 0.85
+            o.meuble("Chaise")
             o.boite("velours", 0.46, 0.10, 0.46, x, 0.47, zc + dz, 0.04, 0.5, bombe=0.01)
             o.boite("velours", 0.08, 0.50, 0.46, x + s * 0.22, 0.75, zc + dz, 0.04, 0.5, bombe=0.02)
             for a in (-1, 1):
@@ -538,7 +581,7 @@ def casino():
 
 # ------------------------------------------------------------------ 09 cinema
 def cinema():
-    o = Objet("Etage09_Cinema")
+    o = Objet("Etage09_Cinema", "EcranCinema")
     zf = -9.45 + 0.07                     # face de la cloison avant
     lw, hw, yc = 3.20, 1.65, 1.30
     o.boite("or", lw + 0.12, hw + 0.12, 0.04, 0, yc, zf + 0.02, 0.02)
@@ -557,6 +600,7 @@ def cinema():
     for z in (-6.85, -5.40):
         for s in (-1, 1):
             x = s * 1.35
+            o.meuble("CanapeCinema")
             o.boite("cuir", 2.10, 0.32, 0.95, x, 0.22, z, 0.06, 0.5)
             o.boite("cuir", 2.10, 0.60, 0.22, x, 0.62, z + 0.38, 0.08, 0.5, rx=8, bombe=0.02)
             for b in (-1, 1):
@@ -570,6 +614,7 @@ def cinema():
             o.boite("neon", 1.9, 0.01, 0.01, x, 0.06, z - 0.49, 0.003)
     # seau de pop-corn sur les accoudoirs centraux
     for s in (-1, 1):
+        o.meuble("PopCorn")
         o.cyl("rouge", 0.07, 0.16, s * 0.38, 0.75, -6.85)
         o.cyl("blanc", 0.071, 0.02, s * 0.38, 0.84, -6.85)
     return o
@@ -579,6 +624,7 @@ def cinema():
 def lustres():
     o = Objet("Etage10_Lustres")
     for z in (17.90, 7.35, 2.60, -2.75):
+        o.meuble("Lustre")
         h = y_plafond(0.2) - 0.002
         o.cyl("or", 0.16, 0.03, 0, h - 0.015, z, sec=32)
         o.cyl("or", 0.012, 0.25, 0, h - 0.15, z, sec=8)
@@ -637,6 +683,7 @@ def plantes():
     o = Objet("Etage11_Plantes")
     for s in (-1, 1):
         for z in (19.90, 15.45, 9.62, 0.0):
+            o.meuble("Palmier")
             palmier(o, s * 2.30, z)
     return o
 
@@ -665,31 +712,50 @@ def verifier(o):
     return pb
 
 
+def exporter(sc, chemin):
+    """Exporte puis REGROUPE dans le GLB : un noeud et un maillage par meuble (avec ses materiaux),
+    au lieu d'un noeud par materiau. Dans UEFN chaque meuble devient ainsi un objet separe."""
+    import json
+    import struct
+    sc.export(chemin, include_normals=True)
+    data = open(chemin, "rb").read()
+    lj = struct.unpack_from("<I", data, 12)[0]
+    gltf = json.loads(data[20:20 + lj])
+    binaire = data[20 + lj:]
+    groupes = {}
+    for nd in gltf["nodes"]:
+        if "mesh" in nd:
+            groupes.setdefault(nd["name"].split("__")[0], []).extend(gltf["meshes"][nd["mesh"]]["primitives"])
+    gltf["meshes"] = [{"name": n, "primitives": p} for n, p in groupes.items()]
+    gltf["nodes"] = [{"name": n, "mesh": i} for i, n in enumerate(groupes)]
+    gltf["scenes"] = [{"nodes": list(range(len(groupes)))}]
+    gltf["scene"] = 0
+    js = json.dumps(gltf, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    total = 12 + 8 + len(js) + len(binaire)
+    with open(chemin, "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, total))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A))
+        f.write(js)
+        f.write(binaire)
+    return list(groupes)
+
+
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     tout = trimesh.Scene()
+    noms = []
     for f in OBJETS:
         o = f()
         pb = verifier(o)
-        sc = o.scene()
         out = os.path.join(SORTIE, o.nom + ".glb")
-        sc.export(out, include_normals=True)
-        for n in sc.graph.nodes_geometry:
-            T, g = sc.graph[n]
-            tout.add_geometry(sc.geometry[g], node_name=n, geom_name=g)
-        print(f"{o.nom:28s} {sum(len(g.faces) for g in sc.geometry.values()):7d} triangles "
-              f"{os.path.getsize(out) / 1e6:5.1f} Mo  {'OK' if not pb else ' / '.join(pb)}")
-    tout.export(os.path.join(SORTIE, "Etage_TOUT_apercu.glb"), include_normals=True)
-    # fichier unique "tout deja place" : un maillage par materiau (textures partagees), sommets soudes
-    par_mat = {}
-    for n in tout.graph.nodes_geometry:
-        T, g = tout.graph[n]
-        par_mat.setdefault(tout.geometry[g].visual.material.name, []).append(tout.geometry[g])
-    complet = trimesh.Scene()
-    for nom, lst in par_mat.items():
-        c = trimesh.util.concatenate([trimesh.Trimesh(m.vertices, m.faces, process=False) for m in lst])
-        c = trimesh.Trimesh(c.vertices, c.faces, vertex_normals=np.vstack([m.vertex_normals for m in lst]), process=False)
-        c.visual = trimesh.visual.TextureVisuals(uv=np.vstack([m.visual.uv for m in lst]), material=lst[0].visual.material)
-        c.merge_vertices()
-        complet.add_geometry(c, node_name=f"EtageComplet_{nom}", geom_name=f"EtageComplet_{nom}")
-    complet.export(os.path.join(SORTIE, "Etage_Complet_Tout_Place.glb"), include_normals=True)
+        meubles = exporter(o.scene(), out)
+        o.scene(tout)
+        noms += meubles
+        print(f"{o.nom:28s} {len(meubles):3d} meubles {os.path.getsize(out) / 1e6:5.1f} Mo  "
+              f"{'OK' if not pb else ' / '.join(pb)}  ({', '.join(meubles)})")
+    # fichier unique "tout deja place" : les memes meubles, chacun un objet separe
+    complet = exporter(tout, os.path.join(SORTIE, "Etage_Complet_Tout_Place.glb"))
+    assert len(complet) == len(set(complet)) == len(noms)
+    print(f"Etage_Complet_Tout_Place.glb : {len(complet)} meubles separes, "
+          f"{os.path.getsize(os.path.join(SORTIE, 'Etage_Complet_Tout_Place.glb')) / 1e6:.1f} Mo")

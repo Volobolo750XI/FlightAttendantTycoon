@@ -2,8 +2,7 @@
 
 Fichier : Modeles/Ecran/EcranSiege.glb
 - cadre noir aux bords arrondis, 26 x 17 cm, 2,5 cm d'epaisseur ;
-- l'ecran (face avant, vers +Z) affiche la carte du vol : la carte du monde, la ligne du vol
-  en pointilles, l'avion cartoon et une barre de progression ;
+- l'ecran (face avant, vers +Z) est noir (eteint), avec un leger reflet de vitre ;
 - une petite LED verte en bas a droite et un logo d'avion en bas a gauche (dans le cadre).
 Pivot : centre de la face ARRIERE (celle qu'on colle contre le dossier). Unites : metres.
 Usage : python3 ecran_siege.py
@@ -27,47 +26,10 @@ TEX = 1024                            # texture carree : haut = ecran, bande du 
 
 def texture():
     tex = Image.new("RGB", (TEX, TEX), (20, 22, 28))
-    # --- l'ecran (zone 1024 x 640 en haut, ratio de l'ecran)
-    E = Image.new("RGB", (1024, 640))
-    carte_png = os.path.join(RACINE, "Textures", "Destinations", "CarteVols.png")
-    carte = Image.open(carte_png).convert("RGB")
-    # on zoome sur l'Europe / l'Atlantique (le vol Paris -> New York par exemple)
-    w, h = carte.size
-    carte = carte.crop((int(w * 0.22), int(h * 0.15), int(w * 0.62), int(h * 0.55))).resize((1024, 640), Image.LANCZOS)
-    E.paste(carte)
-    d = ImageDraw.Draw(E, "RGBA")
-    # bandeau du haut
-    d.rectangle([0, 0, 1024, 70], fill=(5, 46, 22, 220))
-    f = ImageFont.truetype(POLICE, 38)
-    d.text((24, 35), "PARIS  >  NEW YORK", font=f, fill="white", anchor="lm")
-    d.text((1000, 35), "2:41", font=f, fill=(187, 247, 208), anchor="rm")
-    # la route en pointilles (courbe) et l'avion
-    # vraies positions de Paris et New York sur la carte zoomee
-    a, b = (733, 206), (190, 310)
-    c = ((a[0] + b[0]) / 2, 90)
-    pts = []
-    for i in range(41):
-        t = i / 40
-        x = (1 - t) ** 2 * a[0] + 2 * (1 - t) * t * c[0] + t * t * b[0]
-        y = (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * c[1] + t * t * b[1]
-        pts.append((x, y))
-    for i, (x, y) in enumerate(pts):
-        if i % 2 == 0:
-            col = (34, 197, 94, 255) if i <= 20 else (255, 255, 255, 230)
-            d.ellipse([x - 7, y - 7, x + 7, y + 7], fill=col, outline=(5, 46, 22, 255), width=2)
-    for (x, y), col in ((a, (34, 197, 94)), (b, (255, 255, 255))):
-        d.ellipse([x - 14, y - 14, x + 14, y + 14], fill=col, outline=(5, 46, 22), width=4)
-    avion_png = os.path.join(RACINE, "Textures", "JaugeVol", "Avion.png")
-    if os.path.exists(avion_png):
-        av = Image.open(avion_png).convert("RGBA").resize((130, 130), Image.LANCZOS).transpose(Image.FLIP_LEFT_RIGHT)
-        x, y = pts[20]
-        E.paste(av, (int(x - 65), int(y - 75)), av)
-    # barre de progression en bas
-    d.rounded_rectangle([60, 570, 964, 606], 18, fill=(5, 46, 22, 230), outline=(255, 255, 255, 255), width=4)
-    d.rounded_rectangle([66, 576, 66 + int(892 * 0.5), 600], 12, fill=(34, 197, 94, 255))
-    # leger reflet de vitre
+    # --- l'ecran : noir brillant (eteint), avec juste un leger reflet de vitre
+    E = Image.new("RGB", (1024, 640), (6, 7, 10))
     reflet = Image.new("L", (1024, 640), 0)
-    ImageDraw.Draw(reflet).polygon([(0, 0), (420, 0), (180, 640), (0, 640)], fill=28)
+    ImageDraw.Draw(reflet).polygon([(0, 0), (420, 0), (180, 640), (0, 640)], fill=22)
     E.paste(Image.new("RGB", (1024, 640), (255, 255, 255)), (0, 0), reflet.filter(ImageFilter.GaussianBlur(30)))
     tex.paste(E, (0, 0))
     # --- bande du bas : couleurs unies (cadre, LED, logo)
@@ -122,7 +84,7 @@ def ecran():
     logo.apply_translation((-L / 2 + 0.02, -H / 2 + 0.008, P + 0.001))
     logo.visual = trimesh.visual.TextureVisuals(uv=np.tile(uv_case(2), (len(logo.vertices), 1)))
     m = trimesh.util.concatenate([cadre, quad, led, logo])
-    mat = PBRMaterial(baseColorTexture=tex, emissiveTexture=tex, emissiveFactor=(0.6, 0.6, 0.6), roughnessFactor=0.35, metallicFactor=0.0)
+    mat = PBRMaterial(baseColorTexture=tex, roughnessFactor=0.35, metallicFactor=0.0)
     m.visual = trimesh.visual.TextureVisuals(uv=m.visual.uv, material=mat)
     return m, tex
 

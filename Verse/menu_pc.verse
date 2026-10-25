@@ -403,7 +403,9 @@ menu_pc := class(creative_device):
         # le texte est un peu au-dessus du centre : le bas du bouton est son epaisseur 3D
         var Slots:[]canvas_slot = array{Bloc(Vignette(Img, L, H), X, Y, L, H, 6)}
         set Slots += Ecriture.Ecrire(S, "FFFFFF", text_justification.Center, X + L * 0.12, Y + H * 0.24, L * 0.76, H * 0.42, 7)
-        set Slots += array{Bloc(B, X, Y, L, H, 30)}
+        # zone de clic Fortnite un peu plus petite que l'image : son cadre gris (au survol) reste
+        # DANS le bouton au lieu de depasser autour (coins arrondis, bord sombre, epaisseur du bas)
+        set Slots += array{Bloc(B, X + H * 0.10, Y + H * 0.10, L - H * 0.20, H * 0.74, 30)}
         Slots
 
     # Une fenetre cartoon : grand panneau clair, bandeau bleu avec son icone et son titre,

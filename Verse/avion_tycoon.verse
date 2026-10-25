@@ -453,7 +453,9 @@ avion_tycoon := class(creative_device):
             # on attend que le joueur descende, puis la plaque remonte
             loop:
                 Sleep(0.1)
-                if (not SurPlaque(Pad, Joueur)?) { break }
+                # calcule en dehors du "if" (SurPlaque ne peut pas etre appelee dans une condition)
+                Dessus := SurPlaque(Pad, Joueur)
+                if (not Dessus?) { break }
             Pad.MoveTo(Repos.Translation, Repos.Rotation, 0.15)
 
     SurPlaque(Plaque:creative_prop, Joueur:agent):logic =

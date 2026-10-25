@@ -283,12 +283,34 @@ def plancher_haut(parts):
     parts.add("steel", G.cyl(0.025, [-TREMIE_X, 1.05, TREMIE[0]], [TREMIE_X, 1.05, TREMIE[0]]))
 
 
+def salon_ouvert(parts):
+    """Pont superieur en SALON (bar, piscine...) : pas de coffres, la paroi monte d'un seul tenant
+    jusqu'au plafond, hublots, bande lumineuse indirecte en haut de la paroi (meubles : etage_salon.py)."""
+    z0, z1 = HAUT_CABIN
+    WF = HAUT["WALL_FULL"]
+    zs = [z0 + G.MARGIN + i * G.PITCH for i in range(HAUT_N_WIN)]
+    bezels = [G.rrect(z, G.WIN_CENTER_S, G.BEZ_W, G.BEZ_H, G.BEZ_R) for z in zs]
+    holes = [G.rrect(z, G.WIN_CENTER_S, G.WIN_W, G.WIN_H, G.WIN_R) for z in zs]
+    parts.add("panel", G.surface(WF, box(z0, 0, z1, WF.length).difference(unary_union(bezels))), sym=True)
+    G.openings(parts, WF, zip(bezels, holes), G.BEZ_DEPTH, G.WIN_DEPTH)
+    joints = [box(z - 0.003, 0.02, z + 0.003, WF.length - 0.01) for z in np.arange(z0 + G.MARGIN - G.PITCH / 2, z1, G.PITCH)]
+    joints.append(box(z0, 0.0, z1, 0.012))
+    parts.add("seam", G.surface(WF, unary_union(joints).difference(unary_union(bezels).buffer(0.01)), -0.0015), sym=True)
+    parts.add("light", G.surface(HAUT["CEILING"], box(z0, 0.004, z1, 0.05), -0.002, 0.01), sym=True)
+
+
+SALON = True                  # True : pont superieur en salon de luxe ; False : 2 | 3 | 2 avec coffres
+
+
 def pont_superieur(parts):
     sauve = etat()
     regler(HAUT)
     G.WIN_DEPTH, G.N_WINDOWS, G.CABIN = PROF_HAUT, HAUT_N_WIN, HAUT_CABIN
     h = G.Parts()
-    _build_cabin(h)
+    if SALON:
+        salon_ouvert(h)
+    else:
+        _build_cabin(h)
     G.build_ceiling(h, *HAUT_CABIN, lights=False)
     plancher_haut(h)
     G.bulkhead(h, HAUT_CABIN[0] + G.PART_T)

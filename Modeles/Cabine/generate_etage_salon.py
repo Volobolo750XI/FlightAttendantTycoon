@@ -11,7 +11,7 @@ De l'avant (cinema) vers l'arriere (escalier), en z glTF (l'avant de l'avion est
   04 Piscine         z  0.4 ..  5.1   bassin sureleve en mosaique, margelle en marbre, echelle, marches
   05 Transats        z  0.45..  4.75  4 transats + serviettes, de chaque cote de la piscine
   03 Salon           z  5.4 ..  9.3   2 canapes velours, 4 fauteuils, tables basses, tapis, lampes
-  02 Bar             z  9.9 .. 14.4   bar central en ilot (marbre / noyer / or), colonne a bouteilles, 10 tabourets
+  02 Bar             z  9.8 .. 14.0   bar central en ilot (marbre / noyer / or), colonne a bouteilles, 9 tabourets
   01 Salon Escalier  z 15.2 .. 20.6   2 canapes de chaque cote de l'escalier, tables, lampes
   10 Lustres         4 lustres en cristal au plafond (escalier, salon, piscine, piano / casino)
   11 Plantes         8 palmiers en pots dores
@@ -306,7 +306,7 @@ def bar():
     bouteille(o, -0.62, 1.12, 12.15, "bouteille", 0.30)
     o.cyl("chrome", 0.04, 0.20, 0.62, 1.15, 12.15)
     # tabourets : 4 de chaque cote, 1 a chaque bout
-    places = [(s * 1.17, z) for s in (-1, 1) for z in (10.95, 11.75, 12.55, 13.35)] + [(0, 9.98), (0, 14.32)]
+    places = [(s * 1.17, z) for s in (-1, 1) for z in (10.95, 11.75, 12.55, 13.35)] + [(0, 9.98)]          # rien devant l'arrivee de l'escalier
     for x, z in places:
         o.cyl("or", 0.21, 0.02, x, 0.01, z, sec=32)
         o.cyl("or", 0.03, 0.72, x, 0.38, z)

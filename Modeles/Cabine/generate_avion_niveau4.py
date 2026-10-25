@@ -203,7 +203,7 @@ def escalier(parts):
     for i in range(N_MARCHES):
         # marche pleine (du sol a son dessus) + nez de marche fonce
         parts.add("panel", G.B(-a, a, 0.0, (i + 1) * h, z0 + i * GIRON, z0 + (i + 1) * GIRON))
-        parts.add("carpet", G.B(-a + 0.02, a - 0.02, (i + 1) * h, (i + 1) * h + 0.004, z0 + i * GIRON, z0 + (i + 1) * GIRON - 0.02))
+        sol_luxe(parts, z0 + i * GIRON, z0 + (i + 1) * GIRON - 0.02, -a + 0.02, a - 0.02, (i + 1) * h + 0.004)
         parts.add("dark", G.B(-a, a, (i + 1) * h - 0.03, (i + 1) * h + 0.005, z0 + (i + 1) * GIRON - 0.025, z0 + (i + 1) * GIRON))
     # limons (cotes) et mains courantes inox
     for s in (-1, 1):
@@ -239,14 +239,42 @@ def zone_escalier(parts):
 
 
 # ---------------------------------------------------------------- le pont superieur
+# Moquette de luxe : vert emeraude, medaillons dores (texture : Outils/moquette_luxe.py)
+from PIL import Image  # noqa: E402
+G.M["luxe"] = G.mat("MoquetteLuxe", (1, 1, 1), 1.0, tex=Image.open(os.path.join(G.HERE, "moquette_luxe.png")))
+G.NAMES["luxe"] = "MoquetteLuxe"
+TUILE_LUXE = 1.6              # la texture se repete tous les 1,6 m
+_concat = G.concat
+
+
+def concat(meshes, key):
+    """Comme generate_cabin.concat, mais garde aussi les UV de la moquette de luxe."""
+    if key != "luxe":
+        return _concat(meshes, key)
+    m = trimesh.util.concatenate(meshes)
+    m.apply_transform(G.FLIP)
+    m.visual = trimesh.visual.TextureVisuals(uv=m.visual.uv, material=G.M[key])
+    return m
+
+
+G.concat = concat
+
+
+def sol_luxe(parts, z0, z1, x0, x1, y=0.0):
+    v = np.array([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]])
+    m = trimesh.Trimesh(v, [[0, 2, 1], [0, 3, 2]], process=False)
+    m.visual = trimesh.visual.TextureVisuals(uv=np.column_stack([v[:, 0], v[:, 2]]) / TUILE_LUXE, material=G.M["luxe"])
+    parts.add("luxe", m)
+
+
 def plancher_haut(parts):
-    """Plancher du pont superieur (sur toute sa longueur), avec la tremie de l'escalier."""
+    """Plancher du pont superieur (moquette de luxe), avec la tremie de l'escalier."""
     z0, z1 = HAUT_CABIN
     fx = HAUT["FLOOR_X"]
-    G.floor(parts, z0, z1, -fx, -TREMIE_X, y=0.0)
-    G.floor(parts, z0, z1, TREMIE_X, fx, y=0.0)
-    G.floor(parts, z0, TREMIE[0], -TREMIE_X, TREMIE_X, y=0.0)
-    G.floor(parts, TREMIE[1], z1, -TREMIE_X, TREMIE_X, y=0.0)
+    sol_luxe(parts, z0, z1, -fx, -TREMIE_X)
+    sol_luxe(parts, z0, z1, TREMIE_X, fx)
+    sol_luxe(parts, z0, TREMIE[0], -TREMIE_X, TREMIE_X)
+    sol_luxe(parts, TREMIE[1], z1, -TREMIE_X, TREMIE_X)
     # garde-corps (panneau plein + main courante inox) sur 3 cotes de la tremie ; l'avant reste ouvert
     for s in (-1, 1):
         parts.add("panel", G.B(s * TREMIE_X - 0.015, s * TREMIE_X + 0.015, 0.0, 1.0, TREMIE[0], TREMIE[1] - 0.02))

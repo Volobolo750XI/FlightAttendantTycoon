@@ -81,6 +81,9 @@ avion_tycoon := class(creative_device):
     @editable SonArgent:?audio_player_device = false
     @editable SonPerte:?audio_player_device = false
     @editable SonCompteur:?audio_player_device = false
+    # (facultatif) Appareils Panneau d'affichage (Billboard) posés devant l'écran blanc d'un
+    # objet 3D (ATM, borne...) : ils affichent l'argent du joueur en direct.
+    @editable EcransArgent:[]billboard_device = array{}
     # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
     @editable TestArgentInfini:logic = false
 
@@ -318,6 +321,7 @@ avion_tycoon := class(creative_device):
     MettreAJourUI():void =
         set RevenuParSeconde = RevenuVol
         TexteArgent.SetText(Msg("${Abreger(Argent)}"))
+        for (E : EcransArgent) { E.SetText(Msg("${Abreger(Argent)}")) }
         TexteRevenu.SetText(Msg("${Abreger(RevenuParSeconde)}/Sec"))
         TexteRebirth.SetText(Msg("{Rebirths} Rebirths"))
 

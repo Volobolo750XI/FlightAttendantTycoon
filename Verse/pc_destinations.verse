@@ -488,7 +488,7 @@ pc_destinations := class(creative_device):
     BoutonKit(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int, Index:int):[]canvas_slot =
         # le texte est un peu au-dessus du centre : le bas du bouton est son epaisseur 3D
         var Slots:[]canvas_slot = array{Bloc(Vignette(Img, L, H), X, Y, L, H, 16)}
-        set Slots += Ecriture.Ecrire(Texte, "FFFFFF", text_justification.Center, X + L * 0.08, Y + H * 0.20, L * 0.84, H * 0.50, 17)
+        set Slots += Ecriture.Ecrire(Texte, "FFFFFF", text_justification.Center, X + L * 0.12, Y + H * 0.24, L * 0.76, H * 0.42, 17)
         set Slots += array{Bloc(Zone(Action, Index), X, Y, L, H, 30)}
         Slots
 

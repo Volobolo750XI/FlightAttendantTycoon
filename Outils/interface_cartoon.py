@@ -128,16 +128,18 @@ ecriture_cartoon := class:
     Espace:float = {espace:.4f}
     # hauteur de l'image d'une lettre par rapport a la hauteur de la boite
     Agrandir:float = 1.30
+    # petit espace en plus entre 2 lettres (divise par la hauteur) : les contours ne se chevauchent pas trop
+    Espacement:float = 0.025
 
     # Largeur du texte pour une hauteur d'image de 1.
     Mesure(S:string):float =
         var W:float = 0.0
         for (C : S):
             if (R := Largeurs[C]):
-                set W += R - 2.0 * Marge
+                set W += R - 2.0 * Marge + Espacement
             else:
                 set W += Espace
-        W + 2.0 * Marge
+        W + 2.0 * Marge - Espacement
 
     Ecrire(S:string, Hex:string, J:text_justification, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}):[]canvas_slot =
         W0 := Mesure(S)
@@ -156,7 +158,7 @@ ecriture_cartoon := class:
         for (C : S):
             if (Img := Glyphes[C], R := Largeurs[C]):
                 set Slots += array{{Lettre(Img, Teinte, PX, Haut, R * T, T, Couche)}}
-                set PX += (R - 2.0 * Marge) * T
+                set PX += (R - 2.0 * Marge + Espacement) * T
             else:
                 set PX += Espace * T
         Slots
@@ -271,7 +273,7 @@ def apercu(largeurs, marge):
 
     def ecrire(s, x, y, l, h, teinte="FFFFFF", centre=True):
         T = h * 1.30
-        w0 = sum((largeurs[c] - 2 * marge) if c in largeurs else 0.30 for c in s) + 2 * marge
+        w0 = sum((largeurs[c] - 2 * marge + 0.025) if c in largeurs else 0.30 for c in s) + 2 * marge
         T = min(T, l / w0)
         px = x + ((l - w0 * T) / 2 if centre else 0)
         top = y + h / 2 - T / 2
@@ -283,7 +285,7 @@ def apercu(largeurs, marge):
                 a = np.asarray(g).astype(float)
                 a[..., :3] *= tt[:3]
                 im.alpha_composite(Image.fromarray(a.astype(np.uint8)), (int(px), int(top)))
-                px += (largeurs[c] - 2 * marge) * T
+                px += (largeurs[c] - 2 * marge + 0.025) * T
             else:
                 px += 0.30 * T
 

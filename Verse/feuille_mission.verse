@@ -148,6 +148,8 @@ feuille_mission := class(creative_device):
     # (1260 x 1000) en 756 x 600 (assez grand pour la taille du texte de Fortnite). Les images sont en puissance de 2 avec du vide autour : on les
     # affiche donc plus grandes et décalées pour que le dessin tombe ici.
     # Les positions des valeurs sont celles de Outils/feuille_mission.py.
+    # Le texte cartoon (images du dossier TexteCartoon) : ecriture_cartoon.verse
+    Ecriture:ecriture_cartoon = ecriture_cartoon{}
     BilletX:float = 40.0
     BilletY:float = 225.0
     BilletK:float = 0.58
@@ -875,29 +877,29 @@ feuille_mission := class(creative_device):
         var S:[]canvas_slot = array{}
         set S += array{Bloc(color_block{DefaultColor := NamedColors.Black, DefaultOpacity := 0.45}, 0.0, 0.0, 1920.0, 1080.0, 0)}
         set S += array{Bloc(Vignette(FeuilleMission.FondFeuille, 1024.0, 1024.0), 448.0, 28.0, 1024.0, 1024.0, 1)}
-        set S += BoutonEcran("CLOSE", "374151", 1150.0, 935.0, 160.0, 46.0, 10)
+        set S += BoutonImage("", InterfacePC.Fermer, 1222.0, 900.0, 88.0, 88.0, 10)
         if (Taches.Length = 0):
-            set S += array{Bloc(Ecrit("No flight yet: press START BOARDING.", "334155", text_justification.Center), 600.0, 400.0, 720.0, 40.0, 3)}
+            set S += Ecriture.Ecrire("No flight yet: press START BOARDING.", "334155", text_justification.Center, 600.0, 400.0, 720.0, 40.0, 3)
             return S
         Visibles := Taches
         Faites := for (T : Visibles, T.Fait?) { T }
-        set S += array{Bloc(Ecrit("FLIGHT {NumeroVol}", "1E293B", text_justification.Left), 640.0, 248.0, 400.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("{Faites.Length}/{Visibles.Length}", "244A8C", text_justification.Right), 1160.0, 248.0, 140.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("{VilleDepart()} > {VilleArrivee()}", "1E293B", text_justification.Left), 640.0, 290.0, 660.0, 40.0, 3)}
+        set S += Ecriture.Ecrire("FLIGHT {NumeroVol}", "1E293B", text_justification.Left, 640.0, 248.0, 400.0, 40.0, 3)
+        set S += Ecriture.Ecrire("{Faites.Length}/{Visibles.Length}", "244A8C", text_justification.Right, 1160.0, 248.0, 140.0, 40.0, 3)
+        set S += Ecriture.Ecrire("{VilleDepart()} > {VilleArrivee()}", "1E293B", text_justification.Left, 640.0, 290.0, 660.0, 40.0, 3)
         var Y:float = 350.0
         for (Section := 0..1):
             Liste := for (T : Visibles, DansSection[T, Section]) { T }
             if (Liste.Length > 0):
                 Titre := if (Section = 0) then "BEFORE TAKE OFF" else "IN FLIGHT"
-                set S += array{Bloc(Ecrit(Titre, "244A8C", text_justification.Left), 640.0, Y, 400.0, 40.0, 3)}
+                set S += Ecriture.Ecrire(Titre, "244A8C", text_justification.Left, 640.0, Y, 400.0, 40.0, 3)
                 set Y += 46.0
                 for (T : Liste):
                     Coche := if (T.Fait?) then FeuilleMission.CaseCochee else if (T.Rate?) then FeuilleMission.CaseRatee else FeuilleMission.Case
                     Couleur := if (T.Rate?) then "9CA3AF" else "111827"
                     CouleurPrix := if (T.Rate?) then "9CA3AF" else "16A34A"
                     set S += array{Bloc(Vignette(Coche, 38.0, 38.0), 640.0, Y, 38.0, 38.0, 3)}
-                    set S += array{Bloc(Ecrit(TexteTache(T), Couleur, text_justification.Left), 692.0, Y, 470.0, 40.0, 3)}
-                    set S += array{Bloc(Ecrit("+{Prix(GainTache(T))}", CouleurPrix, text_justification.Right), 1160.0, Y, 140.0, 40.0, 3)}
+                    set S += Ecriture.Ecrire(TexteTache(T), Couleur, text_justification.Left, 692.0, Y, 470.0, 40.0, 3)
+                    set S += Ecriture.Ecrire("+{Prix(GainTache(T))}", CouleurPrix, text_justification.Right, 1160.0, Y, 140.0, 40.0, 3)
                     set Y += 58.0
                 set Y += 16.0
         if (Bilan?):
@@ -913,15 +915,15 @@ feuille_mission := class(creative_device):
         GainBillets := Passagers.DernierGainBillets
         Total := GainBillets + GainsMissions
         var S:[]canvas_slot = array{}
-        set S += array{Bloc(Ecrit("FLIGHT COMPLETE", "244A8C", text_justification.Left), 640.0, 700.0, 400.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("Passengers x{Passagers.DerniersPayants}", "1E293B", text_justification.Left), 640.0, 744.0, 480.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("+{Prix(GainBillets)}", "16A34A", text_justification.Right), 1120.0, 744.0, 180.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("Missions", "1E293B", text_justification.Left), 640.0, 786.0, 480.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("+{Prix(GainsMissions)}", "16A34A", text_justification.Right), 1120.0, 786.0, 180.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("TOTAL", "111827", text_justification.Left), 640.0, 830.0, 480.0, 40.0, 3)}
-        set S += array{Bloc(Ecrit("+{Prix(Total)}", "15803D", text_justification.Right), 1120.0, 830.0, 180.0, 40.0, 3)}
+        set S += Ecriture.Ecrire("FLIGHT COMPLETE", "244A8C", text_justification.Left, 640.0, 700.0, 400.0, 40.0, 3)
+        set S += Ecriture.Ecrire("Passengers x{Passagers.DerniersPayants}", "1E293B", text_justification.Left, 640.0, 744.0, 480.0, 40.0, 3)
+        set S += Ecriture.Ecrire("+{Prix(GainBillets)}", "16A34A", text_justification.Right, 1120.0, 744.0, 180.0, 40.0, 3)
+        set S += Ecriture.Ecrire("Missions", "1E293B", text_justification.Left, 640.0, 786.0, 480.0, 40.0, 3)
+        set S += Ecriture.Ecrire("+{Prix(GainsMissions)}", "16A34A", text_justification.Right, 1120.0, 786.0, 180.0, 40.0, 3)
+        set S += Ecriture.Ecrire("TOTAL", "111827", text_justification.Left, 640.0, 830.0, 480.0, 40.0, 3)
+        set S += Ecriture.Ecrire("+{Prix(Total)}", "15803D", text_justification.Right, 1120.0, 830.0, 180.0, 40.0, 3)
         if (FraudeursRates > 0 or Plaintes > 0):
-            set S += array{Bloc(Ecrit("Missed: {FraudeursRates}   Complaints: {Plaintes}", "B91C1C", text_justification.Left), 640.0, 878.0, 500.0, 40.0, 3)}
+            set S += Ecriture.Ecrire("Missed: {FraudeursRates}   Complaints: {Plaintes}", "B91C1C", text_justification.Left, 640.0, 878.0, 500.0, 40.0, 3)
         S
 
     TexteTache(T:tache_feuille):string =
@@ -940,9 +942,9 @@ feuille_mission := class(creative_device):
             set S += array{Bloc(Rect("FFFFFF"), 1092.0, 432.0, 60.0, 40.0, 2)}
             set S += array{Bloc(Rect("1E293B"), 1062.0, 472.0, 50.0, 34.0, 1)}
             set S += array{Bloc(Rect("FFFFFF"), 1068.0, 466.0, 38.0, 34.0, 2)}
-            set S += array{Bloc(Ecrit("I'D LIKE...", "64748B", text_justification.Center), 1052.0, 112.0, 456.0, 40.0, 3)}
+            set S += Ecriture.Ecrire("I WOULD LIKE...", "64748B", text_justification.Center, 1052.0, 112.0, 456.0, 40.0, 3)
             set S += array{Bloc(Vignette(Prod.Image, 210.0, 210.0), 1175.0, 160.0, 210.0, 210.0, 3)}
-            set S += array{Bloc(Ecrit(Prod.Nom, "111827", text_justification.Center), 1052.0, 380.0, 456.0, 44.0, 3)}
+            set S += Ecriture.Ecrire(Prod.Nom, "111827", text_justification.Center, 1052.0, 380.0, 456.0, 44.0, 3)
             # le chariot : un bandeau en bas, une carte par produit (icône, nom, pastille du nombre)
             Contenu := if (Sv := Service?) then Sv.ContenuChariot(ChariotOuvert) else array{}
             Presents := for (K -> N : Contenu, N > 0) { K }
@@ -952,9 +954,9 @@ feuille_mission := class(creative_device):
             LargeurCartes := Presents.Length * Largeur + Max(0, Presents.Length - 1) * Ecart
             Bandeau := Max(1400.0, LargeurCartes + 60.0)
             set S += array{Bloc(Rect("0F172A"), 960.0 - Bandeau / 2.0, 770.0, Bandeau, 280.0, 1)}
-            set S += array{Bloc(Ecrit("YOUR TROLLEY  -  CLICK WHAT THE PASSENGER WANTS", "86EFAC", text_justification.Center), 260.0, 780.0, 1400.0, 44.0, 3)}
+            set S += Ecriture.Ecrire("YOUR TROLLEY  -  CLICK WHAT THE PASSENGER WANTS", "86EFAC", text_justification.Center, 260.0, 780.0, 1400.0, 44.0, 3)
             if (Presents.Length = 0):
-                set S += array{Bloc(Ecrit("Your trolley is empty. Load it at the galley (E on the storage).", "E2E8F0", text_justification.Center), 260.0, 910.0, 1400.0, 44.0, 3)}
+                set S += Ecriture.Ecrire("Your trolley is empty. Load it at the galley (E on the storage).", "E2E8F0", text_justification.Center, 260.0, 910.0, 1400.0, 44.0, 3)
             else:
                 # cartes centrées
                 Debut := 960.0 - LargeurCartes / 2.0
@@ -962,14 +964,14 @@ feuille_mission := class(creative_device):
                     X := Debut + N * (Largeur + Ecart)
                     set S += array{Bloc(Rect("FFFFFF"), X, 836.0, Largeur, 200.0, 2)}
                     set S += array{Bloc(Vignette(P2.Image, 120.0, 120.0), X + 24.0, 846.0, 120.0, 120.0, 3)}
-                    set S += array{Bloc(Ecrit(P2.Nom, "1E293B", text_justification.Center), X, 976.0, Largeur, 44.0, 3)}
+                    set S += Ecriture.Ecrire(P2.Nom, "1E293B", text_justification.Center, X, 976.0, Largeur, 44.0, 3)
                     set S += array{Bloc(Rect("244A8C"), X + Largeur - 62.0, 842.0, 56.0, 40.0, 3)}
-                    set S += array{Bloc(Ecrit("x{Nb}", "FFFFFF", text_justification.Center), X + Largeur - 62.0, 842.0, 56.0, 40.0, 4)}
+                    set S += Ecriture.Ecrire("x{Nb}", "FFFFFF", text_justification.Center, X + Largeur - 62.0, 842.0, 56.0, 40.0, 4)
                     set S += array{ZoneClic(X, 836.0, Largeur, 200.0, 100 + K)}
             if (MessageService <> ""):
                 set S += array{Bloc(Rect("7F1D1D"), 560.0, 712.0, 800.0, 48.0, 1)}
-                set S += array{Bloc(Ecrit(MessageService, "FFFFFF", text_justification.Center), 560.0, 714.0, 800.0, 44.0, 3)}
-        set S += BoutonEcran("CLOSE", "374151", 1700.0, 20.0, 180.0, 50.0, 10)
+                set S += Ecriture.Ecrire(MessageService, "FFFFFF", text_justification.Center, 560.0, 714.0, 800.0, 44.0, 3)
+        set S += BoutonImage("", InterfacePC.Fermer, 1812.0, 4.0, 88.0, 88.0, 10)
         S
 
     Rect(Hex:string):color_block = color_block{DefaultColor := MakeColorFromHex(Hex), DefaultOpacity := 1.0}
@@ -994,35 +996,36 @@ feuille_mission := class(creative_device):
                 SizeToContent := false
                 ZOrder := 0
                 Widget := texture_block{DefaultImage := InterfacePC.Fond}
-        set S += array{Bloc(Cartoon("TICKET CONTROL", "FFFFFF", text_justification.Left), 40.0, 18.0, 700.0, 44.0, 5)}
-        set S += BoutonImage("CLOSE", InterfacePC.OngletSombre, 1700.0, 10.0, 200.0, 56.0, 3)
+        set S += array{Bloc(Vignette(InterfacePC.Entete, 1900.0, 84.0), 10.0, 2.0, 1900.0, 84.0, 4)}
+        set S += Ecriture.Ecrire("TICKET CONTROL", "FFFFFF", text_justification.Left, 40.0, 12.0, 700.0, 54.0, 6)
+        set S += BoutonImage("", InterfacePC.Fermer, 1812.0, 0.0, 88.0, 88.0, 3)
         # aujourd'hui et le vol en cours, pour comparer
         set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1100.0, 110.0), 410.0, 82.0, 1100.0, 110.0, 2)}
-        set S += array{Bloc(Cartoon("TODAY  {Aujourdhui()}      FLIGHT  {NumeroVol}      {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center), 410.0, 117.0, 1100.0, 40.0, 5)}
+        set S += Ecriture.Ecrire("TODAY  {Aujourdhui()}      FLIGHT  {NumeroVol}      {VilleDepart()} > {VilleArrivee()}", "FFFFFF", text_justification.Center, 410.0, 117.0, 1100.0, 40.0, 5)
         # le billet (image en puissance de 2 : affichee plus grande et decalee)
         set S += array{Bloc(Vignette(FeuilleMission.Billet, 2048.0 * BilletK, 1024.0 * BilletK), BilletX - 124.0 * BilletK, BilletY - 152.0 * BilletK, 2048.0 * BilletK, 1024.0 * BilletK, 2)}
-        set S += array{SurBillet(B.NomBillet, 60.0, 205.0, 980.0)}
-        set S += array{SurBillet(B.DateBillet, 1050.0, 205.0, 260.0)}
-        set S += array{SurBillet(VilleDepart(), 60.0, 345.0, 640.0)}
-        set S += array{SurBillet(B.Vers, 720.0, 345.0, 590.0)}
-        set S += array{SurBillet(B.Vol, 60.0, 535.0, 250.0)}
-        set S += array{SurBillet(Porte, 320.0, 535.0, 230.0)}
-        set S += array{SurBillet(B.Siege, 560.0, 535.0, 230.0)}
-        set S += array{SurBillet(Embarquement, 800.0, 535.0, 240.0)}
-        set S += array{SurBillet(B.Vol, 1390.0, 205.0, 410.0)}
-        set S += array{SurBillet(B.Siege, 1390.0, 345.0, 410.0)}
-        set S += array{SurBillet(B.Vers, 1390.0, 455.0, 410.0)}
+        set S += SurBillet(B.NomBillet, 60.0, 205.0, 980.0)
+        set S += SurBillet(B.DateBillet, 1050.0, 205.0, 260.0)
+        set S += SurBillet(VilleDepart(), 60.0, 345.0, 640.0)
+        set S += SurBillet(B.Vers, 720.0, 345.0, 590.0)
+        set S += SurBillet(B.Vol, 60.0, 535.0, 250.0)
+        set S += SurBillet(Porte, 320.0, 535.0, 230.0)
+        set S += SurBillet(B.Siege, 560.0, 535.0, 230.0)
+        set S += SurBillet(Embarquement, 800.0, 535.0, 240.0)
+        set S += SurBillet(B.Vol, 1390.0, 205.0, 410.0)
+        set S += SurBillet(B.Siege, 1390.0, 345.0, 410.0)
+        set S += SurBillet(B.Vers, 1390.0, 455.0, 410.0)
         # le passeport
         set S += array{Bloc(Vignette(FeuilleMission.Passeport, 2048.0 * PassK, 1024.0 * PassK), PassX - 394.0 * PassK, PassY - 12.0 * PassK, 2048.0 * PassK, 1024.0 * PassK, 2)}
-        set S += array{SurPasseport(B.Nom, 470.0, 228.0, 430.0)}
-        set S += array{SurPasseport(B.Numero, 900.0, 228.0, 340.0)}
-        set S += array{SurPasseport(B.Prenom, 470.0, 348.0, 760.0)}
-        set S += array{SurPasseport(B.Pays, 470.0, 468.0, 430.0)}
-        set S += array{SurPasseport(B.Sexe, 900.0, 468.0, 340.0)}
-        set S += array{SurPasseport(B.Naissance, 470.0, 588.0, 430.0)}
-        set S += array{SurPasseport(B.Expiration, 900.0, 588.0, 340.0)}
-        set S += array{SurPasseport(B.Mrz1, 60.0, 800.0, 1170.0)}
-        set S += array{SurPasseport(B.Mrz2, 60.0, 880.0, 1170.0)}
+        set S += SurPasseport(B.Nom, 470.0, 228.0, 430.0)
+        set S += SurPasseport(B.Numero, 900.0, 228.0, 340.0)
+        set S += SurPasseport(B.Prenom, 470.0, 348.0, 760.0)
+        set S += SurPasseport(B.Pays, 470.0, 468.0, 430.0)
+        set S += SurPasseport(B.Sexe, 900.0, 468.0, 340.0)
+        set S += SurPasseport(B.Naissance, 470.0, 588.0, 430.0)
+        set S += SurPasseport(B.Expiration, 900.0, 588.0, 340.0)
+        set S += SurPasseport(B.Mrz1, 60.0, 800.0, 1170.0)
+        set S += SurPasseport(B.Mrz2, 60.0, 880.0, 1170.0)
         # le tampon sur le billet, ou les boutons sous le billet
         MilieuBillet := BilletX + 900.0 * BilletK
         if (B.Decision = 1):
@@ -1033,18 +1036,18 @@ feuille_mission := class(creative_device):
             set S += BoutonImage("VALID", InterfacePC.BoutonVert, MilieuBillet - 380.0, 668.0, 360.0, 120.0, 1)
             set S += BoutonImage("REFUSE", InterfacePC.BoutonRouge, MilieuBillet + 20.0, 668.0, 360.0, 120.0, 2)
         else:
-            set S += array{Bloc(Cartoon("DOCUMENTS ALREADY CHECKED", "BBF7D0", text_justification.Center), MilieuBillet - 500.0, 708.0, 1000.0, 40.0, 5)}
+            set S += Ecriture.Ecrire("DOCUMENTS ALREADY CHECKED", "BBF7D0", text_justification.Center, MilieuBillet - 500.0, 708.0, 1000.0, 40.0, 5)
         set S += Regles()
         S
 
     # Le reglement en bas : les 3 choses a comparer, dans un bandeau du PC.
     Regles():[]canvas_slot =
-        Toutes := array{"1. FLIGHT No. = THIS FLIGHT", "2. TO = THIS FLIGHT'S CITY", "3. NAME: TICKET = PASSPORT"}
+        Toutes := array{"1. FLIGHT No. = THIS FLIGHT", "2. TO = CITY OF THIS FLIGHT", "3. NAME: TICKET = PASSPORT"}
         var S:[]canvas_slot = array{}
         set S += array{Bloc(Vignette(InterfacePC.Bandeau, 1640.0, 150.0), 140.0, 860.0, 1640.0, 150.0, 2)}
-        set S += array{Bloc(Cartoon("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "FDE68A", text_justification.Center), 140.0, 885.0, 1640.0, 40.0, 5)}
+        set S += Ecriture.Ecrire("CHECK THESE 3 THINGS  -  ONE MISTAKE = REFUSE", "BBF7D0", text_justification.Center, 140.0, 885.0, 1640.0, 40.0, 5)
         for (I -> R : Toutes):
-            set S += array{Bloc(Cartoon(R, "FFFFFF", text_justification.Center), 200.0 + I * 507.0, 937.0, 507.0, 40.0, 5)}
+            set S += Ecriture.Ecrire(R, "FFFFFF", text_justification.Center, 214.0 + I * 507.0, 937.0, 480.0, 40.0, 5)
         S
 
     # Texte cartoon du PC : ombre vert tres fonce.
@@ -1061,14 +1064,15 @@ feuille_mission := class(creative_device):
     BoutonImage(Texte:string, Img:texture, X:float, Y:float, L:float, H:float, Action:int):[]canvas_slot =
         B := button_quiet{DefaultText := Msg("")}
         B.OnClick().Subscribe(clic_feuille{Feuille := Self, Action := Action}.Clique)
-        array:
-            Bloc(Vignette(Img, L, H), X, Y, L, H, 6)
-            Bloc(Cartoon(Texte, "FFFFFF", text_justification.Center), X, Y + H / 2.0 - 20.0, L, 40.0, 7)
-            Bloc(B, X, Y, L, H, 30)
+        # le texte est un peu au-dessus du centre : le bas du bouton est son epaisseur 3D
+        var S:[]canvas_slot = array{Bloc(Vignette(Img, L, H), X, Y, L, H, 6)}
+        set S += Ecriture.Ecrire(Texte, "FFFFFF", text_justification.Center, X + L * 0.12, Y + H * 0.24, L * 0.76, H * 0.42, 7)
+        set S += array{Bloc(B, X, Y, L, H, 30)}
+        S
 
     # Une valeur écrite sur le billet / le passeport (X, Y en pixels de l'image).
-    SurBillet(Texte:string, X:float, Y:float, L:float):canvas_slot =
-        Bloc(Ecrit(Texte, "111827", text_justification.Left), BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 40.0, 3)
+    SurBillet(Texte:string, X:float, Y:float, L:float):[]canvas_slot =
+        Ecriture.Ecrire(Texte, "3478F6", text_justification.Left, BilletX + X * BilletK, BilletY + Y * BilletK, L * BilletK, 32.0, 3)
 
-    SurPasseport(Texte:string, X:float, Y:float, L:float):canvas_slot =
-        Bloc(Ecrit(Texte, "1F2937", text_justification.Left), PassX + X * PassK, PassY + Y * PassK, L * PassK, 40.0, 3)
+    SurPasseport(Texte:string, X:float, Y:float, L:float):[]canvas_slot =
+        Ecriture.Ecrire(Texte, "3478F6", text_justification.Left, PassX + X * PassK, PassY + Y * PassK, L * PassK, 32.0, 3)

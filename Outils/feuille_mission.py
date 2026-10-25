@@ -31,6 +31,9 @@ RACINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SORTIE = os.path.join(RACINE, "Textures", "FeuilleMission")
 MODELES = os.path.join(RACINE, "Modeles", "Feuille")
 TITRE = os.path.join(RACINE, "Outils", "ArchivoBlack.ttf")
+CARTOON = os.path.join(RACINE, "Outils", "TitanOne-Regular.ttf")   # police des interfaces cartoon
+CONTOUR = (22, 27, 48, 255)                                          # contour sombre du style cartoon
+VERT_H, VERT_B = (46, 190, 104, 255), (18, 128, 70, 255)
 ETIQ = os.path.join(RACINE, "Outils", "BarlowSemiCondensed-Bold.ttf")
 
 BLEU = (36, 74, 140, 255)
@@ -106,35 +109,33 @@ def billet():
     W, H = 1800, 720
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, W - 1, H - 1), 40, fill=(255, 255, 255, 255), outline=(200, 205, 214, 255), width=4)
-    # bandeau
-    d.rounded_rectangle((0, 0, W - 1, 140), 40, fill=BLEU)
-    d.rectangle((0, 90, W - 1, 140), fill=BLEU)
-    avion(d, 90, 70, 46, (255, 255, 255, 255))
-    d.text((160, 30), "TYCOON AIR", font=police(TITRE, 64), fill=(255, 255, 255, 255))
-    d.text((860, 44), "BOARDING PASS", font=police(ETIQ, 56), fill=(200, 215, 240, 255))
-    d.text((1390, 44), "ECONOMY", font=police(ETIQ, 56), fill=(200, 215, 240, 255))
+    # style cartoon : gros contour sombre, epaisseur en bas, bandeau vert brillant
+    d.rounded_rectangle((0, 0, W - 1, H - 1), 48, fill=CONTOUR)
+    d.rounded_rectangle((14, 14, W - 15, H - 15), 36, fill=(206, 214, 226, 255))
+    d.rounded_rectangle((14, 14, W - 15, H - 27), 36, fill=(255, 255, 255, 255))
+    bandeau(img, (14, 14, W - 15, 146), 36)
+    avion(d, 96, 80, 46, (255, 255, 255, 255))
+    cartoon(d, (162, 80), "TYCOON AIR", 66, "lm")
+    cartoon(d, (860, 80), "BOARDING PASS", 50, "lm", (220, 255, 232, 255))
+    cartoon(d, (1390, 80), "ECONOMY", 50, "lm", (220, 255, 232, 255))
     # perforation entre le billet et le talon
     for y in range(160, H - 20, 34):
         d.ellipse((1323, y, 1337, y + 14), fill=(210, 214, 222, 255))
-    e = police(ETIQ, 34)
+    e = police(CARTOON, 32)
     for cle, nom in [("NOM", "PASSENGER NAME"), ("DE", "FROM"), ("VERS", "TO"), ("VOL", "FLIGHT"),
-                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"), ("DATE", "DATE"), ("SEQ", "SEQ No."),
+                     ("PORTE", "GATE"), ("SIEGE", "SEAT"), ("EMBARQ", "BOARDING"), ("DATE", "DATE"),
                      ("TALON_VOL", "FLIGHT"), ("TALON_SIEGE", "SEAT"), ("TALON_VERS", "TO")]:
         x, y = BILLET[cle][:2]
-        d.text((x, y - 44), nom, font=e, fill=GRIS)
-    # avion entre FROM et TO
-    avion(d, 560, 380, 60, BLEU)
-    d.line((440, 380, 480, 380), fill=BLEU, width=6)
+        d.text((x, y - 46), nom, font=e, fill=(120, 132, 150, 255))
     # petit logo de classe
     d.rounded_rectangle((1050, 470, 1150, 570), 16, outline=BLEU, width=6)
     centre(d, (1100, 520), "Y", police(TITRE, 60), BLEU)
     # codes-barres et symboles
     code_barre(d, 60, 620, 980, 690, 7)
     code_barre(d, 1390, 560, 1750, 690, 11)
-    d.text((1010, 630), "SECURITY", font=police(ETIQ, 30), fill=GRIS)
-    d.rounded_rectangle((1010, 666, 1150, 696), 8, outline=GRIS, width=3)
-    d.text((1028, 664), "CHECKED", font=police(ETIQ, 26), fill=GRIS)
+    d.text((1010, 628), "SECURITY", font=police(CARTOON, 28), fill=(120, 132, 150, 255))
+    d.rounded_rectangle((1010, 664, 1160, 696), 8, outline=(120, 132, 150, 255), width=3)
+    d.text((1085, 680), "CHECKED", font=police(CARTOON, 22), fill=(120, 132, 150, 255), anchor="mm")
     img.save(os.path.join(SORTIE, "Billet.png"))
 
 
@@ -152,7 +153,9 @@ def passeport():
     W, H = 1260, 1000
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, W - 1, H - 1), 34, fill=(236, 240, 226, 255), outline=(120, 40, 50, 255), width=10)
+    d.rounded_rectangle((0, 0, W - 1, H - 1), 44, fill=CONTOUR)
+    d.rounded_rectangle((14, 14, W - 15, H - 15), 32, fill=(200, 206, 186, 255))
+    d.rounded_rectangle((14, 14, W - 15, H - 27), 32, fill=(236, 240, 226, 255))
     # fond guilloche discret (dessine a part puis decoupe a l'interieur du cadre)
     motif = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     dm = ImageDraw.Draw(motif)
@@ -160,29 +163,44 @@ def passeport():
         r = 40 + i * 18
         dm.ellipse((W * 0.62 - r, H * 0.45 - r * 0.6, W * 0.62 + r, H * 0.45 + r * 0.6), outline=(214, 224, 204, 255), width=2)
     masque = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(masque).rounded_rectangle((12, 12, W - 13, H - 13), 26, fill=255)
+    ImageDraw.Draw(masque).rounded_rectangle((20, 130, W - 21, H - 33), 26, fill=255)
     img.paste(motif, (0, 0), Image.composite(motif.getchannel("A"), Image.new("L", (W, H), 0), masque))
     # bandeau
-    d.rounded_rectangle((0, 0, W - 1, 120), 34, fill=(120, 40, 50, 255))
-    d.rectangle((0, 70, W - 1, 120), fill=(120, 40, 50, 255))
-    d.ellipse((40, 22, 116, 98), outline=(230, 196, 120, 255), width=6)
-    avion(d, 78, 60, 26, (230, 196, 120, 255))
-    d.text((140, 26), "PASSPORT", font=police(TITRE, 60), fill=(240, 220, 170, 255))
-    d.text((560, 40), "PASSEPORT  /  PASAPORTE", font=police(ETIQ, 40), fill=(230, 196, 160, 255))
-    e = police(ETIQ, 32)
+    bandeau(img, (14, 14, W - 15, 124), 32, ((176, 58, 76, 255), (120, 32, 48, 255)))
+    d.ellipse((40, 30, 112, 102), outline=(255, 255, 255, 255), width=6)
+    avion(d, 76, 66, 24, (255, 255, 255, 255))
+    cartoon(d, (132, 68), "PASSPORT", 58, "lm")
+    cartoon(d, (560, 68), "PASSEPORT  /  PASAPORTE", 36, "lm", (255, 220, 226, 255))
+    e = police(CARTOON, 30)
     for cle, nom in [("NOM", "SURNAME"), ("NUMERO", "PASSPORT No."), ("PRENOM", "GIVEN NAMES"),
                      ("NATION", "NATIONALITY"), ("SEXE", "SEX"), ("NAISSANCE", "DATE OF BIRTH"),
                      ("EXPIRE", "DATE OF EXPIRY")]:
         x, y = PASSEPORT[cle]
         d.text((x, y - 42), nom, font=e, fill=(110, 116, 100, 255))
-    # cadre photo + signature
-    x, y, c = PASSEPORT["PHOTO"]
-    d.rectangle((x - 6, y - 6, x + c + 6, y + c + 6), fill=(200, 206, 192, 255), outline=(70, 74, 64, 255), width=4)
-    d.text((x, y + c + 26), "SIGNATURE", font=police(ETIQ, 28), fill=(110, 116, 100, 255))
-    d.line((x, y + c + 100, x + c, y + c + 100), fill=(110, 116, 100, 255), width=3)
     # zone de lecture automatique (MRZ)
-    d.rectangle((30, 760, W - 30, 960), fill=(248, 250, 244, 255))
+    d.rounded_rectangle((30, 760, W - 30, 955), 14, fill=(248, 250, 244, 255), outline=(200, 206, 186, 255), width=3)
     img.save(os.path.join(SORTIE, "Passeport.png"))
+
+
+def bandeau(img, boite, r, couleurs=(VERT_H, VERT_B)):
+    """Bandeau du haut d'un document : degrade vertical + reflet, coins du haut arrondis."""
+    x0, y0, x1, y1 = boite
+    g = np.linspace(0, 1, y1 - y0)[:, None, None]
+    c = np.array(couleurs[0][:3]) * (1 - g) + np.array(couleurs[1][:3]) * g
+    bande = Image.fromarray(np.repeat(c, x1 - x0, 1).astype(np.uint8)).convert("RGBA")
+    m = Image.new("L", (x1 - x0, y1 - y0), 0)
+    ImageDraw.Draw(m).rounded_rectangle((0, 0, x1 - x0 - 1, y1 - y0 + r), r, fill=255)
+    img.paste(bande, (x0, y0), m)
+    reflet = Image.new("L", img.size, 0)
+    ImageDraw.Draw(reflet).rounded_rectangle((x0 + r, y0 + 10, x1 - r, y0 + (y1 - y0) * 0.36), 16, fill=60)
+    img.paste(Image.new("RGBA", img.size, (255, 255, 255, 255)), (0, 0), reflet)
+    ImageDraw.Draw(img).line((x0, y1, x1, y1), fill=CONTOUR, width=6)
+
+
+def cartoon(d, xy, texte, taille, ancre="lm", couleur=(255, 255, 255, 255)):
+    """Texte blanc tres epais avec un gros contour sombre (comme les interfaces du jeu)."""
+    d.text(xy, texte, font=police(CARTOON, taille), fill=couleur, anchor=ancre,
+           stroke_width=max(4, taille // 9), stroke_fill=CONTOUR)
 
 
 # ---------- cases et tampons ----------

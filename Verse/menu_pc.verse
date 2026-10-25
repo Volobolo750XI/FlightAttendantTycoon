@@ -402,7 +402,7 @@ menu_pc := class(creative_device):
         B.OnClick().Subscribe(clic_menu{Menu := Self, Action := Action, Index := Index}.Clique)
         # le texte est un peu au-dessus du centre : le bas du bouton est son epaisseur 3D
         var Slots:[]canvas_slot = array{Bloc(Vignette(Img, L, H), X, Y, L, H, 6)}
-        set Slots += Ecriture.Ecrire(S, "FFFFFF", text_justification.Center, X + L * 0.08, Y + H * 0.20, L * 0.84, H * 0.50, 7)
+        set Slots += Ecriture.Ecrire(S, "FFFFFF", text_justification.Center, X + L * 0.12, Y + H * 0.24, L * 0.76, H * 0.42, 7)
         set Slots += array{Bloc(B, X, Y, L, H, 30)}
         Slots
 

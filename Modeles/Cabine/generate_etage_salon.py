@@ -17,7 +17,8 @@ De l'avant (cinema) vers l'arriere (escalier), en z glTF (l'avant de l'avion est
   11 Plantes         8 palmiers en pots dores
 Repere : metres, Y en haut ; le plancher du pont superieur est a y = UP (3,70).
 
-Usage : python3 generate_etage_salon.py   (ecrit les GLB dans Modeles/Etage/)
+Usage : python3 generate_etage_salon.py   (ecrit les GLB dans Modeles/Etage/, dont
+        Etage_Complet_Tout_Place.glb : les 11 objets ensemble, deja places, en un seul fichier)
 """
 import os
 
@@ -679,3 +680,16 @@ if __name__ == "__main__":
         print(f"{o.nom:28s} {sum(len(g.faces) for g in sc.geometry.values()):7d} triangles "
               f"{os.path.getsize(out) / 1e6:5.1f} Mo  {'OK' if not pb else ' / '.join(pb)}")
     tout.export(os.path.join(SORTIE, "Etage_TOUT_apercu.glb"), include_normals=True)
+    # fichier unique "tout deja place" : un maillage par materiau (textures partagees), sommets soudes
+    par_mat = {}
+    for n in tout.graph.nodes_geometry:
+        T, g = tout.graph[n]
+        par_mat.setdefault(tout.geometry[g].visual.material.name, []).append(tout.geometry[g])
+    complet = trimesh.Scene()
+    for nom, lst in par_mat.items():
+        c = trimesh.util.concatenate([trimesh.Trimesh(m.vertices, m.faces, process=False) for m in lst])
+        c = trimesh.Trimesh(c.vertices, c.faces, vertex_normals=np.vstack([m.vertex_normals for m in lst]), process=False)
+        c.visual = trimesh.visual.TextureVisuals(uv=np.vstack([m.visual.uv for m in lst]), material=lst[0].visual.material)
+        c.merge_vertices()
+        complet.add_geometry(c, node_name=f"EtageComplet_{nom}", geom_name=f"EtageComplet_{nom}")
+    complet.export(os.path.join(SORTIE, "Etage_Complet_Tout_Place.glb"), include_normals=True)

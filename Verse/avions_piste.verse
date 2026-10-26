@@ -77,15 +77,15 @@ avions_piste_device := class(creative_device):
             axe_nez.Y => R.ApplyRoll(-A)
             axe_nez.MoinsY => R.ApplyRoll(A)
 
-    Aller(Avion:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3, Duree:float)<suspends>:void =
-        Avion.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Echelle}, Duree)
+    Aller(Appareil:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3, Duree:float)<suspends>:void =
+        Appareil.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Echelle}, Duree)
 
-    Placer(Avion:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3):void =
-        if (Avion.TeleportTo[transform{Translation := Pos, Rotation := Rot, Scale := Echelle}]) {}
+    Placer(Appareil:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3):void =
+        if (Appareil.TeleportTo[transform{Translation := Pos, Rotation := Rot, Scale := Echelle}]) {}
 
     # ------------------------------------------------------------------ atterrissage
     Atterrir()<suspends>:void =
-        Avion := AvionAtterrissage
+        Appareil := AvionAtterrissage
         T := PointToucher
         D := Devant(T.Rotation)
         L := LongueurPiste * 100.0
@@ -93,42 +93,42 @@ avions_piste_device := class(creative_device):
         NezHaut := Incline(T.Rotation, Cabrage * 0.25)               # leger arrondi a l'atterrissage
         Approche := Incline(T.Rotation, Cabrage * 0.1)
         # tres loin et haut, dans l'axe de la piste
-        Placer(Avion, T.Translation - D * 90000.0 + Haut * 28000.0, Approche, T.Scale)
-        Avion.Show()
-        Aller(Avion, T.Translation - D * 30000.0 + Haut * 8500.0, Approche, T.Scale, 12.0)
-        Aller(Avion, T.Translation - D * 6000.0 + Haut * 1500.0, Approche, T.Scale, 6.0)
-        Aller(Avion, T.Translation - D * 1200.0 + Haut * 250.0, NezHaut, T.Scale, 2.0)
-        Aller(Avion, T.Translation, NezHaut, T.Scale, 1.4)                # toucher des roues
+        Placer(Appareil, T.Translation - D * 90000.0 + Haut * 28000.0, Approche, T.Scale)
+        Appareil.Show()
+        Aller(Appareil, T.Translation - D * 30000.0 + Haut * 8500.0, Approche, T.Scale, 12.0)
+        Aller(Appareil, T.Translation - D * 6000.0 + Haut * 1500.0, Approche, T.Scale, 6.0)
+        Aller(Appareil, T.Translation - D * 1200.0 + Haut * 250.0, NezHaut, T.Scale, 2.0)
+        Aller(Appareil, T.Translation, NezHaut, T.Scale, 1.4)                # toucher des roues
         # freinage : de plus en plus lent
-        Aller(Avion, T.Translation + D * (L * 0.22), T.Rotation, T.Scale, 3.0)
-        Aller(Avion, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 4.0)
-        Aller(Avion, T.Translation + D * (L * 0.55), T.Rotation, T.Scale, 4.5)
-        Aller(Avion, T.Translation + D * (L * 0.60), T.Rotation, T.Scale, 4.0)
+        Aller(Appareil, T.Translation + D * (L * 0.22), T.Rotation, T.Scale, 3.0)
+        Aller(Appareil, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 4.0)
+        Aller(Appareil, T.Translation + D * (L * 0.55), T.Rotation, T.Scale, 4.5)
+        Aller(Appareil, T.Translation + D * (L * 0.60), T.Rotation, T.Scale, 4.0)
         Sleep(3.0)
-        Avion.Hide()
+        Appareil.Hide()
 
     # ------------------------------------------------------------------ decollage
     Decoller()<suspends>:void =
-        Avion := AvionDecollage
+        Appareil := AvionDecollage
         T := DepartDecollage
         D := Devant(T.Rotation)
         L := LongueurPiste * 100.0
         Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
         Cabre := Incline(T.Rotation, Cabrage)
-        Placer(Avion, T.Translation, T.Rotation, T.Scale)
-        Avion.Show()
+        Placer(Appareil, T.Translation, T.Rotation, T.Scale)
+        Appareil.Show()
         Sleep(3.0)                                                      # moteurs a fond...
         # acceleration : de plus en plus vite
-        Aller(Avion, T.Translation + D * (L * 0.06), T.Rotation, T.Scale, 4.0)
-        Aller(Avion, T.Translation + D * (L * 0.20), T.Rotation, T.Scale, 3.5)
-        Aller(Avion, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 3.0)
-        Aller(Avion, T.Translation + D * (L * 0.62), T.Rotation, T.Scale, 2.2)
+        Aller(Appareil, T.Translation + D * (L * 0.06), T.Rotation, T.Scale, 4.0)
+        Aller(Appareil, T.Translation + D * (L * 0.20), T.Rotation, T.Scale, 3.5)
+        Aller(Appareil, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 3.0)
+        Aller(Appareil, T.Translation + D * (L * 0.62), T.Rotation, T.Scale, 2.2)
         # rotation : le nez se leve, les roues quittent la piste
-        Aller(Avion, T.Translation + D * (L * 0.80) + Haut * 300.0, Cabre, T.Scale, 1.8)
+        Aller(Appareil, T.Translation + D * (L * 0.80) + Haut * 300.0, Cabre, T.Scale, 1.8)
         # montee
-        Aller(Avion, T.Translation + D * (L + 12000.0) + Haut * 4500.0, Cabre, T.Scale, 5.0)
-        Aller(Avion, T.Translation + D * (L + 90000.0) + Haut * 30000.0, Cabre, T.Scale, 18.0)
-        Avion.Hide()
+        Aller(Appareil, T.Translation + D * (L + 12000.0) + Haut * 4500.0, Cabre, T.Scale, 5.0)
+        Aller(Appareil, T.Translation + D * (L + 90000.0) + Haut * 30000.0, Cabre, T.Scale, 18.0)
+        Appareil.Hide()
         # retour discret en bout de piste pour le prochain decollage
-        Placer(Avion, T.Translation, T.Rotation, T.Scale)
-        Avion.Show()
+        Placer(Appareil, T.Translation, T.Rotation, T.Scale)
+        Appareil.Show()

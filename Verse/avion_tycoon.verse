@@ -519,7 +519,9 @@ avion_tycoon := class(creative_device):
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.PanneauRecap, DefaultDesiredSize := vector2{X := 760.0, Y := 760.0}}, 580.0, 210.0, 760.0, 760.0, 1)
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.Ruban, DefaultDesiredSize := vector2{X := 900.0, Y := 225.0}}, 510.0, 110.0, 900.0, 225.0, 3)
         UI.AddWidget(Toile, player_ui_slot{InputMode := ui_input_mode.All})
-        for (S : Ecriture.Ecrire("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center, 560.0, 176.0, 800.0, 56.0, 4)) { Toile.AddWidget(S) }
+        # calcule avant la boucle (Ecrire ne peut pas etre appele dans l'en-tete du for)
+        Lettres1 := Ecriture.Ecrire("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center, 560.0, 176.0, 800.0, 56.0, 4)
+        for (S : Lettres1) { Toile.AddWidget(S) }
         set EcranRecap = option{Toile}
         spawn{ScintillerEtoiles(Toile, Numero)}
         var Total:int = 0
@@ -528,7 +530,9 @@ avion_tycoon := class(creative_device):
             Moins := if (I >= 4) then true else false
             Y := 330.0 + I * 66.0
             Couleur := if (Moins?) then "FCA5A5" else "86EFAC"
-            for (S : Ecriture.Ecrire(Nom, "FFFFFF", text_justification.Left, 650.0, Y, 380.0, 40.0, 4)) { Toile.AddWidget(S) }
+            # calcule avant la boucle (Ecrire ne peut pas etre appele dans l'en-tete du for)
+            Lettres2 := Ecriture.Ecrire(Nom, "FFFFFF", text_justification.Left, 650.0, Y, 380.0, 40.0, 4)
+            for (S : Lettres2) { Toile.AddWidget(S) }
             var Chiffre:[]widget = array{}
             Centre := vector2{X := 0.5, Y := 0.5}
             # ça monte vite au début puis ralentit, comme une machine à sous
@@ -549,7 +553,9 @@ avion_tycoon := class(creative_device):
         # le total, plus gros, avec l'icône d'argent
         Toile.AddWidget(PlaceRecap(color_block{DefaultColor := MakeColorFromHex("BBF7D0"), DefaultOpacity := 0.6}, 650.0, 735.0, 620.0, 4.0, 4))
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 110.0, Y := 110.0}}, 640.0, 745.0, 110.0, 110.0, 5))
-        for (S : Ecriture.Ecrire("TOTAL", "FFFFFF", text_justification.Left, 760.0, 774.0, 230.0, 52.0, 5)) { Toile.AddWidget(S) }
+        # calcule avant la boucle (Ecrire ne peut pas etre appele dans l'en-tete du for)
+        Lettres3 := Ecriture.Ecrire("TOTAL", "FFFFFF", text_justification.Left, 760.0, 774.0, 230.0, 52.0, 5)
+        for (S : Lettres3) { Toile.AddWidget(S) }
         CouleurTotal := if (Total >= 0) then "FFFFFF" else "FCA5A5"
         var Grand:[]widget = array{}
         Milieu := vector2{X := 0.5, Y := 0.5}
@@ -565,7 +571,9 @@ avion_tycoon := class(creative_device):
         if (Son := SonArgent?) { Son.Play() }
         # le bouton CONTINUE (ou ça se ferme tout seul après 10 secondes)
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.BoutonVert, DefaultDesiredSize := vector2{X := 300.0, Y := 150.0}}, 810.0, 870.0, 300.0, 120.0, 6))
-        for (S : Ecriture.Ecrire("CONTINUE", "FFFFFF", text_justification.Center, 846.0, 899.0, 228.0, 50.0, 7)) { Toile.AddWidget(S) }
+        # calcule avant la boucle (Ecrire ne peut pas etre appele dans l'en-tete du for)
+        Lettres4 := Ecriture.Ecrire("CONTINUE", "FFFFFF", text_justification.Center, 846.0, 899.0, 228.0, 50.0, 7)
+        for (S : Lettres4) { Toile.AddWidget(S) }
         Bouton := button_quiet{DefaultText := Msg("")}
         Bouton.OnClick().Subscribe(clic_recap{Device := Self}.Clique)
         Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))

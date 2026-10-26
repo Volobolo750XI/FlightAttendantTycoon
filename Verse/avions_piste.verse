@@ -3,59 +3,55 @@ using { /Verse.org/Simulation }
 using { /Verse.org/Random }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 
-# Flight Attendant Tycoon - le lobby vit : des avions ATTERRISSENT et DECOLLENT sur la piste, en boucle.
+# Flight Attendant Tycoon - le lobby vit : UN avion decolle et atterrit sur la piste, en boucle.
 #
 # Le cycle (sans fin) :
-#   1. un avion arrive de loin, descend en approche, touche la piste, freine et roule jusqu'au bout,
-#      puis disparait (il "part au parking") ;
-#   2. pause ;
-#   3. l'autre avion, qui attend en bout de piste, accelere, cabre, decolle et monte dans le ciel,
-#      puis disparait au loin et revient se placer en bout de piste ;
-#   4. pause, et on recommence.
+#   1. l'avion attend en bout de piste, puis accelere, cabre, decolle et monte dans le ciel ;
+#   2. au loin, il disparait ;
+#   3. un peu plus tard il reapparait loin dans l'axe de la piste, descend en approche,
+#      touche la piste, freine et roule ;
+#   4. il disparait, puis reapparait en bout de piste, pret a redecoller.
 #
 # Installation dans UEFN :
 #   - importe Modeles/Lobby/Avion_Decor.glb, clic droit -> Convert to Prop ;
-#   - pose 2 avions sur la piste du lobby (meme echelle que le reste) :
-#       * AvionDecollage : en BOUT de piste, sur les roues, le nez dans le sens du decollage ;
-#       * AvionAtterrissage : au point ou il doit TOUCHER la piste (vers le debut), meme sens ;
-#     -> dans leurs Details : Collision = pas de collision (sinon le deplacement peut bloquer) ;
-#   - pose ce device n'importe ou, et dans ses Details choisis les 2 avions ;
-#   - lance la session. Si les avions partent de cote ou en arriere : change AxeDuNez.
-#     S'ils piquent du nez au decollage au lieu de cabrer : mets Cabrage en negatif (ex : -12).
+#   - pose UN avion en BOUT de piste, sur les roues, le nez dans le sens du decollage
+#     (dans ses Details : Collision = pas de collision) ;
+#   - pose ce device n'importe ou, et dans ses Details choisis l'avion (AvionPiste) ;
+#   - lance la session. Si l'avion part de cote ou en arriere : change AxeDuNez.
+#     S'il pique du nez au decollage au lieu de cabrer : mets Cabrage en negatif (ex : -12).
 
 # Direction du nez de l'avion dans son propre repere (depend de l'import du modele).
 axe_nez := enum{X, MoinsX, Y, MoinsY}
 
 avions_piste_device := class(creative_device):
 
-    @editable AvionDecollage : creative_prop = creative_prop{}
-    @editable AvionAtterrissage : creative_prop = creative_prop{}
+    @editable AvionPiste : creative_prop = creative_prop{}
 
-    # Longueur de piste utilisee, en metres (depuis la position de chaque avion).
+    # Longueur de piste utilisee, en metres (depuis la position de depart de l'avion).
     @editable LongueurPiste : float = 380.0
     @editable AxeDuNez : axe_nez = axe_nez.X
     # Angle de montee au decollage, en degres (negatif si l'avion pique au lieu de cabrer).
     @editable Cabrage : float = 12.0
-    # Pause entre deux mouvements, en secondes (tiree au hasard entre les deux).
-    @editable PauseMin : float = 8.0
-    @editable PauseMax : float = 18.0
-    @editable AtterrissageActif : logic = true
-    @editable DecollageActif : logic = true
+    # Attente en bout de piste avant chaque decollage (secondes, au hasard entre les deux).
+    @editable AttenteMin : float = 6.0
+    @editable AttenteMax : float = 14.0
+    # Temps "en vol" (invisible) entre le decollage et le retour pour l'atterrissage.
+    @editable TempsEnVol : float = 12.0
 
-    var DepartDecollage : transform = transform{}
-    var PointToucher : transform = transform{}
+    var Depart : transform = transform{}
 
     OnBegin<override>()<suspends>:void =
-        set DepartDecollage = AvionDecollage.GetTransform()
-        set PointToucher = AvionAtterrissage.GetTransform()
-        AvionAtterrissage.Hide()
+        set Depart = AvionPiste.GetTransform()
         loop:
-            if (AtterrissageActif?):
-                Atterrir()
-            Sleep(GetRandomFloat(PauseMin, PauseMax))
-            if (DecollageActif?):
-                Decoller()
-            Sleep(GetRandomFloat(PauseMin, PauseMax))
+            Placer(Depart.Translation, Depart.Rotation)
+            AvionPiste.Show()
+            Sleep(GetRandomFloat(AttenteMin, AttenteMax))
+            Decoller()
+            AvionPiste.Hide()
+            Sleep(TempsEnVol)
+            Atterrir()
+            AvionPiste.Hide()
+            Sleep(4.0)
 
     # Vecteur "devant" de l'avion (a plat, longueur 1).
     Devant(R:rotation):vector3 =
@@ -77,58 +73,52 @@ avions_piste_device := class(creative_device):
             axe_nez.Y => R.ApplyRoll(-A)
             axe_nez.MoinsY => R.ApplyRoll(A)
 
-    Aller(Appareil:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3, Duree:float)<suspends>:void =
-        Appareil.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Echelle}, Duree)
+    Aller(Pos:vector3, Rot:rotation, Duree:float)<suspends>:void =
+        AvionPiste.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Depart.Scale}, Duree)
 
-    Placer(Appareil:creative_prop, Pos:vector3, Rot:rotation, Echelle:vector3):void =
-        if (Appareil.TeleportTo[transform{Translation := Pos, Rotation := Rot, Scale := Echelle}]) {}
-
-    # ------------------------------------------------------------------ atterrissage
-    Atterrir()<suspends>:void =
-        Appareil := AvionAtterrissage
-        T := PointToucher
-        D := Devant(T.Rotation)
-        L := LongueurPiste * 100.0
-        Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
-        NezHaut := Incline(T.Rotation, Cabrage * 0.25)               # leger arrondi a l'atterrissage
-        Approche := Incline(T.Rotation, Cabrage * 0.1)
-        # tres loin et haut, dans l'axe de la piste
-        Placer(Appareil, T.Translation - D * 90000.0 + Haut * 28000.0, Approche, T.Scale)
-        Appareil.Show()
-        Aller(Appareil, T.Translation - D * 30000.0 + Haut * 8500.0, Approche, T.Scale, 12.0)
-        Aller(Appareil, T.Translation - D * 6000.0 + Haut * 1500.0, Approche, T.Scale, 6.0)
-        Aller(Appareil, T.Translation - D * 1200.0 + Haut * 250.0, NezHaut, T.Scale, 2.0)
-        Aller(Appareil, T.Translation, NezHaut, T.Scale, 1.4)                # toucher des roues
-        # freinage : de plus en plus lent
-        Aller(Appareil, T.Translation + D * (L * 0.22), T.Rotation, T.Scale, 3.0)
-        Aller(Appareil, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 4.0)
-        Aller(Appareil, T.Translation + D * (L * 0.55), T.Rotation, T.Scale, 4.5)
-        Aller(Appareil, T.Translation + D * (L * 0.60), T.Rotation, T.Scale, 4.0)
-        Sleep(3.0)
-        Appareil.Hide()
+    Placer(Pos:vector3, Rot:rotation):void =
+        if (AvionPiste.TeleportTo[transform{Translation := Pos, Rotation := Rot, Scale := Depart.Scale}]) {}
 
     # ------------------------------------------------------------------ decollage
     Decoller()<suspends>:void =
-        Appareil := AvionDecollage
-        T := DepartDecollage
-        D := Devant(T.Rotation)
+        P := Depart.Translation
+        R := Depart.Rotation
+        D := Devant(R)
         L := LongueurPiste * 100.0
         Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
-        Cabre := Incline(T.Rotation, Cabrage)
-        Placer(Appareil, T.Translation, T.Rotation, T.Scale)
-        Appareil.Show()
-        Sleep(3.0)                                                      # moteurs a fond...
+        Cabre := Incline(R, Cabrage)
+        Sleep(2.0)                                                      # moteurs a fond...
         # acceleration : de plus en plus vite
-        Aller(Appareil, T.Translation + D * (L * 0.06), T.Rotation, T.Scale, 4.0)
-        Aller(Appareil, T.Translation + D * (L * 0.20), T.Rotation, T.Scale, 3.5)
-        Aller(Appareil, T.Translation + D * (L * 0.42), T.Rotation, T.Scale, 3.0)
-        Aller(Appareil, T.Translation + D * (L * 0.62), T.Rotation, T.Scale, 2.2)
+        Aller(P + D * (L * 0.06), R, 4.0)
+        Aller(P + D * (L * 0.20), R, 3.5)
+        Aller(P + D * (L * 0.42), R, 3.0)
+        Aller(P + D * (L * 0.62), R, 2.2)
         # rotation : le nez se leve, les roues quittent la piste
-        Aller(Appareil, T.Translation + D * (L * 0.80) + Haut * 300.0, Cabre, T.Scale, 1.8)
-        # montee
-        Aller(Appareil, T.Translation + D * (L + 12000.0) + Haut * 4500.0, Cabre, T.Scale, 5.0)
-        Aller(Appareil, T.Translation + D * (L + 90000.0) + Haut * 30000.0, Cabre, T.Scale, 18.0)
-        Appareil.Hide()
-        # retour discret en bout de piste pour le prochain decollage
-        Placer(Appareil, T.Translation, T.Rotation, T.Scale)
-        Appareil.Show()
+        Aller(P + D * (L * 0.80) + Haut * 300.0, Cabre, 1.8)
+        # montee, puis il s'eloigne
+        Aller(P + D * (L + 12000.0) + Haut * 4500.0, Cabre, 5.0)
+        Aller(P + D * (L + 90000.0) + Haut * 30000.0, Cabre, 18.0)
+
+    # ------------------------------------------------------------------ atterrissage
+    # Il revient dans le MEME sens que le decollage : il arrive par l'arriere du point de depart
+    # et touche la piste un peu apres le bout de piste.
+    Atterrir()<suspends>:void =
+        R := Depart.Rotation
+        D := Devant(R)
+        L := LongueurPiste * 100.0
+        Haut := vector3{X := 0.0, Y := 0.0, Z := 1.0}
+        Toucher := Depart.Translation + D * (L * 0.12)
+        Arrondi := Incline(R, Cabrage * 0.25)                          # leger nez haut
+        Approche := Incline(R, Cabrage * 0.1)
+        Placer(Toucher - D * 90000.0 + Haut * 28000.0, Approche)
+        AvionPiste.Show()
+        Aller(Toucher - D * 30000.0 + Haut * 8500.0, Approche, 12.0)
+        Aller(Toucher - D * 6000.0 + Haut * 1500.0, Approche, 6.0)
+        Aller(Toucher - D * 1200.0 + Haut * 250.0, Arrondi, 2.0)
+        Aller(Toucher, Arrondi, 1.4)                                    # toucher des roues
+        # freinage : de plus en plus lent
+        Aller(Toucher + D * (L * 0.22), R, 3.0)
+        Aller(Toucher + D * (L * 0.42), R, 4.0)
+        Aller(Toucher + D * (L * 0.55), R, 4.5)
+        Aller(Toucher + D * (L * 0.60), R, 4.0)
+        Sleep(3.0)

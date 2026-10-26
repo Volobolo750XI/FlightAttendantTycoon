@@ -860,5 +860,15 @@ if __name__ == "__main__":
     lampadaires(O)
     haies(O)
     arbres(O)
+    # la plateforme de spawn au centre (un objet a part)
+    pf = trimesh.load(os.path.join(os.path.dirname(SORTIE), "Plateforme_Spawn.glb"), force="scene")
+    for n in pf.graph.nodes_geometry:
+        T, g = pf.graph[n]
+        m = pf.geometry[g].copy()
+        m.apply_transform(T)
+        M["plateforme"] = m.visual.material
+        O.add("Plateforme_Spawn", "plateforme", m)
     noms = O.exporter(SORTIE)
+    import shutil
+    shutil.copy(SORTIE, os.path.join(os.path.dirname(SORTIE), "Lobby_Complet.glb"))
     print(SORTIE, round(os.path.getsize(SORTIE) / 1e6, 2), "Mo", len(noms) + 1, "objets")

@@ -1,4 +1,4 @@
-"""PLATEFORME DU SPAWN (centre du lobby) : juste un disque gris avec un rebord et 4 ouvertures (N, E, S, O).
+"""PLATEFORME DU SPAWN (centre du lobby) : juste un disque gris avec un rebord et 6 ouvertures (tous les 60 degres).
 Origine : centre de la plateforme, au sol. Y en haut.
 Sortie : Modeles/Lobby/Plateforme_Spawn.glb      Usage : python3 generate_plateforme_spawn.py
 """
@@ -39,7 +39,7 @@ def objet(m, mat):
 sol = extrusion(Point(0, 0).buffer(R, 128), 0.0, H)
 anneau = Point(0, 0).buffer(R, 128).difference(Point(0, 0).buffer(R - MUR_EP, 128))
 coupe = Polygon([(-TROU / 2, R - 3), (TROU / 2, R - 3), (TROU / 2, R + 1), (-TROU / 2, R + 1)])
-for a in (0, 90, 180, 270):
+for a in (0, 60, 120, 180, 240, 300):
     anneau = anneau.difference(rotate(coupe, a, origin=(0, 0)))
 murs = [extrusion(p, H, H + MUR_H) for p in anneau.geoms]
 

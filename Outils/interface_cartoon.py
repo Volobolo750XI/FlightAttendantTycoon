@@ -34,7 +34,7 @@ OMBRE = 6                      # ombre portee vers le bas
 SYMBOLES = {"$": "Dollar", ".": "Point", ",": "Virgule", ":": "DeuxPoints", "-": "Tiret", "+": "Plus",
             "/": "Slash", "%": "Pourcent", "!": "Exclamation", "?": "Question", "(": "ParentheseG",
             ")": "ParentheseD", "|": "Barre", "#": "Diese", "<": "Inferieur", ">": "Superieur", "=": "Egal",
-            "*": "Etoile"}
+            "*": "Etoile", "[": "CrochetG", "]": "CrochetD", "&": "Et"}
 CARACTERES = [chr(c) for c in range(ord("A"), ord("Z") + 1)] + [chr(c) for c in range(ord("a"), ord("z") + 1)] + \
     [str(i) for i in range(10)] + list(SYMBOLES)
 
@@ -142,6 +142,11 @@ ecriture_cartoon := class:
         W + 2.0 * Marge - Espacement
 
     Ecrire(S:string, Hex:string, J:text_justification, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}):[]canvas_slot =
+        EcrireAncre(S, Hex, J, X - 960.0, Y - 540.0, L, H, Couche, vector2{{X := 0.5, Y := 0.5}})
+
+    # Comme Ecrire, mais X, Y sont des decalages depuis un point d'accroche de l'ecran (Ancre :
+    # 0,0 = coin haut gauche ; 0,0.5 = milieu du bord gauche ; 0.5,0.5 = centre).
+    EcrireAncre(S:string, Hex:string, J:text_justification, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}, Ancre:vector2):[]canvas_slot =
         W0 := Mesure(S)
         var T:float = H * Agrandir
         if (W0 * T > L, W0 > 0.0):
@@ -157,20 +162,28 @@ ecriture_cartoon := class:
         var Slots:[]canvas_slot = array{{}}
         for (C : S):
             if (Img := Glyphes[C], R := Largeurs[C]):
-                set Slots += array{{Lettre(Img, Teinte, PX, Haut, R * T, T, Couche)}}
+                set Slots += array{{Lettre(Img, Teinte, PX, Haut, R * T, T, Couche, Ancre)}}
                 set PX += (R - 2.0 * Marge + Espacement) * T
             else:
                 set PX += Espace * T
         Slots
 
-    Lettre(Img:texture, Teinte:color, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}):canvas_slot =
+    Lettre(Img:texture, Teinte:color, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}, Ancre:vector2):canvas_slot =
         canvas_slot:
-            Anchors := anchors{{Minimum := vector2{{X := 0.5, Y := 0.5}}, Maximum := vector2{{X := 0.5, Y := 0.5}}}}
+            Anchors := anchors{{Minimum := Ancre, Maximum := Ancre}}
             Alignment := vector2{{X := 0.0, Y := 0.0}}
-            Offsets := margin{{Left := X - 960.0, Top := Y - 540.0, Right := L, Bottom := H}}
+            Offsets := margin{{Left := X, Top := Y, Right := L, Bottom := H}}
             SizeToContent := false
             ZOrder := Couche
             Widget := texture_block{{DefaultImage := Img, DefaultTint := Teinte, DefaultDesiredSize := vector2{{X := L, Y := H}}}}
+
+    # Efface les lettres d'avant (Anciennes) de la toile et ecrit le nouveau texte. Renvoie les
+    # nouvelles lettres (a garder pour la prochaine fois). Pour les textes qui changent.
+    Remplacer(Toile:canvas, Anciennes:[]widget, S:string, Hex:string, J:text_justification, X:float, Y:float, L:float, H:float, Couche:type{{_X:int where 0 <= _X, _X <= 2147483647}}, Ancre:vector2):[]widget =
+        for (W : Anciennes) {{ Toile.RemoveWidget(W) }}
+        Slots := EcrireAncre(S, Hex, J, X, Y, L, H, Couche, Ancre)
+        for (Slot : Slots) {{ Toile.AddWidget(Slot) }}
+        for (Slot : Slots) {{ Slot.Widget }}
 '''
     open(VERSE, "w").write(v)
 

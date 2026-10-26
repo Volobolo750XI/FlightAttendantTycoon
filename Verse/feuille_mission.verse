@@ -185,6 +185,9 @@ feuille_mission := class(creative_device):
     var Rates:[]int = array{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
     # Le message quand on vise un passager, et le point au milieu de l'écran
     var Invite:?canvas = false
+    # le message cartoon quand on vise un passager : le texte affiche et ses lettres
+    var InviteAffichee:string = ""
+    var LettresInvite:[]widget = array{}
     PointDiscret:color_block = color_block{DefaultColor := NamedColors.White, DefaultOpacity := 0.45}
     PointActif:color_block = color_block{DefaultColor := NamedColors.White, DefaultOpacity := 1.0}
     TexteInvite:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Center, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.9, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
@@ -629,12 +632,12 @@ feuille_mission := class(creative_device):
                         set Texte = "[{NomTouche}]  CHECK PASSPORT & TICKET"
                     else if (Dem := Demandes?, Dem.DemandeDe(P)?):
                         set Texte = if (ChariotDispo?) then "[{NomTouche}]  TAKE ORDER" else "BRING THE TROLLEY"
-                if (Texte <> ""):
-                    TexteInvite.SetText(Msg(Texte))
-                    TexteInvite.SetVisibility(widget_visibility.Visible)
-                else:
-                    TexteInvite.SetVisibility(widget_visibility.Collapsed)
+                if (Texte = ""):
                     set Vise = false
+                # on ne recrit les lettres que si le message change
+                if (Texte <> InviteAffichee, C := Invite?):
+                    set InviteAffichee = Texte
+                    set LettresInvite = Ecriture.Remplacer(C, LettresInvite, Texte, "FFFFFF", text_justification.Center, 560.0 - 960.0, 636.0 - 540.0, 800.0, 44.0, 0, vector2{X := 0.5, Y := 0.5})
                 # écran de service ouvert mais la commande n'existe plus (il est parti) : on ferme
                 if (Page = 3, D := CommandeOuverte?, Dem := Demandes?, not Dem.DemandeDe(D.Passager)?):
                     Fermer()
@@ -667,11 +670,9 @@ feuille_mission := class(creative_device):
         if (UI := GetPlayerUI[J]):
             C := canvas:
                 Slots := array:
-                    Bloc(TexteInvite, 560.0, 640.0, 800.0, 40.0, 0)
                     Bloc(PointDiscret, 956.0, 536.0, 8.0, 8.0, 0)
                     Bloc(PointActif, 954.0, 534.0, 12.0, 12.0, 0)
             UI.AddWidget(C)
-            TexteInvite.SetVisibility(widget_visibility.Collapsed)
             PointActif.SetVisibility(widget_visibility.Collapsed)
             set Invite = option{C}
 

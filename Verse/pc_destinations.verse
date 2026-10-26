@@ -205,6 +205,13 @@ pc_destinations := class(creative_device):
     # La barre de vol en haut de l'écran
     var Barre:?canvas = false
     var BarreJoueur:?player = false
+    # textes cartoon de la barre de vol : ce qui est affiche et les lettres
+    var DepartAffiche:string = ""
+    var ArriveeAffichee:string = ""
+    var TempsAffiche:string = ""
+    var LettresDepart:[]widget = array{}
+    var LettresArrivee:[]widget = array{}
+    var LettresTemps:[]widget = array{}
     var BarreMobile:[]widget = array{}
     TexteDepart:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Right, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
     TexteArrivee:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultJustification := text_justification.Left, DefaultShadowColor := MakeColorFromHex("1B2541"), DefaultShadowOpacity := 1.0, DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}}
@@ -702,6 +709,12 @@ pc_destinations := class(creative_device):
                 set Barre = false
                 set BarreJoueur = false
                 set BarreMobile = array{}
+                set DepartAffiche = ""
+                set ArriveeAffichee = ""
+                set TempsAffiche = ""
+                set LettresDepart = array{}
+                set LettresArrivee = array{}
+                set LettresTemps = array{}
             if (Proprio := AvionTycoon.Proprio?, J := player[Proprio], UI := GetPlayerUI[J]):
                 var Toile:canvas = canvas{}
                 if (C := Barre?):
@@ -711,9 +724,6 @@ pc_destinations := class(creative_device):
                     Fixes := array:
                         EnHaut(Vignette(JaugeVol.Fond, LargeurJauge, HauteurJauge), 0.0, 0.0, LargeurJauge, HauteurJauge, 0)
                         EnHaut(Vignette(JaugeVol.Rond, Remplissage, Remplissage), DebutJauge, MargeJauge, Remplissage, Remplissage, 2)
-                        EnHaut(TexteDepart, -LargeurJauge / 2.0 - 190.0, HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5)
-                        EnHaut(TexteArrivee, LargeurJauge / 2.0 + 190.0, HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5)
-                        EnHaut(TexteTemps, 0.0, HauteurJauge + 6.0, 260.0, 40.0, 5)
                     Nouvelle := canvas{Slots := Fixes}
                     UI.AddWidget(Nouvelle)
                     set Barre = option{Nouvelle}
@@ -725,14 +735,22 @@ pc_destinations := class(creative_device):
                 Mn := if (M := Quotient[Secondes, 60]) then M else 0
                 Sec := if (X := Mod[Secondes, 60]) then X else 0
                 Chrono := if (Sec < 10) then "{Mn}:0{Sec}" else "{Mn}:{Sec}"
-                TexteDepart.SetText(Msg(VilleDepart()))
-                if (EnVol[] or Routes[Choisie]):
-                    TexteArrivee.SetText(Msg(VilleArrivee()))
-                    TexteTemps.SetText(Msg(if (EnVol[]) then Chrono else "NEXT  {Chrono}"))
-                else:
-                    # pas encore de vol : on dit quoi faire
-                    TexteArrivee.SetText(Msg("?"))
-                    TexteTemps.SetText(Msg("BUY A FLIGHT ON THE PC"))
+                # pas encore de vol : on dit quoi faire
+                Vol := if (EnVol[] or Routes[Choisie]) then true else false
+                Depart := VilleDepart()
+                Arrivee := if (Vol?) then VilleArrivee() else "?"
+                Temps := if (not Vol?) then "BUY A FLIGHT ON THE PC" else if (EnVol[]) then Chrono else "NEXT  {Chrono}"
+                # texte cartoon : on ne recrit les lettres que si le texte change
+                EnHautAncre := vector2{X := 0.5, Y := 0.0}
+                if (Depart <> DepartAffiche):
+                    set DepartAffiche = Depart
+                    set LettresDepart = Ecriture.Remplacer(Toile, LettresDepart, Depart, "FFFFFF", text_justification.Right, -LargeurJauge / 2.0 - 340.0, HautBarre + HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5, EnHautAncre)
+                if (Arrivee <> ArriveeAffichee):
+                    set ArriveeAffichee = Arrivee
+                    set LettresArrivee = Ecriture.Remplacer(Toile, LettresArrivee, Arrivee, "FFFFFF", text_justification.Left, LargeurJauge / 2.0 + 40.0, HautBarre + HauteurJauge / 2.0 - 20.0, 300.0, 40.0, 5, EnHautAncre)
+                if (Temps <> TempsAffiche):
+                    set TempsAffiche = Temps
+                    set LettresTemps = Ecriture.Remplacer(Toile, LettresTemps, Temps, "BBF7D0", text_justification.Center, -180.0, HautBarre + HauteurJauge + 6.0, 360.0, 36.0, 5, EnHautAncre)
                 # la piste remplie et l'avion
                 for (W : BarreMobile) { Toile.RemoveWidget(W) }
                 # le remplissage jaune : un rond au début, un rond au bout, un rectangle entre les deux

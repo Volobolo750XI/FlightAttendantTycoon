@@ -127,6 +127,13 @@ avion_tycoon := class(creative_device):
     var EcranRecap:?canvas = false
     # L'argent qui attend dans la borne MONEY.
     var StockATM:int = 0
+    # Le texte cartoon (images du dossier TexteCartoon) : ecriture_cartoon.verse
+    Ecriture:ecriture_cartoon = ecriture_cartoon{}
+    # le compteur a gauche de l'ecran : sa toile et les lettres de chaque ligne
+    var ToileHUD:?canvas = false
+    var LettresArgent:[]widget = array{}
+    var LettresRevenu:[]widget = array{}
+    var LettresRebirth:[]widget = array{}
     TexteArgent:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRevenu:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
     TexteRebirth:text_block = text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black, DefaultShadowOpacity := 0.85, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
@@ -310,30 +317,31 @@ avion_tycoon := class(creative_device):
                         HorizontalAlignment := horizontal_alignment.Center
                         VerticalAlignment := vertical_alignment.Center
 
+    # Le compteur a gauche de l'ecran : les 3 barres (tes images) et le texte cartoon dessus.
+    # Tout est place depuis le milieu du bord gauche : la barre n est a Y = HautHUD(n).
     CreerUI():void =
         if (Joueur := Proprio?, P := player[Joueur], UI := GetPlayerUI[P]):
             Ecran := canvas:
                 Slots := array:
-                    canvas_slot:
-                        Anchors := anchors{Minimum := vector2{X := 0.0, Y := 0.5}, Maximum := vector2{X := 0.0, Y := 0.5}}
-                        Alignment := vector2{X := 0.0, Y := 0.5}
-                        Offsets := margin{Left := 20.0, Top := 0.0, Right := 0.0, Bottom := 0.0}
-                        SizeToContent := true
-                        Widget := stack_box:
-                            Orientation := orientation.Vertical
-                            Slots := array:
-                                Cadre(Interface.FondArgent, TexteArgent)
-                                Cadre(Interface.FondRevenu, TexteRevenu)
-                                Cadre(Interface.FondRebirth, TexteRebirth)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondArgent, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(0), 256.0, 64.0)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondRevenu, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(1), 256.0, 64.0)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondRebirth, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(2), 256.0, 64.0)
             UI.AddWidget(Ecran)
+            set ToileHUD = option{Ecran}
+            MettreAJourUI()
+
+    HautHUD(N:int):float = -106.0 + N * 74.0
 
     MettreAJourUI():void =
         set RevenuParSeconde = RevenuVol
-        TexteArgent.SetText(Msg("${Abreger(Argent)}"))
         Affiche := if (PlaqueATM?) then StockATM else Argent
         for (E : EcransArgent) { E.SetText(Msg("${Abreger(Affiche)}")) }
-        TexteRevenu.SetText(Msg("${Abreger(RevenuParSeconde)}/Sec"))
-        TexteRebirth.SetText(Msg("{Rebirths} Rebirths"))
+        if (T := ToileHUD?):
+            Gauche := vector2{X := 0.0, Y := 0.5}
+            # le texte sur la partie de la barre a droite de l'icone
+            set LettresArgent = Ecriture.Remplacer(T, LettresArgent, "${Abreger(Argent)}", "FFFFFF", text_justification.Center, 70.0, HautHUD(0) + 12.0, 196.0, 40.0, 1, Gauche)
+            set LettresRevenu = Ecriture.Remplacer(T, LettresRevenu, "${Abreger(RevenuParSeconde)}/SEC", "FFFFFF", text_justification.Center, 70.0, HautHUD(1) + 12.0, 196.0, 40.0, 1, Gauche)
+            set LettresRebirth = Ecriture.Remplacer(T, LettresRebirth, "{Rebirths} REBIRTHS", "FFFFFF", text_justification.Center, 70.0, HautHUD(2) + 12.0, 196.0, 40.0, 1, Gauche)
 
     # 2500000000 -> "2.5B", 1400000 -> "1.4M", 76000 -> "76.0K" ; au-delà du milliard :
     # T (mille milliards), Qa (million de milliards), Qi (milliard de milliards).
@@ -411,12 +419,8 @@ avion_tycoon := class(creative_device):
         Toile := canvas{}
         UI.AddWidget(Toile)
         Icone := texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 96.0, Y := 96.0}}
-        Ecrit := text_block:
-            DefaultText := Msg(Texte)
-            DefaultTextColor := MakeColorFromHex(Couleur)
-            DefaultShadowColor := MakeColorFromHex("052E16")
-            DefaultShadowOpacity := 1.0
-            DefaultShadowOffset := option{vector2{X := 3.0, Y := 3.0}}
+        # le texte cartoon : il grossit et rapetisse avec l'icone
+        var Lettres:[]widget = array{}
         Duree := 1.4
         Debut := GetSimulationElapsedTime()
         loop:
@@ -429,9 +433,10 @@ avion_tycoon := class(creative_device):
             Taille := 96.0 * Echelle
             Y := -Decalage - 80.0 * Montee
             Toile.RemoveWidget(Icone)
-            Toile.RemoveWidget(Ecrit)
             Toile.AddWidget(PlaceGauche(Icone, 348.0 - Taille / 2.0, Y - Taille / 2.0, Taille, Taille))
-            if (Echelle > 0.35) { Toile.AddWidget(PlaceGauche(Ecrit, 404.0, Y - 20.0, 700.0, 44.0)) }
+            HauteurTexte := 44.0 * Echelle
+            Montre := if (Echelle > 0.35) then Texte else ""
+            set Lettres = Ecriture.Remplacer(Toile, Lettres, Montre, Couleur, text_justification.Left, 404.0, Y - HauteurTexte / 2.0, 700.0, HauteurTexte, 1, vector2{X := 0.0, Y := 0.5})
             Sleep(0.0)
         UI.RemoveWidget(Toile)
 
@@ -512,8 +517,8 @@ avion_tycoon := class(creative_device):
                     Widget := texture_block{DefaultImage := InterfacePC.FondRecap}
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.PanneauRecap, DefaultDesiredSize := vector2{X := 760.0, Y := 760.0}}, 580.0, 210.0, 760.0, 760.0, 1)
                 PlaceRecap(texture_block{DefaultImage := InterfacePC.Ruban, DefaultDesiredSize := vector2{X := 900.0, Y := 225.0}}, 510.0, 110.0, 900.0, 225.0, 3)
-                PlaceRecap(TexteRecap("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center), 510.0, 190.0, 900.0, 44.0, 4)
         UI.AddWidget(Toile, player_ui_slot{InputMode := ui_input_mode.All})
+        for (S : Ecriture.Ecrire("FLIGHT COMPLETE!", "FFFFFF", text_justification.Center, 560.0, 176.0, 800.0, 56.0, 4)) { Toile.AddWidget(S) }
         set EcranRecap = option{Toile}
         spawn{ScintillerEtoiles(Toile, Numero)}
         var Total:int = 0
@@ -522,16 +527,16 @@ avion_tycoon := class(creative_device):
             Moins := if (I >= 4) then true else false
             Y := 330.0 + I * 66.0
             Couleur := if (Moins?) then "FCA5A5" else "86EFAC"
-            Chiffre := TexteRecap("", Couleur, text_justification.Right)
-            Toile.AddWidget(PlaceRecap(TexteRecapGauche(Nom), 650.0, Y, 400.0, 44.0, 4))
-            Toile.AddWidget(PlaceRecap(Chiffre, 1010.0, Y, 260.0, 44.0, 4))
+            for (S : Ecriture.Ecrire(Nom, "FFFFFF", text_justification.Left, 650.0, Y, 380.0, 40.0, 4)) { Toile.AddWidget(S) }
+            var Chiffre:[]widget = array{}
+            Centre := vector2{X := 0.5, Y := 0.5}
             # ça monte vite au début puis ralentit, comme une machine à sous
             Etapes := 10
             for (K := 1..Etapes):
                 F := K * 1.0 / (Etapes * 1.0)
                 Montre := if (V := Round[Valeur * (1.0 - (1.0 - F) * (1.0 - F))]) then V else Valeur
                 Signe := if (Moins?) then "-" else "+"
-                Chiffre.SetText(Msg("{Signe}${Abreger(Montre)}"))
+                set Chiffre = Ecriture.Remplacer(Toile, Chiffre, "{Signe}${Abreger(Montre)}", Couleur, text_justification.Right, 1040.0 - 960.0, Y - 540.0, 230.0, 40.0, 4, Centre)
                 if (Mod[K, 2] = 0, Son := SonCompteur?) { Son.Play() }
                 Sleep(0.03)
             if (Moins?):
@@ -543,23 +548,23 @@ avion_tycoon := class(creative_device):
         # le total, plus gros, avec l'icône d'argent
         Toile.AddWidget(PlaceRecap(color_block{DefaultColor := MakeColorFromHex("BBF7D0"), DefaultOpacity := 0.6}, 650.0, 735.0, 620.0, 4.0, 4))
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.IconeArgent, DefaultDesiredSize := vector2{X := 110.0, Y := 110.0}}, 640.0, 745.0, 110.0, 110.0, 5))
-        Toile.AddWidget(PlaceRecap(TexteRecapGauche("TOTAL"), 760.0, 778.0, 250.0, 44.0, 5))
+        for (S : Ecriture.Ecrire("TOTAL", "FFFFFF", text_justification.Left, 760.0, 774.0, 230.0, 52.0, 5)) { Toile.AddWidget(S) }
         CouleurTotal := if (Total >= 0) then "FFFFFF" else "FCA5A5"
-        Grand := TexteRecap("", CouleurTotal, text_justification.Right)
-        Toile.AddWidget(PlaceRecap(Grand, 990.0, 778.0, 280.0, 44.0, 5))
+        var Grand:[]widget = array{}
+        Milieu := vector2{X := 0.5, Y := 0.5}
         EtapesTotal := 16
         Absolu := if (Total >= 0) then Total else -Total
         for (K := 1..EtapesTotal):
             F := K * 1.0 / (EtapesTotal * 1.0)
             Montre := if (V := Round[Absolu * (1.0 - (1.0 - F) * (1.0 - F) * (1.0 - F))]) then V else Absolu
             SigneTotal := if (Total >= 0) then "+" else "-"
-            Grand.SetText(Msg("{SigneTotal}${Abreger(Montre)}"))
+            set Grand = Ecriture.Remplacer(Toile, Grand, "{SigneTotal}${Abreger(Montre)}", CouleurTotal, text_justification.Right, 990.0 - 960.0, 774.0 - 540.0, 280.0, 52.0, 5, Milieu)
             if (Mod[K, 2] = 0, Son := SonCompteur?) { Son.Play() }
             Sleep(0.03)
         if (Son := SonArgent?) { Son.Play() }
         # le bouton CONTINUE (ou ça se ferme tout seul après 10 secondes)
         Toile.AddWidget(PlaceRecap(texture_block{DefaultImage := InterfacePC.BoutonVert, DefaultDesiredSize := vector2{X := 300.0, Y := 150.0}}, 810.0, 870.0, 300.0, 120.0, 6))
-        Toile.AddWidget(PlaceRecap(TexteRecap("CONTINUE", "FFFFFF", text_justification.Center), 810.0, 908.0, 300.0, 44.0, 7))
+        for (S : Ecriture.Ecrire("CONTINUE", "FFFFFF", text_justification.Center, 846.0, 899.0, 228.0, 50.0, 7)) { Toile.AddWidget(S) }
         Bouton := button_quiet{DefaultText := Msg("")}
         Bouton.OnClick().Subscribe(clic_recap{Device := Self}.Clique)
         Toile.AddWidget(PlaceRecap(Bouton, 810.0, 870.0, 300.0, 120.0, 30))

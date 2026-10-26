@@ -10,11 +10,12 @@ import os
 
 import numpy as np
 import trimesh
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from shapely.geometry import Point, Polygon
 from trimesh.transformations import rotation_matrix, translation_matrix
 
 import generate_avion_decor as AV
+import generate_vehicules_aeroport as VE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SORTIE = os.path.join(os.path.dirname(HERE), "Lobby", "Enclos_Aeroport.glb")
@@ -138,7 +139,7 @@ class Objets:
                 if tuile:
                     m, uv = uv_monde(m, tuile)
                     m.visual = trimesh.visual.TextureVisuals(uv=uv, material=mat)
-                elif k == "av_logo":
+                elif k in TEXTURES_PROPRES:
                     m.visual = trimesh.visual.TextureVisuals(uv=np.vstack([x.visual.uv for x in ms]), material=mat)
                 else:
                     m.visual = trimesh.visual.TextureVisuals(material=mat)
@@ -199,6 +200,8 @@ def extrusion(poly, y0, y1):
         return trimesh.util.concatenate([extrusion(p, y0, y1) for p in poly.geoms if p.area > 0.01])
     m = trimesh.creation.extrude_polygon(poly, y1 - y0)
     m.apply_transform(rotation_matrix(-np.pi / 2, [1, 0, 0]))
+    m.apply_transform(np.diag([1, 1, -1, 1]))                # (x, y) du plan -> (x, z) du monde
+    m.invert()
     m.apply_translation([0, y0, 0])
     return m
 
@@ -214,6 +217,63 @@ def quad(p0, p1, h, y0=0.0):
 
 # ------------------------------------------------------------------ elements
 M.update(AV.MATERIAUX)
+M.update(VE.MATERIAUX)
+
+
+def tex_peinture(txt, w=512, h=512, taille=420):
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(img).text((w / 2, h / 2), txt, font=ImageFont.truetype(VE.POLICE, taille), fill=(250, 250, 250, 255),
+                             anchor="mm")
+    return img
+
+
+def mat_texte(nom, txt, fond, encre, w=1024, h=256, taille=150, em=None):
+    return PBR(name=nom, baseColorTexture=VE.tex_texte(txt, fond, encre, w, h, taille), roughnessFactor=0.5,
+               metallicFactor=0.0, emissiveFactor=em)
+
+
+M.update({
+    "num_09": PBR(name="PisteNum09", baseColorTexture=tex_peinture("09"), alphaMode="MASK", alphaCutoff=0.5,
+                  roughnessFactor=0.7, metallicFactor=0.0),
+    "num_27": PBR(name="PisteNum27", baseColorTexture=tex_peinture("27"), alphaMode="MASK", alphaCutoff=0.5,
+                  roughnessFactor=0.7, metallicFactor=0.0),
+    "pan_restreint": mat_texte("PanneauZoneReservee", "RESTRICTED AREA", (225, 45, 45), (255, 255, 255), taille=120),
+    "pan_0927": mat_texte("PanneauPiste0927", "09 - 27", (225, 45, 45), (255, 255, 255), 512, 256, 150, [0.3, 0.1, 0.1]),
+    "pan_a": mat_texte("PanneauTaxiA", "A", (30, 34, 44), (255, 255, 255), 256, 256, 180, [0.15, 0.15, 0.15]),
+    "pan_b": mat_texte("PanneauTaxiB", "B", (30, 34, 44), (255, 255, 255), 256, 256, 180, [0.15, 0.15, 0.15]),
+    "pan_gates": mat_texte("PanneauGates", "GATES 1-3", (30, 170, 90), (255, 255, 255), 1024, 256, 140, [0.1, 0.25, 0.15]),
+    "pan_pompiers": mat_texte("PanneauPompiers", "FIRE STATION", (225, 45, 45), (255, 255, 255), 1024, 256, 130),
+    "pan_cargo": mat_texte("PanneauCargo", "CARGO", (30, 170, 90), (255, 255, 255), 1024, 256, 170),
+    "pan_parking": mat_texte("PanneauParking", "P  PARKING", (40, 110, 220), (255, 255, 255), 1024, 256, 150, [0.1, 0.15, 0.3]),
+    "pan_hotel": mat_texte("PanneauHotel", "HOTEL", (30, 170, 90), (255, 255, 255), 1024, 256, 180, [0.1, 0.3, 0.15]),
+    "rouge_bat": col("BatimentRouge", (215, 55, 50), 0.6),
+    "porte_garage": col("PorteGarage", (225, 230, 236), 0.5),
+})
+TEXTURES_PROPRES = {"av_logo", "ve_fuel", "ve_followme", "num_09", "num_27", "pan_restreint", "pan_0927", "pan_a",
+                    "pan_b", "pan_gates", "pan_pompiers", "pan_cargo", "pan_parking", "pan_hotel"}
+
+
+def ajouter(O, nom, P):
+    for k, ms in P.items():
+        for m in ms:
+            O.add(nom, k, m, 1.5 if k == "ve_damier" else None)
+
+
+def panneau(O, nom, k, x, y, z, w, h, cap, double=True, uv_ok=True):
+    """panneau texte vertical centre en (x,y,z), face vers -Z avant rotation cap"""
+    m = trimesh.Trimesh([[-w / 2, -h / 2, 0], [w / 2, -h / 2, 0], [w / 2, h / 2, 0], [-w / 2, h / 2, 0]],
+                        [[0, 2, 1], [0, 3, 2]], process=False)
+    uv = np.array([[1, 0], [0, 0], [0, 1], [1, 1]])          # lu a l'endroit depuis -Z
+    T = translation_matrix([x, y, z]) @ rotation_matrix(math.radians(cap), [0, 1, 0])
+    for sens in ((1, -1) if double else (1,)):
+        q = m.copy()
+        if sens < 0:
+            q.apply_transform(rotation_matrix(np.pi, [0, 1, 0]))
+            q.apply_translation([0, 0, 0.06])
+        q.apply_translation([0, 0, -0.03])
+        q.apply_transform(T)
+        q.visual = trimesh.visual.TextureVisuals(uv=uv.copy(), material=M[k])
+        O.add(nom, k, q)
 M.update({
     "facade_a": PBR(name="FacadeVitreeBleue", baseColorTexture=tex_vitres(), roughnessFactor=0.2, metallicFactor=0.1),
     "facade_b": col("FacadeBlanche", (232, 236, 240), 0.6),
@@ -227,10 +287,10 @@ AVION = AV.parts(True)
 AVION_VOL = AV.parts(False)
 
 
-def avion_ligne(O, nom, x, z, cap, alt=0.0, tangage=0.0, ech=1.0):
+def avion_ligne(O, nom, x, z, cap, alt=0.0, tangage=0.0, ech=1.0, train=None):
     T = translation_matrix([x, alt, z]) @ rotation_matrix(math.radians(cap), [0, 1, 0]) @ \
         rotation_matrix(math.radians(tangage), [1, 0, 0]) @ np.diag([ech, ech, ech, 1])
-    for k, ms in (AVION if alt == 0 else AVION_VOL).items():
+    for k, ms in (AVION if (alt == 0 if train is None else train) else AVION_VOL).items():
         for m in ms:
             m = m.copy()
             m.apply_transform(T)
@@ -239,13 +299,13 @@ def avion_ligne(O, nom, x, z, cap, alt=0.0, tangage=0.0, ech=1.0):
 
 def horizon(O):
     """tout autour, au loin : une ville (immeubles), des collines puis des montagnes -> on ne voit jamais le vide"""
-    O.add("Sol_Lointain", "pelouse", extrusion(Polygon([(-900, -900), (900, -900), (900, 900), (-900, 900)]).difference(
+    O.add("Sol_Lointain", "pelouse", extrusion(Polygon([(-1000, -1000), (1000, -1000), (1000, 1000), (-1000, 1000)]).difference(
         Polygon([(-260, -260), (260, -260), (260, 260), (-260, 260)])), -0.14, -0.04), 12.0)
     r = np.random.default_rng(5)
     i = 0
-    for ang in np.arange(0, 360, 4.5):
+    for ang in np.arange(0, 360, 6.0):
         a = math.radians(ang + r.uniform(-1.2, 1.2))
-        for rang, (r0, h0, h1) in enumerate(((300, 22, 55), (345, 40, 95))):
+        for rang, (r0, h0, h1) in enumerate(((430, 18, 45), (480, 30, 75))):
             if rang == 1 and r.random() < 0.35:
                 continue
             rr = r0 + r.uniform(-10, 10)
@@ -270,7 +330,7 @@ def horizon(O):
             i += 1
     for ang in np.arange(0, 360, 9):                               # collines vertes
         a = math.radians(ang + r.uniform(-3, 3))
-        rr = 470 + r.uniform(-25, 25)
+        rr = 590 + r.uniform(-25, 25)
         c = trimesh.creation.icosphere(3, 1.0)
         c.apply_scale([r.uniform(70, 110), r.uniform(45, 85), r.uniform(50, 70)])
         c.apply_transform(rotation_matrix(-a, [0, 1, 0]))
@@ -278,7 +338,7 @@ def horizon(O):
         O.add("Collines", "colline" if int(ang / 9) % 2 else "colline_fonce", c)
     for ang in np.arange(0, 360, 14):                              # montagnes bleutees tout au fond
         a = math.radians(ang + r.uniform(-4, 4))
-        rr = 700 + r.uniform(-30, 30)
+        rr = 820 + r.uniform(-30, 30)
         m = trimesh.creation.cone(radius=r.uniform(110, 160), height=r.uniform(130, 210), sections=7)
         m.apply_transform(rotation_matrix(-np.pi / 2, [1, 0, 0]))
         m.apply_transform(rotation_matrix(r.uniform(0, 6), [0, 1, 0]))
@@ -297,9 +357,11 @@ def sols(O):
                        rect(-150, -78, -130, 150),           # taxiway ouest vers la piste
                        rect(64, -78, 84, 150),               # taxiway est
                        Point(95, -40).buffer(12, 48)])       # pied de la tour
-    tar = tar.difference(Polygon([(-DEMI, -DEMI), (DEMI, -DEMI), (DEMI, DEMI), (-DEMI, DEMI)]))
-    O.add("Sol_Tarmac", "tarmac", extrusion(tar, -0.08, -0.01), 8.0)
-    O.add("Sol_Herbe_Dehors", "pelouse", extrusion(dehors.difference(tar), -0.12, -0.02), 12.0)
+    # sol simple et robuste : une grande dalle d'herbe dessous, des dalles de tarmac simples par-dessus
+    for r_ in (rect(-115, 66, 115, 150), rect(-150, -50, -64, 50), rect(-150, -78, -130, 150), rect(64, -78, 84, 150),
+               Point(95, -40).buffer(12, 48), rect(84, 0, 135, 50), rect(-64, -50, -61, 50)):
+        O.add("Sol_Tarmac", "tarmac", extrusion(r_, -0.06, -0.01), 8.0)
+    O.add("Sol_Herbe_Dehors", "pelouse", extrusion(dehors, -0.12, -0.03), 12.0)
     for x in np.arange(-110, 111, 6):                        # ligne de guidage du parking
         O.add("Sol_Tarmac", "marquage", boite(x, -0.01, 71.6, x + 3, 0.0, 72.0))
     for z in np.arange(-74, 148, 6):
@@ -451,10 +513,6 @@ def terminal(O):
     toit.apply_translation([x0 - 4, 0, 0])
     O.add("Terminal", "blanc", toit)
     # passerelles (jet bridges) vers les avions
-    for xa in (-55, 0, 55):
-        O.add("Terminal_Passerelles", "beton", boite(xa - 1.6, 4.0, 86, xa + 1.6, 7.0, z0 + 2))
-        O.add("Terminal_Passerelles", "vert", boite(xa - 1.65, 6.2, 86, xa + 1.65, 6.6, z0 + 2))
-        O.add("Terminal_Passerelles", "poteau", cyl(0.35, 4.0, xa, 0, 92))
     # lettres "AIRPORT" vertes sur le toit (blocs simples)
     lettres(O, "AIRPORT", 0.0, H + 3.6, z0 + 6, 5.0)
 
@@ -585,12 +643,189 @@ def arbres(O):
             cx, cz = sx * (DEMI - 7), sz * (DEMI - 7)
             pos += [(cx, cz, 1.3), (cx - sx * 7, cz, 1.0), (cx, cz - sz * 7, 1.0)]
     for a in (-30, 30):
-        for x, z in ((a, -DEMI + 6), (a, DEMI - 6), (-DEMI + 6, a), (DEMI - 6, a)):
+        for x, z in ((a, -DEMI + 6), (-DEMI + 6, a), (DEMI - 6, a)):          # rien au sud : on voit les avions
             pos.append((x, z, 0.9))
     for i, (x, z, h) in enumerate(pos):
         if abs(x - 50) < 4 and abs(z + 50) < 4:
             continue
         arbre(O, f"Arbre_{i + 1:02d}", x, z, h)
+
+
+def tube_entre(p0, p1, w, h):
+    """boite de section w x h allant de p0 a p1 (x, y, z)"""
+    p0, p1 = np.array(p0, float), np.array(p1, float)
+    L = np.linalg.norm(p1 - p0)
+    b = trimesh.creation.box((w, h, L))
+    d = (p1 - p0) / L
+    b.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], d))
+    b.apply_translation((p0 + p1) / 2)
+    return b
+
+
+def passerelles(O, gates, z_avion):
+    """vraies passerelles telescopiques : rotonde contre le terminal -> tunnel -> cabine collee a la porte avant gauche"""
+    for i, xa in enumerate(gates):
+        nom = f"Passerelle_{i + 1}"
+        yp = 2.75                                                # plancher au niveau du seuil de porte
+        rot = np.array([xa + 15.0, 0, 106.0])
+        porte = np.array([xa + 2.3, 0, z_avion + 10.7])
+        cab = porte + np.array([2.2, 0, 0])
+        O.add(nom, "beton", cyl(2.0, yp + 3.4, rot[0], 0, rot[2], 24))
+        O.add(nom, "vert", cyl(2.05, 0.5, rot[0], yp + 2.4, rot[2], 24))
+        a = rot + [0, yp + 1.5, 0]
+        b = cab + [0.6, yp + 1.5, 0]
+        mid = a + (b - a) * 0.52
+        O.add(nom, "beton", tube_entre(a, mid, 3.4, 3.0))                 # partie fixe
+        O.add(nom, "blanc", tube_entre(mid - (b - a) * 0.02, b, 3.1, 2.8))   # partie telescopique
+        O.add(nom, "vitres", tube_entre(a + [0, 0.2, 0], b + [0, 0.2, 0], 3.5, 1.0), 4.0)
+        O.add(nom, "vert", tube_entre(a + [0, 1.25, 0], b + [0, 1.25, 0], 3.52, 0.35))
+        O.add(nom, "blanc", boite(cab[0] - 1.6, yp, cab[2] - 2.0, cab[0] + 1.4, yp + 3.0, cab[2] + 2.0))   # cabine
+        O.add(nom, "sombre", boite(cab[0] - 2.35, yp + 0.1, cab[2] - 1.5, cab[0] - 1.6, yp + 2.8, cab[2] + 1.5))  # soufflet
+        sup = a + (b - a) * 0.8
+        for dz in (-1.0, 1.0):                                              # pieds + roues
+            O.add(nom, "poteau", cyl(0.25, yp, sup[0], 0, sup[2] + dz, 12))
+            w = trimesh.creation.cylinder(radius=0.5, height=0.4, sections=18)
+            w.apply_transform(rotation_matrix(np.pi / 2, [0, 0, 1]))
+            w.apply_translation([sup[0], 0.5, sup[2] + dz])
+            O.add(nom, "ve_pneu", w)
+        O.add(nom, "poteau", boite(sup[0] - 0.4, yp - 0.6, sup[2] - 1.3, sup[0] + 0.4, yp, sup[2] + 1.3))
+
+
+def piste_details(O):
+    z0, z1, x0, x1 = -125.0, -80.0, -240.0, 240.0
+    zc = (z0 + z1) / 2
+    for k, x, cap in (("num_09", x0 + 48, 90), ("num_27", x1 - 48, -90)):    # numeros peints
+        m = trimesh.Trimesh([[-9, 0.05, -9], [9, 0.05, -9], [9, 0.05, 9], [-9, 0.05, 9]], [[0, 2, 1], [0, 3, 2]], process=False)
+        m.apply_transform(rotation_matrix(math.radians(cap), [0, 1, 0]))
+        m.apply_translation([x, 0, zc])
+        m.visual = trimesh.visual.TextureVisuals(uv=np.array([[0, 0], [1, 0], [1, 1], [0, 1]]), material=M[k])
+        O.add("Piste", k, m)
+    for xs, sgn in ((x0, -1), (x1, 1)):                                     # rampe d'approche lumineuse
+        for i in range(1, 9):
+            x = xs + sgn * i * 12
+            for dz in np.arange(-6, 6.1, 1.5):
+                O.add("Piste_Approche", "feu_blanc", trimesh.creation.icosphere(1, 0.3).apply_translation([x, 1.3, zc + dz]))
+            O.add("Piste_Approche", "poteau", boite(x - 0.15, 0, zc - 6.3, x + 0.15, 1.0, zc + 6.3))
+            for dz in (-6, 6):
+                O.add("Piste_Approche", "poteau", cyl(0.12, 1.0, x, 0, zc + dz, 8))
+        for i, dz in enumerate((-30, -27, -24, -21)):                       # PAPI (2 rouges, 2 blancs)
+            x = xs - sgn * 60
+            O.add("Piste_PAPI", "poteau", boite(x - 0.8, 0, z1 + 6 + i * 2.6 - 0.8, x + 0.8, 0.5, z1 + 6 + i * 2.6 + 0.8))
+            O.add("Piste_PAPI", "feu_rouge" if i < 2 else "feu_blanc",
+                  boite(x - 0.5, 0.5, z1 + 6 + i * 2.6 - 0.5, x + 0.5, 1.2, z1 + 6 + i * 2.6 + 0.5))
+    for x, k in ((-140, "pan_0927"), (74, "pan_0927")):                      # panneaux de taxiway
+        for (kk, dx) in ((k, 0.0),):
+            O.add("Panneaux_Taxi", "sombre", boite(x + 12.5, 0, -73.5, x + 16.5, 0.3, -72.5))
+            O.add("Panneaux_Taxi", "sombre", boite(x + 12.7, 0.3, -73.15, x + 16.3, 2.1, -72.85))
+            panneau(O, "Panneaux_Taxi", kk, x + 14.5, 1.2, -73.0, 3.4, 1.6, 0)
+    for x, z, k, cap in ((-125, 60, "pan_a", 90), (-125, -10, "pan_a", 90), (89, 60, "pan_b", -90), (89, -10, "pan_b", -90)):
+        O.add("Panneaux_Taxi", "sombre", boite(x - 0.4, 0, z - 1.2, x + 0.4, 0.3, z + 1.2))
+        panneau(O, "Panneaux_Taxi", k, x, 1.1, z, 1.6, 1.6, cap)
+    O.add("Panneaux_Taxi", "sombre", boite(-118, 0, 62, -114, 0.3, 63))
+    panneau(O, "Panneaux_Taxi", "pan_gates", -116, 1.4, 62.5, 6.0, 1.5, 0)
+
+
+def barbeles(O):
+    """bras inclines vers l'exterieur + 3 fils au-dessus du grillage, et panneaux RESTRICTED AREA"""
+    coins = [(-DEMI, -DEMI), (DEMI, -DEMI), (DEMI, DEMI), (-DEMI, DEMI)]
+    for c in range(4):
+        (xa, za), (xb, zb) = coins[c], coins[(c + 1) % 4]
+        L = math.hypot(xb - xa, zb - za)
+        dx, dz = (xb - xa) / L, (zb - za) / L
+        nx, nz = dz, -dx                                                     # normale exterieure
+        for t in np.arange(0, L + 0.1, 4.0):
+            x, z = xa + dx * t, za + dz * t
+            O.add("Grillage_Barbeles", "poteau", tube_entre((x, H_GRILLE + 0.3, z), (x + nx * 0.5, H_GRILLE + 0.9, z + nz * 0.5), 0.08, 0.08))
+        for k in (1, 2, 3):
+            f = k / 3
+            o = (nx * 0.5 * f, H_GRILLE + 0.3 + 0.6 * f, nz * 0.5 * f)
+            O.add("Grillage_Barbeles", "sombre", tube_entre((xa + o[0], o[1], za + o[2]), (xb + o[0], o[1], zb + o[2]), 0.04, 0.04))
+        for t in np.arange(20, L - 10, 40):                                  # panneaux vers l'interieur
+            x, z = xa + dx * t - nx * 0.15, za + dz * t - nz * 0.15
+            cap = math.degrees(math.atan2(-nx, -nz)) + 180
+            panneau(O, "Grillage_Panneaux", "pan_restreint", x, 1.9, z, 3.0, 0.75, cap, double=False)
+
+
+def caserne(O):
+    x0, z0 = 110.0, 10.0                                                      # a cote de la tour, porte vers l'ouest
+    O.add("Caserne_Pompiers", "rouge_bat", boite(x0, 0, z0, x0 + 20, 9, z0 + 36))
+    O.add("Caserne_Pompiers", "blanc", boite(x0 - 0.3, 9, z0 - 0.3, x0 + 20.3, 10, z0 + 36.3))
+    for i in range(3):
+        zz = z0 + 4 + i * 10.5
+        O.add("Caserne_Pompiers", "porte_garage", boite(x0 - 0.1, 0, zz, x0, 6.0, zz + 7.5))
+        for y in np.arange(0.8, 6, 1.0):
+            O.add("Caserne_Pompiers", "poteau", boite(x0 - 0.15, y, zz, x0 - 0.1, y + 0.08, zz + 7.5))
+    panneau(O, "Caserne_Pompiers", "pan_pompiers", x0 - 0.12, 7.6, z0 + 18, 14, 2.4, -90, double=False)
+    for i, zz in enumerate((z0 + 7.8, z0 + 18.3)):
+        ajouter(O, "Camion_Pompiers_%d" % (i + 1), VE.place(VE.camion_pompiers(), x0 - 7, zz, -90))
+
+
+def zone_cargo(O):
+    O.add("Cargo_Hangar", "blanc", boite(-150, 0, -48, -132, 10, -38))
+    panneau(O, "Cargo_Hangar", "pan_cargo", -140.9, 7.6, -37.9, 8, 2, 180, double=False)
+    n = 0
+    for rx in range(5):
+        for rz in range(3):
+            if (rx + rz) % 4 == 3:
+                continue
+            ajouter(O, "Conteneurs_Cargo", VE.place(VE.conteneur(), -128 + rx * 2.0, -32 + rz * 1.7, 90))
+            n += 1
+    ajouter(O, "Conteneurs_Cargo", VE.place(VE.tracteur(), -116, -28, 90))
+
+
+COULEURS_VOITURES = ["ve_valise_1", "ve_valise_2", "ve_valise_3", "ve_rouge", "ve_blanc", "ve_sombre", "ve_vert"]
+
+
+def voiture(seed):
+    r = np.random.default_rng(seed)
+    P = {}
+    k = COULEURS_VOITURES[r.integers(len(COULEURS_VOITURES))]
+    VE.P_add(P, k, VE.rbox(1.8, 0.7, 4.2, 0.4, 0, 0.35, 0))
+    VE.P_add(P, k, VE.rbox(1.6, 0.6, 2.2, 0.35, 0, 1.05, 0.2))
+    VE.P_add(P, "ve_vitre", VE.boite(1.62, 0.38, 1.7, 0, 1.12, 0.2))
+    VE.quatre_roues(P, 1.75, -1.35, 1.35, 0.35, 0.25)
+    return P
+
+
+def cote_ville(O):
+    """derriere le terminal : route avec voitures, parking a etages, hotel de l'aeroport"""
+    O.add("Route", "piste", boite(-260, -0.02, 150, 260, 0.03, 162), 10.0)
+    for x in np.arange(-250, 251, 10):
+        O.add("Route", "marquage", boite(x, 0.03, 155.8, x + 5, 0.05, 156.2))
+    r = np.random.default_rng(9)
+    for i, x in enumerate(np.arange(-230, 231, 23)):
+        if r.random() < 0.6:
+            z = 153 if r.random() < 0.5 else 159
+            ajouter(O, "Route_Voitures", VE.place(voiture(i), x + r.uniform(-5, 5), z, 90 if z < 156 else -90))
+    # parking a etages
+    x0, x1, z0, z1 = -100.0, -25.0, 168.0, 205.0
+    for niv in range(4):
+        y = niv * 3.4
+        O.add("Parking_Etages", "beton", boite(x0, y, z0, x1, y + 0.5, z1))
+        O.add("Parking_Etages", "vert", boite(x0 - 0.1, y + 0.5, z0 - 0.1, x1 + 0.1, y + 1.4, z0 + 0.4))
+        for x in np.arange(x0 + 1, x1, 8):
+            O.add("Parking_Etages", "beton", boite(x, y + 0.5, z0 + 0.5, x + 0.6, y + 3.4, z0 + 1.1))
+        for j, x in enumerate(np.arange(x0 + 3, x1 - 2, 3.2)):
+            if r.random() < 0.65:
+                ajouter(O, "Parking_Voitures", VE.place(voiture(100 + niv * 40 + j), x, z0 + 5, 180, y + 0.5))
+    O.add("Parking_Etages", "beton", boite(x0, 13.6, z0, x1, 14.1, z1))
+    panneau(O, "Parking_Etages", "pan_parking", (x0 + x1) / 2, 16.0, z0 - 0.2, 14, 3, 0, double=False)
+    O.add("Parking_Etages", "poteau", boite((x0 + x1) / 2 - 3, 14.1, z0 - 0.15, (x0 + x1) / 2 + 3, 14.6, z0 + 0.3))
+    # hotel
+    hx0, hx1, hz0, hz1 = 30.0, 62.0, 168.0, 190.0
+    O.add("Hotel", "facade_a", boite(hx0, 0, hz0, hx1, 42, hz1), 6.0)
+    for y in np.arange(4, 42, 3.5):
+        O.add("Hotel", "blanc", boite(hx0 - 0.2, y, hz0 - 0.2, hx1 + 0.2, y + 0.6, hz1 + 0.2))
+    O.add("Hotel", "blanc", boite(hx0 - 1, 42, hz0 - 1, hx1 + 1, 43.5, hz1 + 1))
+    panneau(O, "Hotel", "pan_hotel", (hx0 + hx1) / 2, 46.5, hz0 - 0.5, 20, 5, 0, double=False)
+    O.add("Hotel", "vert", boite((hx0 + hx1) / 2 - 10.5, 43.5, hz0 - 0.4, (hx0 + hx1) / 2 + 10.5, 49.2, hz0 - 0.2))
+
+
+def mats(O):
+    for i, x in enumerate((-82, -27, 27, 82)):
+        ajouter(O, f"Mat_Eclairage_{i + 1}", VE.place(VE.mat_eclairage(24), x, 72, 180))
+    for i, (x, z) in enumerate(((-140, 0), (74, 30))):
+        ajouter(O, f"Mat_Eclairage_{i + 5}", VE.place(VE.mat_eclairage(20), x + (8 if x < 0 else -8), z, 90 if x < 0 else -90))
 
 
 if __name__ == "__main__":
@@ -601,8 +836,20 @@ if __name__ == "__main__":
     terminal(O)
     for i, xa in enumerate((-55, 0, 55)):
         avion_ligne(O, f"Avion_Gare_{i + 1}", xa, 86.0, 180.0)            # nez vers le terminal
+        ajouter(O, f"Service_Avion_{i + 1}", VE.transformer(VE.service_avion(i),
+                translation_matrix([xa, 0, 86.0]) @ rotation_matrix(np.pi, [0, 1, 0])))
+    passerelles(O, (-55, 0, 55), 86.0)
+    piste_details(O)
+    barbeles(O)
+    caserne(O)
+    zone_cargo(O)
+    mats(O)
+    cote_ville(O)
+    avion_ligne(O, "Avion_Roulage", 74.0, 0.0, 0.0)                         # avion qui roule vers la piste
+    ajouter(O, "Follow_Me", VE.place(VE.follow_me(), 74.0, -24.0, 0.0))
     avion_ligne(O, "Avion_Piste", -170.0, -102.5, -90.0)                  # pret a decoller sur la piste
     avion_ligne(O, "Avion_Decollage", 60.0, -102.5, -90.0, alt=26.0, tangage=12.0)   # en train de decoller
+    avion_ligne(O, "Avion_Atterrissage", -330.0, -102.5, -90.0, alt=30.0, tangage=-2.0, train=True)  # en approche
     horizon(O)
     tour(O)
     hangars(O)

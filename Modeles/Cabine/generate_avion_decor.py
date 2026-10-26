@@ -30,7 +30,8 @@ TAIL = [(0.70, 0.237, 0.769, 0.266), (0.78, 0.243, 0.768, 0.262), (0.98, 0.257, 
         (2.38, 0.537, 0.690, 0.082), (2.58, 0.608, 0.670, 0.035), (2.62, 0.635, 0.645, 0.0)]
 S = 7.2                    # metres par unite (fuselage ~34 m)
 DODU = 1.12                # cartoon : fuselage un peu plus gros
-Y_SOL = -0.237 * S + 1.75  # decalage pour que le bas du fuselage soit a 1,75 m
+Y_SOL = -0.237 * S + 1.75
+RES = 1.0                  # finesse du fuselage (0.4 = version legere pour le lobby)  # decalage pour que le bas du fuselage soit a 1,75 m
 
 
 def logo():
@@ -70,7 +71,7 @@ MATERIAUX = {
 # ------------------------------------------------------------------ fuselage
 def sections_fines():
     tab = np.array(NOSE + [(-0.6, 0.237, 0.769, 0.266), (0.2, 0.237, 0.769, 0.266)] + TAIL)
-    xs = np.concatenate([np.linspace(-2.12, -1.6, 130), np.linspace(-1.58, 0.68, 46), np.linspace(0.70, 2.62, 70)])
+    xs = np.concatenate([np.linspace(-2.12, -1.6, int(130 * RES)), np.linspace(-1.58, 0.68, int(46 * RES) + 2), np.linspace(0.70, 2.62, int(70 * RES))])
     cols = [np.interp(xs, tab[:, 0], tab[:, k]) for k in (1, 2, 3)]
     yb, yt, hw = cols
     # nez : quart d'ellipse (radome bien rond) entre le bout et XA
@@ -98,7 +99,7 @@ VITRES_COCKPIT = [
 
 def coque():
     xs, yc, ry, hw = sections_fines()
-    N = 128
+    N = int(128 * RES) // 4 * 4
     ang = np.linspace(0, 2 * np.pi, N, endpoint=False)       # 0 = cote +X, pi/2 = haut
     e = 2.0 / 2.15                                           # super-ellipse legere (un peu carree, cartoon)
     c, s = np.cos(ang), np.sin(ang)
@@ -160,7 +161,7 @@ def decal_arrondi(w, h, ep=0.05, k="", r=None):
     """plaque arrondie (rectangle a coins ronds) dans le plan YZ, epaisseur en X"""
     r = min(w, h) / 2 if r is None else r
     from shapely.geometry import box
-    p = box(-w / 2 + r, -h / 2 + r, w / 2 - r, h / 2 - r).buffer(r, 8)
+    p = box(-w / 2 + r, -h / 2 + r, w / 2 - r, h / 2 - r).buffer(r, 8 if RES >= 1 else 3)
     m = trimesh.creation.extrude_polygon(p, ep)               # plan XY, epaisseur Z
     m.apply_translation([0, 0, -ep / 2])
     m.apply_transform(rotation_matrix(np.pi / 2, [0, 1, 0]))  # -> plan ZY (w le long de Z), epaisseur X
@@ -270,13 +271,13 @@ def reacteur(P, x, y, z, L=4.6, R=1.15):
     """axe le long de Z, entree vers -Z en z"""
     prof = [(R * 0.86, 0.0), (R * 0.95, -0.06), (R, 0.15), (R * 1.02, 0.9), (R * 0.98, 2.2),
             (R * 0.86, 3.4), (R * 0.74, L)]
-    ext = trimesh.creation.revolve([(r, h) for r, h in prof], sections=40)
-    lev = trimesh.creation.revolve([(R * 0.80, 0.25), (R * 0.84, 0.0), (R * 0.93, -0.05), (R * 1.0, 0.12), (R * 1.0, 0.35)], sections=40)
+    ext = trimesh.creation.revolve([(r, h) for r, h in prof], sections=40 if RES >= 1 else 20)
+    lev = trimesh.creation.revolve([(R * 0.80, 0.25), (R * 0.84, 0.0), (R * 0.93, -0.05), (R * 1.0, 0.12), (R * 1.0, 0.35)], sections=40 if RES >= 1 else 20)
     for m, k in ((ext, "av_vert"), (lev, "av_chrome")):
         m.apply_translation([0, 0, 0])
         m.apply_translation([x, y, z])
         P.setdefault(k, []).append(m)
-    fan = trimesh.creation.cylinder(radius=R * 0.82, height=0.05, sections=40)
+    fan = trimesh.creation.cylinder(radius=R * 0.82, height=0.05, sections=40 if RES >= 1 else 20)
     fan.apply_translation([x, y, z + 0.45])
     P.setdefault("av_sombre", []).append(fan)
     for i in range(14):                                        # pales

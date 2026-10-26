@@ -78,7 +78,7 @@ def P_add(P, k, m):
 def rbox(w, h, l, r, x=0, y=0, z=0):
     """boite a coins arrondis (vue de dessus), posee sur y"""
     r = min(r, w / 2 - 0.01, l / 2 - 0.01)
-    p = rect(-w / 2 + r, -l / 2 + r, w / 2 - r, l / 2 - r).buffer(r, 6)
+    p = rect(-w / 2 + r, -l / 2 + r, w / 2 - r, l / 2 - r).buffer(r, 3)
     m = trimesh.creation.extrude_polygon(p, h)
     m.apply_transform(rotation_matrix(-np.pi / 2, [1, 0, 0]))
     m.apply_transform(np.diag([1, 1, -1, 1]))

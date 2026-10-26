@@ -283,6 +283,7 @@ M.update({
     "colline_fonce": col("CollineFonce", (70, 150, 72), 0.95),
     "montagne": col("MontagneLointaine", (120, 160, 150), 0.95),
 })
+AV.RES = 0.45                                                # avions du decor en version legere
 AVION = AV.parts(True)
 AVION_VOL = AV.parts(False)
 
@@ -331,7 +332,7 @@ def horizon(O):
     for ang in np.arange(0, 360, 9):                               # collines vertes
         a = math.radians(ang + r.uniform(-3, 3))
         rr = 590 + r.uniform(-25, 25)
-        c = trimesh.creation.icosphere(3, 1.0)
+        c = trimesh.creation.icosphere(2, 1.0)
         c.apply_scale([r.uniform(70, 110), r.uniform(45, 85), r.uniform(50, 70)])
         c.apply_transform(rotation_matrix(-a, [0, 1, 0]))
         c.apply_translation([rr * math.cos(a), -10, rr * math.sin(a)])
@@ -616,7 +617,7 @@ def haies(O):
     for c in range(4):
         for t in np.arange(-DEMI + 1.6, DEMI - 1.5, 1.7):
             x, z = [(t, -DEMI + 1.6), (DEMI - 1.6, t), (t, DEMI - 1.6), (-DEMI + 1.6, t)][c]
-            b = trimesh.creation.icosphere(2, 1.0)
+            b = trimesh.creation.icosphere(1, 1.0)
             b.apply_scale([1.15 + rng.uniform(0, 0.2), 0.85 + rng.uniform(0, 0.25), 1.15 + rng.uniform(0, 0.2)])
             b.apply_translation([x, 0.55, z])
             O.add("Haies", "haie", b)
@@ -806,7 +807,7 @@ def cote_ville(O):
         for x in np.arange(x0 + 1, x1, 8):
             O.add("Parking_Etages", "beton", boite(x, y + 0.5, z0 + 0.5, x + 0.6, y + 3.4, z0 + 1.1))
         for j, x in enumerate(np.arange(x0 + 3, x1 - 2, 3.2)):
-            if r.random() < 0.65:
+            if r.random() < 0.35:
                 ajouter(O, "Parking_Voitures", VE.place(voiture(100 + niv * 40 + j), x, z0 + 5, 180, y + 0.5))
     O.add("Parking_Etages", "beton", boite(x0, 13.6, z0, x1, 14.1, z1))
     panneau(O, "Parking_Etages", "pan_parking", (x0 + x1) / 2, 16.0, z0 - 0.2, 14, 3, 0, double=False)

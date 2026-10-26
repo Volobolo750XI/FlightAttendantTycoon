@@ -275,6 +275,63 @@ def kit():
     piece("Bandeau", 1024, 128, 40, "4FD8FF", "12A4E6", ep=9, levre=9, reflet=0.30)
 
 
+def fleches_rebirth(T):
+    """Deux fleches en cercle (rebirth), blanches a gros contour, sur fond transparent (T x T)."""
+    import math
+    im = Image.new("RGBA", (T, T), (0, 0, 0, 0))
+    c, r, ep = T / 2, T * 0.30, T * 0.11
+    def fleche(d, a0, a1, coul, trait):
+        pts = []
+        for i in range(40):
+            a = math.radians(a0 + (a1 - a0) * i / 39)
+            pts.append((c + r * math.cos(a), c + r * math.sin(a)))
+        d.line(pts, fill=coul, width=int(ep + 2 * trait), joint="curve")
+        a = math.radians(a1)
+        tx, ty = -math.sin(a), math.cos(a)                  # tangente (sens des angles croissants)
+        px, py = c + r * math.cos(a), c + r * math.sin(a)
+        nx, ny = math.cos(a), math.sin(a)
+        L, W = T * 0.17 + trait, T * 0.15 + trait
+        d.polygon([(px + tx * L, py + ty * L), (px + nx * W, py + ny * W), (px - nx * W, py - ny * W)], fill=coul)
+    for trait, coul in ((int(T * 0.035), CONTOUR), (0, (255, 255, 255, 255))):
+        d = ImageDraw.Draw(im)
+        fleche(d, 200, 330, coul, trait)
+        fleche(d, 20, 150, coul, trait)
+    return im
+
+
+def hud():
+    """Les 3 barres du compteur a gauche de l'ecran (Textures/Interface) : pastille ronde avec
+    l'icone a gauche, barre cartoon a droite. 1024 x 256 (affichees 288 x 72 dans le jeu)."""
+    dossier = os.path.join(RACINE, "Textures", "Interface")
+    W, H = 1024, 256
+    avion = Image.open(os.path.join(RACINE, "Textures", "JaugeVol", "Avion.png")).convert("RGBA")
+    argent = Image.open(os.path.join(KIT, "IconeArgent.png")).convert("RGBA")
+    for nom, haut, bas, icone in (("FondArgent", "7CF07A", "22B24C", argent),
+                                  ("FondRevenu", "5BE3FF", "1497E0", avion),
+                                  ("FondRebirth", "FF8AB0", "E2386E", fleches_rebirth(512))):
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        barre = piece("_tmp", W - 120, 176, 44, haut, bas, ep=9, levre=12, reflet=0.30, dossier=dossier)
+        im.alpha_composite(barre, (110, 40))
+        # pastille : disque blanc bleute a gros contour, reflet, icone dedans
+        P = 236
+        p = Image.new("RGBA", (P * K, P * K), (0, 0, 0, 0))
+        dp = ImageDraw.Draw(p)
+        dp.ellipse([0, 0, P * K - 1, P * K - 1], fill=CONTOUR)
+        e = 12 * K
+        dp.ellipse([e, e, P * K - 1 - e, P * K - 1 - e], fill=hexa(bas))
+        dp.ellipse([e + 6 * K, e + 6 * K, P * K - 1 - e - 6 * K, P * K - 1 - e - 14 * K], fill=hexa(haut))
+        reflet = Image.new("RGBA", p.size, (0, 0, 0, 0))
+        ImageDraw.Draw(reflet).ellipse([e + 40 * K, e + 18 * K, P * K - 1 - e - 40 * K, e + 66 * K], fill=(255, 255, 255, 90))
+        p.alpha_composite(reflet)
+        p = p.resize((P, P), Image.LANCZOS)
+        ic = icone.copy()
+        ic.thumbnail((182, 182), Image.LANCZOS)
+        p.alpha_composite(ic, ((P - ic.width) // 2, (P - ic.height) // 2 + 2))
+        im.alpha_composite(p, (4, 10))
+        im.save(os.path.join(dossier, nom + ".png"))
+    os.remove(os.path.join(dossier, "_tmp.png"))
+
+
 def apercu(largeurs, marge):
     """Image de controle : une fenetre comme dans le jeu."""
     W, H = 1100, 820
@@ -325,5 +382,6 @@ if __name__ == "__main__":
     largeurs, marge, espace = police_cartoon()
     ecrire_verse(largeurs, marge, espace)
     kit()
+    hud()
     apercu(largeurs, marge)
     print(len(largeurs), "lettres ; marge", round(marge, 4), "espace", round(espace, 4))

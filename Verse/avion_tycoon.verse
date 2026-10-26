@@ -323,14 +323,15 @@ avion_tycoon := class(creative_device):
         if (Joueur := Proprio?, P := player[Joueur], UI := GetPlayerUI[P]):
             Ecran := canvas:
                 Slots := array:
-                    PlaceGauche(texture_block{DefaultImage := Interface.FondArgent, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(0), 256.0, 64.0)
-                    PlaceGauche(texture_block{DefaultImage := Interface.FondRevenu, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(1), 256.0, 64.0)
-                    PlaceGauche(texture_block{DefaultImage := Interface.FondRebirth, DefaultDesiredSize := vector2{X := 256.0, Y := 64.0}}, 20.0, HautHUD(2), 256.0, 64.0)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondArgent, DefaultDesiredSize := vector2{X := 288.0, Y := 72.0}}, 20.0, HautHUD(0), 288.0, 72.0)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondRevenu, DefaultDesiredSize := vector2{X := 288.0, Y := 72.0}}, 20.0, HautHUD(1), 288.0, 72.0)
+                    PlaceGauche(texture_block{DefaultImage := Interface.FondRebirth, DefaultDesiredSize := vector2{X := 288.0, Y := 72.0}}, 20.0, HautHUD(2), 288.0, 72.0)
             UI.AddWidget(Ecran)
             set ToileHUD = option{Ecran}
             MettreAJourUI()
 
-    HautHUD(N:int):float = -106.0 + N * 74.0
+    # 3 barres de 288 x 72, 10 pixels entre elles, centrees sur le milieu du bord gauche
+    HautHUD(N:int):float = -118.0 + N * 82.0
 
     MettreAJourUI():void =
         set RevenuParSeconde = RevenuVol
@@ -339,9 +340,9 @@ avion_tycoon := class(creative_device):
         if (T := ToileHUD?):
             Gauche := vector2{X := 0.0, Y := 0.5}
             # le texte sur la partie de la barre a droite de l'icone
-            set LettresArgent = Ecriture.Remplacer(T, LettresArgent, "${Abreger(Argent)}", "FFFFFF", text_justification.Center, 70.0, HautHUD(0) + 12.0, 196.0, 40.0, 1, Gauche)
-            set LettresRevenu = Ecriture.Remplacer(T, LettresRevenu, "${Abreger(RevenuParSeconde)}/SEC", "FFFFFF", text_justification.Center, 70.0, HautHUD(1) + 12.0, 196.0, 40.0, 1, Gauche)
-            set LettresRebirth = Ecriture.Remplacer(T, LettresRebirth, "{Rebirths} REBIRTHS", "FFFFFF", text_justification.Center, 70.0, HautHUD(2) + 12.0, 196.0, 40.0, 1, Gauche)
+            set LettresArgent = Ecriture.Remplacer(T, LettresArgent, "${Abreger(Argent)}", "FFFFFF", text_justification.Center, 92.0, HautHUD(0) + 14.0, 190.0, 40.0, 1, Gauche)
+            set LettresRevenu = Ecriture.Remplacer(T, LettresRevenu, "${Abreger(RevenuParSeconde)}/SEC", "FFFFFF", text_justification.Center, 92.0, HautHUD(1) + 14.0, 190.0, 40.0, 1, Gauche)
+            set LettresRebirth = Ecriture.Remplacer(T, LettresRebirth, "{Rebirths} REBIRTHS", "FFFFFF", text_justification.Center, 92.0, HautHUD(2) + 14.0, 190.0, 40.0, 1, Gauche)
 
     # 2500000000 -> "2.5B", 1400000 -> "1.4M", 76000 -> "76.0K" ; au-delà du milliard :
     # T (mille milliards), Qa (million de milliards), Qi (milliard de milliards).

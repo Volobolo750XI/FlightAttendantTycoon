@@ -134,6 +134,17 @@ class Objets:
         self.parts[objet].setdefault((k, tuile), []).append(m)
 
     def exporter(self, chemin):
+        # glTF : baseColorFactor est en couleur LINEAIRE -> on convertit nos couleurs sRGB (sinon tout parait delave)
+        vus = set()
+        for mat in list(M.values()):
+            f = getattr(mat, "baseColorFactor", None)
+            if f is None or id(mat) in vus or getattr(mat, "baseColorTexture", None) is not None:
+                continue
+            vus.add(id(mat))
+            c = np.asarray(f, float) / 255.0
+            lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+            lin[3] = c[3]
+            mat.baseColorFactor = np.round(lin * 255).astype(np.uint8)
         for o in self.ordre:
             for (k, tuile), ms in self.parts[o].items():
                 m = trimesh.util.concatenate(ms)
@@ -398,7 +409,7 @@ def grillage(O):
         O.add("Grillage_Muret", "beton", boite(min(xa, xb) - ex - 0.15, 0.0, min(za, zb) - ez - 0.15,
                                                max(xa, xb) + ex + 0.15, 0.35, max(za, zb) + ez + 0.15))
         O.add("Grillage_Muret", "vert", boite(min(xa, xb) - ex - 0.16, 0.28, min(za, zb) - ez - 0.16,
-                                              max(xa, xb) + ex + 0.16, 0.35, max(za, zb) + ez + 0.16))
+                                              max(xa, xb) + ex + 0.16, 0.37, max(za, zb) + ez + 0.16))
     m = trimesh.util.concatenate([p for p, _ in panneaux])
     m.visual = trimesh.visual.TextureVisuals(uv=np.vstack([u for _, u in panneaux]), material=M["grillage"])
     O.sc.add_geometry(m, node_name="Grillage__grillage", geom_name="Grillage__grillage")
@@ -580,14 +591,13 @@ def hangars(O):
                                                 for t in np.linspace(np.pi, 0, 25)] + [(zc + r * 0.75, 0)])
         p = trimesh.creation.extrude_polygon(porte.buffer(0), 0.3)
         p.apply_transform(np.array([[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]]))
-        p.invert()
-        p.apply_translation([x1, 0, 0])
+        p.apply_translation([x1 + 0.03 - p.bounds[0][0], 0, 0])     # porte bien devant la facade (pas de scintillement)
         O.add(nom, "vert", p)
         for k in range(1, 6):
             zz = zc - r * 0.75 + k * (1.5 * r * 0.75 / 6)
             hmax = 0.9 * r * 0.75 * math.sqrt(max(0, 1 - ((zz - zc) / (r * 0.75)) ** 2))
-            O.add(nom, "vert_fonce", boite(x1 + 0.3, 0, zz - 0.15, x1 + 0.45, hmax - 0.3, zz + 0.15))
-        lettres_bloc = boite(x1 + 0.05, 0.9 * r * 0.95, zc - 3, x1 + 0.4, 0.9 * r * 0.95 + 0.6, zc + 3)
+            O.add(nom, "vert_fonce", boite(x1 + 0.33, 0, zz - 0.15, x1 + 0.48, hmax - 0.3, zz + 0.15))
+        lettres_bloc = boite(x1 + 0.33, 0.9 * r * 0.88, zc - 3, x1 + 0.6, 0.9 * r * 0.95 + 0.6, zc + 3)
         O.add(nom, "vert", lettres_bloc)
 
 
@@ -758,7 +768,7 @@ def caserne(O):
         O.add("Caserne_Pompiers", "porte_garage", boite(x0 - 0.1, 0, zz, x0, 6.0, zz + 7.5))
         for y in np.arange(0.8, 6, 1.0):
             O.add("Caserne_Pompiers", "poteau", boite(x0 - 0.15, y, zz, x0 - 0.1, y + 0.08, zz + 7.5))
-    panneau(O, "Caserne_Pompiers", "pan_pompiers", x0 - 0.12, 7.6, z0 + 18, 14, 2.4, -90, double=False)
+    panneau(O, "Caserne_Pompiers", "pan_pompiers", x0 - 0.12, 7.6, z0 + 18, 14, 2.4, 90, double=False)
     for i, zz in enumerate((z0 + 7.8, z0 + 18.3)):
         ajouter(O, "Camion_Pompiers_%d" % (i + 1), VE.place(VE.camion_pompiers(), x0 - 7, zz, -90))
 

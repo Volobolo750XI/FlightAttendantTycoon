@@ -71,6 +71,8 @@ MATERIAUX = {
 
 # ------------------------------------------------------------------ briques
 def P_add(P, k, m):
+    if m.is_watertight and m.volume < 0:                       # faces toujours tournees vers l'exterieur
+        m.invert()
     P.setdefault(k, []).append(m)
     return m
 

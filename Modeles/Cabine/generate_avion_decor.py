@@ -115,7 +115,7 @@ def coque():
     for i in range(len(xs) - 1):
         for j in range(N):
             a, b = i * N + j, i * N + (j + 1) % N
-            F += [[a, a + N, b], [b, a + N, b + N]]
+            F += [[a, b, a + N], [b, b + N, a + N]]            # faces tournees vers l'exterieur
     F = np.array(F)
     # couleur par face selon la position (livree)
     groupes = {}
@@ -125,7 +125,7 @@ def coque():
         a = math.atan2(np.mean([math.sin(info[k][1]) for k in f]), np.mean([math.cos(info[k][1]) for k in f]))
         k = "av_blanc"
         # ventre vert + liseré fonce (pas sur le radome)
-        seuil = -0.42 if x > -1.30 else -0.42 - 0.55 * ((-1.30 - x) / 0.52) ** 1.5
+        seuil = -0.42 if (x > -1.30 or RES < 1) else -0.42 - 0.55 * ((-1.30 - x) / 0.52) ** 1.5
         if x > -1.82:
             if sy_ < seuil:
                 k = "av_vert"
@@ -404,6 +404,10 @@ def parts(train=True):
                 w, j = roue(0.62, 0.42, xg + dx, 0.62, zg)
                 P.setdefault("av_pneu", []).append(w)
                 P.setdefault("av_chrome", []).append(j)
+    for ms in P.values():                                      # securite : faces tournees vers l'exterieur
+        for m in ms:
+            if m.is_watertight and m.volume < 0:
+                m.invert()
     return P
 
 

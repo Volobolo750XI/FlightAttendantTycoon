@@ -126,6 +126,8 @@ class Objets:
         self.ordre = []
 
     def add(self, objet, k, m, tuile=None):
+        if m.is_watertight and m.volume < 0:                 # securite : faces toujours tournees vers l'exterieur
+            m.invert()
         if objet not in self.parts:
             self.parts[objet] = {}
             self.ordre.append(objet)

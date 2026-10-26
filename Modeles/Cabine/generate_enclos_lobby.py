@@ -12,7 +12,9 @@ import numpy as np
 import trimesh
 from PIL import Image, ImageDraw, ImageFilter
 from shapely.geometry import Point, Polygon
-from trimesh.transformations import rotation_matrix
+from trimesh.transformations import rotation_matrix, translation_matrix
+
+import generate_avion_decor as AV
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SORTIE = os.path.join(os.path.dirname(HERE), "Lobby", "Enclos_Aeroport.glb")
@@ -136,6 +138,8 @@ class Objets:
                 if tuile:
                     m, uv = uv_monde(m, tuile)
                     m.visual = trimesh.visual.TextureVisuals(uv=uv, material=mat)
+                elif k == "av_logo":
+                    m.visual = trimesh.visual.TextureVisuals(uv=np.vstack([x.visual.uv for x in ms]), material=mat)
                 else:
                     m.visual = trimesh.visual.TextureVisuals(material=mat)
                 self.sc.add_geometry(m, node_name=f"{o}__{k}", geom_name=f"{o}__{k}")
@@ -209,6 +213,79 @@ def quad(p0, p1, h, y0=0.0):
 
 
 # ------------------------------------------------------------------ elements
+M.update(AV.MATERIAUX)
+M.update({
+    "facade_a": PBR(name="FacadeVitreeBleue", baseColorTexture=tex_vitres(), roughnessFactor=0.2, metallicFactor=0.1),
+    "facade_b": col("FacadeBlanche", (232, 236, 240), 0.6),
+    "facade_c": col("FacadeVertEau", (120, 200, 170), 0.6),
+    "toit": col("ToitGris", (110, 116, 126), 0.8),
+    "colline": col("Colline", (92, 176, 84), 0.95),
+    "colline_fonce": col("CollineFonce", (70, 150, 72), 0.95),
+    "montagne": col("MontagneLointaine", (120, 160, 150), 0.95),
+})
+AVION = AV.parts(True)
+AVION_VOL = AV.parts(False)
+
+
+def avion_ligne(O, nom, x, z, cap, alt=0.0, tangage=0.0, ech=1.0):
+    T = translation_matrix([x, alt, z]) @ rotation_matrix(math.radians(cap), [0, 1, 0]) @ \
+        rotation_matrix(math.radians(tangage), [1, 0, 0]) @ np.diag([ech, ech, ech, 1])
+    for k, ms in (AVION if alt == 0 else AVION_VOL).items():
+        for m in ms:
+            m = m.copy()
+            m.apply_transform(T)
+            O.add(nom, k, m)
+
+
+def horizon(O):
+    """tout autour, au loin : une ville (immeubles), des collines puis des montagnes -> on ne voit jamais le vide"""
+    O.add("Sol_Lointain", "pelouse", extrusion(Polygon([(-900, -900), (900, -900), (900, 900), (-900, 900)]).difference(
+        Polygon([(-260, -260), (260, -260), (260, 260), (-260, 260)])), -0.14, -0.04), 12.0)
+    r = np.random.default_rng(5)
+    i = 0
+    for ang in np.arange(0, 360, 4.5):
+        a = math.radians(ang + r.uniform(-1.2, 1.2))
+        for rang, (r0, h0, h1) in enumerate(((300, 22, 55), (345, 40, 95))):
+            if rang == 1 and r.random() < 0.35:
+                continue
+            rr = r0 + r.uniform(-10, 10)
+            x, z = rr * math.cos(a), rr * math.sin(a)
+            w, d, h = r.uniform(16, 26), r.uniform(16, 26), r.uniform(h0, h1)
+            k = ("facade_a", "facade_b", "facade_c", "facade_a")[r.integers(4)]
+            b = trimesh.creation.box((w, h, d))
+            b.apply_transform(rotation_matrix(-a, [0, 1, 0]))
+            b.apply_translation([x, h / 2, z])
+            nom = f"Ville_{(i // 20) + 1:02d}"
+            O.add(nom, k, b, 6.0 if k == "facade_a" else None)
+            t = trimesh.creation.box((w + 0.8, 1.2, d + 0.8))
+            t.apply_transform(rotation_matrix(-a, [0, 1, 0]))
+            t.apply_translation([x, h + 0.6, z])
+            O.add(nom, "toit", t)
+            if k != "facade_a":                                   # bandes de fenetres sur les facades pleines
+                for y in np.arange(4, h - 2, 4):
+                    f = trimesh.creation.box((w + 0.2, 1.4, d + 0.2))
+                    f.apply_transform(rotation_matrix(-a, [0, 1, 0]))
+                    f.apply_translation([x, y, z])
+                    O.add(nom, "facade_a", f, 6.0)
+            i += 1
+    for ang in np.arange(0, 360, 9):                               # collines vertes
+        a = math.radians(ang + r.uniform(-3, 3))
+        rr = 470 + r.uniform(-25, 25)
+        c = trimesh.creation.icosphere(3, 1.0)
+        c.apply_scale([r.uniform(70, 110), r.uniform(45, 85), r.uniform(50, 70)])
+        c.apply_transform(rotation_matrix(-a, [0, 1, 0]))
+        c.apply_translation([rr * math.cos(a), -10, rr * math.sin(a)])
+        O.add("Collines", "colline" if int(ang / 9) % 2 else "colline_fonce", c)
+    for ang in np.arange(0, 360, 14):                              # montagnes bleutees tout au fond
+        a = math.radians(ang + r.uniform(-4, 4))
+        rr = 700 + r.uniform(-30, 30)
+        m = trimesh.creation.cone(radius=r.uniform(110, 160), height=r.uniform(130, 210), sections=7)
+        m.apply_transform(rotation_matrix(-np.pi / 2, [1, 0, 0]))
+        m.apply_transform(rotation_matrix(r.uniform(0, 6), [0, 1, 0]))
+        m.apply_translation([rr * math.cos(a), -5, rr * math.sin(a)])
+        O.add("Montagnes", "montagne", m)
+
+
 def sols(O):
     O.add("Sol_Pelouse", "pelouse", boite(-DEMI, -0.1, -DEMI, DEMI, 0.0, DEMI), 12.0)
     dehors = Polygon([(-260, -260), (260, -260), (260, 260), (-260, 260)]).difference(
@@ -523,9 +600,10 @@ if __name__ == "__main__":
     piste(O)
     terminal(O)
     for i, xa in enumerate((-55, 0, 55)):
-        avion(O, f"Avion_Gare_{i + 1}", xa, 88.0, 0.0)
-    avion(O, "Avion_Piste", -150.0, -102.5, -90.0, 4.0)       # un avion pret a decoller sur la piste
-    avion(O, "Avion_Decollage", 70.0, -102.5, -90.0, 4.0, alt=24.0, tangage=12.0)   # un avion qui decolle
+        avion_ligne(O, f"Avion_Gare_{i + 1}", xa, 86.0, 180.0)            # nez vers le terminal
+    avion_ligne(O, "Avion_Piste", -170.0, -102.5, -90.0)                  # pret a decoller sur la piste
+    avion_ligne(O, "Avion_Decollage", 60.0, -102.5, -90.0, alt=26.0, tangage=12.0)   # en train de decoller
+    horizon(O)
     tour(O)
     hangars(O)
     manche_a_air(O)

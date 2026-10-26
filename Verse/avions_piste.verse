@@ -37,6 +37,9 @@ avions_piste_device := class(creative_device):
     @editable AttenteMax : float = 14.0
     # Temps "en vol" (invisible) entre le decollage et le retour pour l'atterrissage.
     @editable TempsEnVol : float = 12.0
+    # Jusqu'ou il part avant de disparaitre (et d'ou il revient), en metres.
+    @editable DistanceVol : float = 4000.0
+    @editable AltitudeVol : float = 1200.0
 
     var Depart : transform = transform{}
 
@@ -47,10 +50,10 @@ avions_piste_device := class(creative_device):
             AvionPiste.Show()
             Sleep(GetRandomFloat(AttenteMin, AttenteMax))
             Decoller()
-            AvionPiste.Hide()
+            Disparaitre()
             Sleep(TempsEnVol)
             Atterrir()
-            AvionPiste.Hide()
+            Disparaitre()
             Sleep(4.0)
 
     # Vecteur "devant" de l'avion (a plat, longueur 1).
@@ -72,6 +75,14 @@ avions_piste_device := class(creative_device):
             axe_nez.MoinsX => R.ApplyPitch(-A)
             axe_nez.Y => R.ApplyRoll(-A)
             axe_nez.MoinsY => R.ApplyRoll(A)
+
+    # Cache l'avion. Securite : en plus de Hide(), on le rend minuscule et on l'envoie sous le sol,
+    # pour qu'il disparaisse a coup sur meme si Hide() ne suffit pas.
+    Disparaitre():void =
+        AvionPiste.Hide()
+        Cache := Depart.Translation - vector3{X := 0.0, Y := 0.0, Z := 50000.0}
+        if (AvionPiste.TeleportTo[transform{Translation := Cache, Rotation := Depart.Rotation,
+                                            Scale := vector3{X := 0.001, Y := 0.001, Z := 0.001}}]) {}
 
     Aller(Pos:vector3, Rot:rotation, Duree:float)<suspends>:void =
         AvionPiste.MoveTo(transform{Translation := Pos, Rotation := Rot, Scale := Depart.Scale}, Duree)
@@ -98,6 +109,7 @@ avions_piste_device := class(creative_device):
         # montee, puis il s'eloigne
         Aller(P + D * (L + 12000.0) + Haut * 4500.0, Cabre, 5.0)
         Aller(P + D * (L + 90000.0) + Haut * 30000.0, Cabre, 18.0)
+        Aller(P + D * (L + DistanceVol * 100.0) + Haut * (AltitudeVol * 100.0), Cabre, 30.0)
 
     # ------------------------------------------------------------------ atterrissage
     # Il revient dans le MEME sens que le decollage : il arrive par l'arriere du point de depart
@@ -110,8 +122,9 @@ avions_piste_device := class(creative_device):
         Toucher := Depart.Translation + D * (L * 0.12)
         Arrondi := Incline(R, Cabrage * 0.25)                          # leger nez haut
         Approche := Incline(R, Cabrage * 0.1)
-        Placer(Toucher - D * 90000.0 + Haut * 28000.0, Approche)
+        Placer(Toucher - D * (DistanceVol * 100.0) + Haut * (AltitudeVol * 100.0), Approche)
         AvionPiste.Show()
+        Aller(Toucher - D * 90000.0 + Haut * 28000.0, Approche, 30.0)
         Aller(Toucher - D * 30000.0 + Haut * 8500.0, Approche, 12.0)
         Aller(Toucher - D * 6000.0 + Haut * 1500.0, Approche, 6.0)
         Aller(Toucher - D * 1200.0 + Haut * 250.0, Arrondi, 2.0)

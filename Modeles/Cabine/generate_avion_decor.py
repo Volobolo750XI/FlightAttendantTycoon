@@ -411,7 +411,21 @@ def parts(train=True):
     return P
 
 
+def lineaire(mat):
+    """glTF : baseColorFactor est en couleur lineaire -> conversion depuis nos couleurs sRGB"""
+    f = getattr(mat, "baseColorFactor", None)
+    if f is None or getattr(mat, "baseColorTexture", None) is not None or getattr(mat, "_lin", False):
+        return
+    c = np.asarray(f, float) / 255.0
+    lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    lin[3] = c[3]
+    mat.baseColorFactor = np.round(lin * 255).astype(np.uint8)
+    mat._lin = True
+
+
 def scene(P, nom="Avion_Decor", T=np.eye(4)):
+    for m_ in MATERIAUX.values():
+        lineaire(m_)
     sc = trimesh.Scene()
     for k, ms in P.items():
         m = trimesh.util.concatenate([x.copy() for x in ms])

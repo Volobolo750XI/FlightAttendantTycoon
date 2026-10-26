@@ -860,9 +860,6 @@ if __name__ == "__main__":
     cote_ville(O)
     avion_ligne(O, "Avion_Roulage", 74.0, 0.0, 0.0)                         # avion qui roule vers la piste
     ajouter(O, "Follow_Me", VE.place(VE.follow_me(), 74.0, -24.0, 0.0))
-    avion_ligne(O, "Avion_Piste", -170.0, -102.5, -90.0)                  # pret a decoller sur la piste
-    avion_ligne(O, "Avion_Decollage", 60.0, -102.5, -90.0, alt=26.0, tangage=12.0)   # en train de decoller
-    avion_ligne(O, "Avion_Atterrissage", -330.0, -102.5, -90.0, alt=30.0, tangage=-2.0, train=True)  # en approche
     horizon(O)
     tour(O)
     hangars(O)
@@ -878,6 +875,8 @@ if __name__ == "__main__":
         m.apply_transform(T)
         M["plateforme"] = m.visual.material
         O.add("Plateforme_Spawn", "plateforme", m)
+    # les avions qui atterrissent / decollent sont des props animes par Verse/avions_piste.verse
+    # (Avion_Decor.glb a poser a part), ils ne sont donc plus dans le decor fixe
     noms = O.exporter(SORTIE)
     import shutil
     shutil.copy(SORTIE, os.path.join(os.path.dirname(SORTIE), "Lobby_Complet.glb"))

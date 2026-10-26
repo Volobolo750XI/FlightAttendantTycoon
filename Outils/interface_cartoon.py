@@ -300,34 +300,20 @@ def fleches_rebirth(T):
 
 
 def hud():
-    """Les 3 barres du compteur a gauche de l'ecran (Textures/Interface) : pastille ronde avec
-    l'icone a gauche, barre cartoon a droite. 1024 x 256 (affichees 288 x 72 dans le jeu)."""
+    """Les 3 barres du compteur a gauche de l'ecran (Textures/Interface) : l'icone du joueur
+    (Textures/Interface/source/Icone_*.png, faites avec Gemini, fond detoure) posee a gauche,
+    par-dessus une barre cartoon. 1024 x 256 (affichees 288 x 72 dans le jeu)."""
     dossier = os.path.join(RACINE, "Textures", "Interface")
     W, H = 1024, 256
-    avion = Image.open(os.path.join(RACINE, "Textures", "JaugeVol", "Avion.png")).convert("RGBA")
-    argent = Image.open(os.path.join(KIT, "IconeArgent.png")).convert("RGBA")
-    for nom, haut, bas, icone in (("FondArgent", "7CF07A", "22B24C", argent),
-                                  ("FondRevenu", "5BE3FF", "1497E0", avion),
-                                  ("FondRebirth", "FF8AB0", "E2386E", fleches_rebirth(512))):
+    for nom, haut, bas, icone in (("FondArgent", "7CF07A", "22B24C", "Icone_Argent"),
+                                  ("FondRevenu", "5BE3FF", "1497E0", "Icone_Revenu"),
+                                  ("FondRebirth", "FF8AB0", "E2386E", "Icone_Rebirth")):
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        barre = piece("_tmp", W - 120, 176, 44, haut, bas, ep=9, levre=12, reflet=0.30, dossier=dossier)
-        im.alpha_composite(barre, (110, 40))
-        # pastille : disque blanc bleute a gros contour, reflet, icone dedans
-        P = 236
-        p = Image.new("RGBA", (P * K, P * K), (0, 0, 0, 0))
-        dp = ImageDraw.Draw(p)
-        dp.ellipse([0, 0, P * K - 1, P * K - 1], fill=CONTOUR)
-        e = 12 * K
-        dp.ellipse([e, e, P * K - 1 - e, P * K - 1 - e], fill=hexa(bas))
-        dp.ellipse([e + 6 * K, e + 6 * K, P * K - 1 - e - 6 * K, P * K - 1 - e - 14 * K], fill=hexa(haut))
-        reflet = Image.new("RGBA", p.size, (0, 0, 0, 0))
-        ImageDraw.Draw(reflet).ellipse([e + 40 * K, e + 18 * K, P * K - 1 - e - 40 * K, e + 66 * K], fill=(255, 255, 255, 90))
-        p.alpha_composite(reflet)
-        p = p.resize((P, P), Image.LANCZOS)
-        ic = icone.copy()
-        ic.thumbnail((182, 182), Image.LANCZOS)
-        p.alpha_composite(ic, ((P - ic.width) // 2, (P - ic.height) // 2 + 2))
-        im.alpha_composite(p, (4, 10))
+        barre = piece("_tmp", W - 130, 176, 44, haut, bas, ep=9, levre=12, reflet=0.30, dossier=dossier)
+        im.alpha_composite(barre, (120, 40))
+        ic = Image.open(os.path.join(dossier, "source", icone + ".png")).convert("RGBA")
+        ic.thumbnail((250, 250), Image.LANCZOS)
+        im.alpha_composite(ic, ((240 - ic.width) // 2 + 4, (H - ic.height) // 2))
         im.save(os.path.join(dossier, nom + ".png"))
     os.remove(os.path.join(dossier, "_tmp.png"))
 

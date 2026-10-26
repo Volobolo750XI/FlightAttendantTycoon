@@ -1,32 +1,62 @@
 """PLATEFORME DU SPAWN (centre du lobby), forme facon Infinity Tower Tycoon, un seul gris :
-- un sol plat rond (fin, presque au ras du sol)
-- autour, des bacs a plantes droits (segments d'un polygone a 12 cotes), creux dessus pour y mettre des buissons
+- sol plat rond, presque au ras du sol
+- autour, des bacs a haies BAS et larges (polygone a 12 cotes), flanc exterieur en pente, creux dessus
+  pour y mettre les haies/buissons
 - 6 ouvertures entre les bacs
 Origine : centre, au sol. Y en haut.   Sortie : Modeles/Lobby/Plateforme_Spawn.glb
 """
+import math
 import os
 
 import numpy as np
 import trimesh
-from shapely.affinity import rotate
 from shapely.geometry import Point, Polygon
 from trimesh.transformations import rotation_matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SORTIE = os.path.join(os.path.dirname(HERE), "Lobby", "Plateforme_Spawn.glb")
-R_SOL = 14.6
-R_IN, R_OUT = 14.5, 17.5      # bacs (rayons des sommets du 12-gone)
 H_SOL = 0.08
-H_BAC = 0.9
-PAROI = 0.3
-CREUX = 0.25                  # profondeur du creux pour la terre / buissons
+A_IN = 14.0                     # apotheme du bord interieur des bacs
+LARGE = 2.6                     # largeur du bac en haut
+H = 0.55                        # hauteur du bac
+PENTE = 0.45                    # debord du flanc exterieur en bas
+LEVRE = 0.25                    # epaisseur du rebord
+CREUX = 0.2
 TROU = 4.5
-ANGLES = (15, 75, 135, 195, 255, 315)   # ouvertures au milieu d'un cote du 12-gone
+COTES = 12
+PAS = 360 / COTES
+OUVERTURES = [15 + 60 * k for k in range(6)]   # au milieu d'un cote sur deux
+
+# profil (apotheme, hauteur) du bac, ferme, sens anti-horaire
+P = [(A_IN, H_SOL), (A_IN + LARGE + PENTE, H_SOL), (A_IN + LARGE, H), (A_IN + LARGE - LEVRE, H),
+     (A_IN + LARGE - LEVRE, H - CREUX), (A_IN + LEVRE, H - CREUX), (A_IN + LEVRE, H), (A_IN, H)]
 
 
-def polygone(r, n=12):
-    a = np.radians(np.arange(n) * 360 / n)
-    return Polygon(np.c_[r * np.cos(a), r * np.sin(a)])
+def point(a, y, t):
+    c = math.radians(math.floor(t / PAS) * PAS + PAS / 2)
+    r = a / math.cos(math.radians(t) - c)
+    return [r * math.cos(math.radians(t)), y, r * math.sin(math.radians(t))]
+
+
+def bac(t0, t1):
+    ts = [t0] + [k * PAS for k in range(int(t0 // PAS) + 1, int(math.ceil(t1 / PAS)))] + [t1]
+    n = len(P)
+    v = [point(a, y, t) for t in ts for a, y in P]
+    f = []
+    for i in range(len(ts) - 1):
+        for j in range(n):
+            a, b = i * n + j, i * n + (j + 1) % n
+            f += [[a, b, b + n], [a, b + n, a + n]]
+    tri_v, tri_f = trimesh.creation.triangulate_polygon(Polygon(P))
+    idx = {tuple(np.round(p, 6)): k for k, p in enumerate(P)}
+    loc = [idx[tuple(np.round(p, 6))] for p in tri_v]
+    last = (len(ts) - 1) * n
+    for t in tri_f:
+        f.append([loc[t[0]], loc[t[2]], loc[t[1]]])
+        f.append([last + loc[t[0]], last + loc[t[1]], last + loc[t[2]]])
+    m = trimesh.Trimesh(np.array(v), np.array(f), process=True)
+    trimesh.repair.fix_normals(m)
+    return m
 
 
 def extrusion(poly, y0, y1):
@@ -36,21 +66,14 @@ def extrusion(poly, y0, y1):
     return m
 
 
-coupe = Polygon([(-TROU / 2, 0), (TROU / 2, 0), (TROU / 2, R_OUT + 2), (-TROU / 2, R_OUT + 2)])
-couronne = polygone(R_OUT).difference(polygone(R_IN))
-for a in ANGLES:
-    couronne = couronne.difference(rotate(coupe, a - 90, origin=(0, 0)))
-bacs = list(couronne.geoms)
-
-pieces = [extrusion(Point(0, 0).buffer(R_SOL, 128), 0.0, H_SOL)]
-for b in bacs:
-    fond = b.buffer(-PAROI, join_style=2)
-    pieces.append(extrusion(b.difference(fond), H_SOL, H_BAC))        # parois
-    pieces.append(extrusion(fond, H_SOL, H_BAC - CREUX))              # fond du creux
+demi = math.degrees(math.atan(TROU / 2 / A_IN))
+pieces = [extrusion(Point(0, 0).buffer(A_IN + 0.3, 128), 0.0, H_SOL)]
+for k, o in enumerate(OUVERTURES):
+    pieces.append(bac(o + demi, OUVERTURES[(k + 1) % 6] + (360 if k == 5 else 0) - demi))
 m = trimesh.util.concatenate(pieces)
 m.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
     name="Gris", baseColorFactor=[140, 143, 148, 255], metallicFactor=0.0, roughnessFactor=0.85))
 sc = trimesh.Scene()
 sc.add_geometry(m, node_name="Plateforme_Spawn", geom_name="Plateforme_Spawn")
 sc.export(SORTIE)
-print(SORTIE, len(bacs), "bacs", round(os.path.getsize(SORTIE) / 1e3), "Ko")
+print(SORTIE, round(os.path.getsize(SORTIE) / 1e3), "Ko")

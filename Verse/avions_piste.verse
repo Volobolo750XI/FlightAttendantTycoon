@@ -38,8 +38,9 @@ avions_piste_device := class(creative_device):
     # Temps "en vol" (invisible) entre le decollage et le retour pour l'atterrissage.
     @editable TempsEnVol : float = 12.0
     # Jusqu'ou il part avant de disparaitre (et d'ou il revient), en metres.
-    @editable DistanceVol : float = 4000.0
-    @editable AltitudeVol : float = 1200.0
+    # Pas trop loin : au-dela de la zone chargee autour des joueurs, Fortnite peut figer l'avion.
+    @editable DistanceVol : float = 1500.0
+    @editable AltitudeVol : float = 400.0
 
     var Depart : transform = transform{}
 
@@ -109,7 +110,7 @@ avions_piste_device := class(creative_device):
         # montee, puis il s'eloigne
         Aller(P + D * (L + 12000.0) + Haut * 4500.0, Cabre, 5.0)
         Aller(P + D * (L + 90000.0) + Haut * 30000.0, Cabre, 18.0)
-        Aller(P + D * (L + DistanceVol * 100.0) + Haut * (AltitudeVol * 100.0), Cabre, 30.0)
+        Aller(P + D * (L + DistanceVol * 100.0) + Haut * (AltitudeVol * 100.0), Cabre, 10.0)
 
     # ------------------------------------------------------------------ atterrissage
     # Il revient dans le MEME sens que le decollage : il arrive par l'arriere du point de depart
@@ -124,7 +125,7 @@ avions_piste_device := class(creative_device):
         Approche := Incline(R, Cabrage * 0.1)
         Placer(Toucher - D * (DistanceVol * 100.0) + Haut * (AltitudeVol * 100.0), Approche)
         AvionPiste.Show()
-        Aller(Toucher - D * 90000.0 + Haut * 28000.0, Approche, 30.0)
+        Aller(Toucher - D * 90000.0 + Haut * 28000.0, Approche, 10.0)
         Aller(Toucher - D * 30000.0 + Haut * 8500.0, Approche, 12.0)
         Aller(Toucher - D * 6000.0 + Haut * 1500.0, Approche, 6.0)
         Aller(Toucher - D * 1200.0 + Haut * 250.0, Arrondi, 2.0)

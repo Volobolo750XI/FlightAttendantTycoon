@@ -54,6 +54,8 @@ classement_device := class(creative_device):
     # position de repos de chaque tambour (chiffre 0 vers l'avant), et chiffre affiche
     var Repos : [][]transform = array{}
     var Affiche : [][]int = array{}
+    # axe de rotation de chaque compteur (dans le monde) = la ligne qui passe par ses tambours
+    var Axes : []vector3 = array{}
 
     OnBegin<override>()<suspends>:void =
         InstallerTambours()
@@ -78,6 +80,16 @@ classement_device := class(creative_device):
             else:
                 for (Tb : C.Tambours) { Tb.GetTransform() }
         set Affiche = for (C : Compteurs) { for (Tb : C.Tambours) { 0 } }
+        # l'axe est mesure entre le 1er et le dernier tambour : plus besoin de deviner X / Y / Z
+        set Axes = for (N -> C : Compteurs):
+            if (Pos := Repos[N], A := Pos[0], B := Pos[Pos.Length - 1], Pos.Length > 1):
+                D := B.Translation - A.Translation
+                L := D.Length()
+                if (L > 1.0) then D / L else AxeMonde(A.Rotation)
+            else if (Pos := Repos[N], A := Pos[0]):
+                AxeMonde(A.Rotation)
+            else:
+                vector3{X := 1.0, Y := 0.0, Z := 0.0}
 
     TestRebirths()<suspends>:void =
         loop:
@@ -110,10 +122,13 @@ classement_device := class(creative_device):
                 if (Q := Quotient[Valeur, Puissance], D := Mod[Q, 10]):
                     if (Ancien := Affiche[N][I], Ancien <> D):
                         if (set Affiche[N][I] = D) {}
-                        spawn{ Rouler(Tb, T, D) }
+                        if (Axe := Axes[N]) { spawn{ Rouler(Tb, T, Axe, D) } }
 
-    Rouler(Tb:creative_prop, T:transform, Chiffre:int)<suspends>:void =
-        Tb.MoveTo(transform{Translation := T.Translation, Rotation := Tourner(T.Rotation, Chiffre), Scale := T.Scale}, 0.7)
+    # Tourne le tambour autour de l'axe du compteur (rotation dans le monde, a partir de sa position de repos).
+    Rouler(Tb:creative_prop, T:transform, Axe:vector3, Chiffre:int)<suspends>:void =
+        A := DegreesToRadians(36.0 * Chiffre * (if (SensInverse?) then -1.0 else 1.0))
+        Rot := T.Rotation.RotateBy(MakeRotation(Axe, A))
+        Tb.MoveTo(transform{Translation := T.Translation, Rotation := Rot, Scale := T.Scale}, 0.7)
 
     # A passe devant B ?
     Devant(A:avion_tycoon, B:avion_tycoon)<decides><transacts>:void =

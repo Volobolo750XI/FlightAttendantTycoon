@@ -37,6 +37,12 @@ reglages_claim := class<concrete>:
     # Un petit prop repère dans l'avion (caché en jeu) :
     # sa position = où on arrive, sa rotation = où on regarde en arrivant.
     @editable Arrivee:creative_prop = creative_prop{}
+    # LA PARCELLE qui apparait au claim (le rond, l'avion, l'escalier : Parcelle_Avion.glb). Cachee avant.
+    @editable Parcelle:[]creative_prop = array{}
+    # La plaque ENTER au pied de l'escalier : apres le claim, c'est ELLE qui fait entrer dans l'avion.
+    @editable PlaqueEntrer:?creative_prop = false
+    # Le panneau ENTER au-dessus (il flotte et se tourne vers le joueur, comme le CLAIM).
+    @editable PanneauEntrer:?creative_prop = false
 
 # ---------- 2. UNE RANGEE DE SIEGES ----------
 reglages_rangee := class<concrete>:
@@ -151,6 +157,9 @@ avion_tycoon := class(creative_device):
         # Tout est caché au départ, sauf le claim.
         Claim.Arrivee.Hide()
         set Arrivee = option{Claim.Arrivee}
+        for (Pc : Claim.Parcelle) { Pc.Hide() }
+        if (Pe := Claim.PlaqueEntrer?) { Pe.Hide() }
+        if (Pn := Claim.PanneauEntrer?) { Pn.Hide() }
         for (R : Rangees):
             if (A := R.ArriveeNouvelAvion?) { A.Hide() }
             R.Plaque.Hide()
@@ -175,7 +184,16 @@ avion_tycoon := class(creative_device):
                     if (TestArgentInfini?) { set Argent = 1000000000000000 }
                 SuivreRegard(Claim.Panneau)
         Claim.Panneau.Hide()
-        if (not TestSansClaim?, Joueur := Proprio?):
+        if (Pe := Claim.PlaqueEntrer?):
+            # la parcelle apparait (rond + avion + escalier) : on entre avec la plaque ENTER
+            Claim.Plaque.Hide()
+            for (Pc : Claim.Parcelle) { Pc.Show() }
+            Pe.Show()
+            if (Pn := Claim.PanneauEntrer?):
+                Pn.Show()
+                spawn{SuivreRegard(Pn)}
+        else if (not TestSansClaim?, Joueur := Proprio?):
+            for (Pc : Claim.Parcelle) { Pc.Show() }
             Teleporter(Joueur)
         spawn{BoucleRetourAvion()}
         if (Pad := PlaqueATM?) { spawn{BoucleATM(Pad)} }
@@ -203,7 +221,8 @@ avion_tycoon := class(creative_device):
     # Après le claim, la plaque de la passerelle ramène le proprio dans son avion.
     BoucleRetourAvion()<suspends>:void =
         loop:
-            Joueur := AttendreSurPlaque(Claim.Plaque, Proprio)
+            Plaque := if (Pe := Claim.PlaqueEntrer?) then Pe else Claim.Plaque
+            Joueur := AttendreSurPlaque(Plaque, Proprio)
             Teleporter(Joueur)
             Sleep(1.0)
 
@@ -301,7 +320,9 @@ avion_tycoon := class(creative_device):
             if (Cible := JoueurLePlusProche[Position]):
                 YawCible := ArcTan(Cible.Y - Position.Y, Cible.X - Position.X) * 180.0 / PiFloat + Reglages.DecalageAngle
                 set Yaw += AngleLePlusCourt(YawCible - Yaw) * Reglages.Lissage
-            Hauteur := Sin(GetSimulationElapsedTime() * Reglages.VitesseFlottement * 2.0 * PiFloat) * Reglages.Flottement
+            # monte puis revient a sa place : ne descend jamais plus bas que sa position de depart
+            Onde := Sin(GetSimulationElapsedTime() * Reglages.VitesseFlottement * 2.0 * PiFloat)
+            Hauteur := (Onde + 1.0) * 0.5 * Reglages.Flottement
             NouvellePosition := Position + vector3{X := 0.0, Y := 0.0, Z := Hauteur}
             Panneau.MoveTo(NouvellePosition, MakeRotationFromYawPitchRollDegrees(Yaw, 0.0, 0.0), 0.1)
 

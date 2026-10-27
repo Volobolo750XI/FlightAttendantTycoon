@@ -117,6 +117,9 @@ avion_tycoon := class(creative_device):
     var MultiRebirth:float = 1.0
     # Boost temporaire des gains (roue Daily Spin : x2, x3...). 1.0 = pas de boost.
     var BoostGains:float = 1.0
+    # Nombre de vols termines (pour debloquer la Daily Spin) et ce qu'a rapporte le dernier vol.
+    var VolsTermines:int = 0
+    var GainDernierVol:int = 0
     var UICree:logic = false
     # Le device passagers de cet avion (il s'inscrit tout seul au démarrage).
     var Passagers:?passagers = false
@@ -414,7 +417,10 @@ avion_tycoon := class(creative_device):
 
     # ---------- Récompenses de la Daily Spin ----------
     # Revenu par seconde de référence (même au sol) : le plus grand entre le vol en cours et les achats.
-    RevenuDeBase():int = Max(RevenuParSeconde, RevenuAchats)
+    # (le dernier vol est compte comme ~5 minutes de jeu)
+    RevenuDeBase():int =
+        ParVol := if (V := Quotient[GainDernierVol, 300]) then V else 0
+        Max(Max(RevenuParSeconde, RevenuAchats), ParVol)
 
     DonnerRebirth():void =
         set Rebirths += 1
@@ -534,6 +540,8 @@ avion_tycoon := class(creative_device):
             FermerRecap()
             set NumeroRecap += 1
             Valeurs := array{StatBillets, StatService, StatMissions, StatFraudeurs, StatPertes, StatDepenses}
+            set VolsTermines += 1
+            set GainDernierVol = StatBillets + StatService + StatMissions + StatFraudeurs
             set StatBillets = 0
             set StatService = 0
             set StatMissions = 0

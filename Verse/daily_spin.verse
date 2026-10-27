@@ -58,10 +58,15 @@ daily_spin_device := class(creative_device):
         case_roue{Nom := "x3 5 MIN", Type := type_gain.Boost, Valeur := 3.0, DureeMinutes := 5.0, Chance := 8}
         case_roue{Nom := "JACKPOT", Type := type_gain.MinutesDeRevenu, Valeur := 180.0, Chance := 5}
     # Gain minimum (pour les debutants qui ne gagnent encore presque rien).
-    @editable GainMinimum : int = 1000
+    @editable GainMinimum : int = 500
     @editable AttenteHeures : float = 24.0
     @editable AxeRoue : axe_roue = axe_roue.X
     @editable SensInverse : logic = false
+    # Il faut avoir termine au moins ce nombre de vols pour pouvoir tourner la roue.
+    @editable VolsRequis : int = 1
+    # TEST : force la case gagnante (0 = "5 MIN" en haut ... 7 = "JACKPOT"). -1 = tirage normal.
+    # Sert a verifier que la roue s'arrete bien sur la case gagnee (sinon : coche SensInverse).
+    @editable TestCaseForcee : int = -1
     # TEST : tours illimites. A DECOCHER avant de publier !
     @editable TestSansAttente : logic = true
 
@@ -110,11 +115,20 @@ daily_spin_device := class(creative_device):
                 Mi := if (V := Floor[(Reste - H * 3600.0) / 60.0]) then V else 0
                 Afficher(Agent, "COME BACK IN {H}H {Mi}MIN")
                 return
+            # il faut un avion et au moins VolsRequis vols termines
+            var Sien : ?avion_tycoon = false
+            for (Av : Avions, J := Av.Proprio?, J = Agent) { set Sien = option{Av} }
+            if (not Sien?):
+                Afficher(Agent, "CLAIM A PLANE FIRST !")
+                return
+            if (Av := Sien?, Av.VolsTermines < VolsRequis):
+                Afficher(Agent, "COMPLETE {VolsRequis} FLIGHT TO SPIN !")
+                return
             set EnCours = true
             if (set DailySpinSauvegarde[P] = daily_spin_sauvegarde{DernierTour := Maintenant}) {}
             N := Max(1, Cases.Length)
             Pas := 360.0 / (N * 1.0)
-            K := Tirage()
+            K := if (TestCaseForcee >= 0, TestCaseForcee < N) then TestCaseForcee else Tirage()
             Cible := (if (V := Mod[N - K, N]) then V else 0) * Pas + GetRandomFloat(-Pas * 0.3, Pas * 0.3)
             Tours := GetRandomInt(4, 6)
             Delta := Tours * 360.0 + Mod360(Cible - Mod360(AngleActuel))

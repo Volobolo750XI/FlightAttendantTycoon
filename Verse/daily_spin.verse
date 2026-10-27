@@ -124,13 +124,19 @@ daily_spin_device := class(creative_device):
                 axe_roue.Y => Repos.Rotation.GetLocalRight()
                 axe_roue.Z => Repos.Rotation.GetLocalUp()
             Signe := if (SensInverse?) then -1.0 else 1.0
-            Etapes := 72
-            for (I := 1..Etapes):
-                T := I * 1.0 / (Etapes * 1.0)
-                E := 1.0 - (1.0 - T) * (1.0 - T) * (1.0 - T)
-                A := Depart + Delta * E
+            # Rotation fluide : peu de mouvements, tous du MEME angle (120 deg, a vitesse constante chacun),
+            # c'est leur duree qui s'allonge -> la roue ralentit en douceur, sans saccades.
+            # Freinage "quadratique" : angle(t) = Delta * (1 - (1 - t)^2)  ->  t = 1 - Sqrt(1 - angle / Delta)
+            DureeTotale := 6.0
+            NbPas := Max(1, if (V := Ceil[Delta / 120.0]) then V else 1)
+            var TPrec : float = 0.0
+            for (J := 1..NbPas):
+                Fraction := Min(1.0, (J * 120.0) / Delta)
+                TJ := 1.0 - Sqrt(Max(0.0, 1.0 - Fraction))
+                A := Depart + Delta * Fraction
                 Rot := Repos.Rotation.RotateBy(MakeRotation(Axe, DegreesToRadians(A * Signe)))
-                Roue.MoveTo(transform{Translation := Repos.Translation, Rotation := Rot, Scale := Repos.Scale}, 0.085)
+                Roue.MoveTo(transform{Translation := Repos.Translation, Rotation := Rot, Scale := Repos.Scale}, Max(0.05, (TJ - TPrec) * DureeTotale))
+                set TPrec = TJ
             set AngleActuel = Mod360(Depart + Delta)
             if (C := Cases[K]):
                 for (Av : Avions, J := Av.Proprio?, J = Agent):

@@ -112,7 +112,8 @@ cadeau_device := class(creative_device):
             N := Numero(P)
             Pret := if (Restant(P) <= 0.0) then true else false
             var Slots : []canvas_slot = array:
-                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 1800.0, 1000.0), 60.0, 30.0, 1800.0, 1000.0, 1)
+                # images en puissance de 2 avec des marges transparentes autour du dessin
+                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 2048.0, 1024.0), -64.0, 18.0, 2048.0, 1024.0, 1)
                 Bloc(Image(InterfacePC.Fermer, 120.0, 120.0), 1690.0, 150.0, 110.0, 110.0, 5)
                 Clic(P, 0, 1701.0, 161.0, 88.0, 88.0)
             for (K := 0..20):
@@ -120,7 +121,7 @@ cadeau_device := class(creative_device):
                 Y := CarteY(K)
                 Fond := if (K = 0, Pret?) then InterfaceCadeau.Carte_Prete else Couleur(N + K)
                 set Slots += array:
-                    Bloc(Image(Fond, 156.0, 205.0), X, Y, 156.0, 205.0, 2)
+                    Bloc(Image(Fond, 266.24, 266.24), X - 55.12, Y - 30.68, 266.24, 266.24, 2)
                     Bloc(Image(InterfaceCadeau.Icone_Cadeau, 110.0, 110.0), X + 23.0, Y + 40.0, 110.0, 110.0, 3)
                 set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 16.0, Y + 10.0, 124.0, 28.0, 4)
             if (Pret?):

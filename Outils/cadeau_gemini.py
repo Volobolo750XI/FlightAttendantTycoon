@@ -1,5 +1,6 @@
 """Detoure les images Gemini du cadeau (fond magenta) -> Textures/InterfaceCadeau/*.png
-  Fenetre_Cadeaux.png (1800 x 1000), Carte_1..6.png + Carte_Prete.png (300 x 394), Icone_Cadeau.png (512 x 512)
+  Fenetre_Cadeaux.png (2048 x 1024, fenetre 1800 x 1000 au centre),
+  Carte_1..6.png + Carte_Prete.png (512 x 512, carte 300 x 394 au centre), Icone_Cadeau.png (512 x 512)
 Usage : python3 Outils/cadeau_gemini.py
 """
 import os
@@ -60,7 +61,9 @@ def boite(im, seuil=200):
 
 if __name__ == "__main__":
     f = detourer(os.path.join(SRC, "gemini_fenetre.webp"))
-    f.crop(boite(f)).resize((1800, 1000), Image.LANCZOS).save(os.path.join(DOS, "Fenetre_Cadeaux.png"))
+    fen = Image.new("RGBA", (2048, 1024), (0, 0, 0, 0))          # puissance de 2 : marges transparentes
+    fen.alpha_composite(f.crop(boite(f)).resize((1800, 1000), Image.LANCZOS), (124, 12))
+    fen.save(os.path.join(DOS, "Fenetre_Cadeaux.png"))
     ic = detourer(os.path.join(SRC, "gemini_icone.webp"))
     x0, y0, x1, y1 = boite(ic, 100)
     c = max(x1 - x0, y1 - y0) + 20
@@ -114,5 +117,7 @@ if __name__ == "__main__":
             halo.alpha_composite(c)
             c = halo
         c = sans_pastille(c)
-        c.resize((300, 394), Image.LANCZOS).save(os.path.join(DOS, nom + ".png"))
+        carre = Image.new("RGBA", (512, 512), (0, 0, 0, 0))     # puissance de 2 : carte 300 x 394 au centre
+        carre.alpha_composite(c.resize((300, 394), Image.LANCZOS), (106, 59))
+        carre.save(os.path.join(DOS, nom + ".png"))
     print("ok", L, y1 - y0)

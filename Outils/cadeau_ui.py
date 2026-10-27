@@ -146,7 +146,7 @@ if __name__ == "__main__":
     # les images viennent de Gemini : voir Outils/cadeau_gemini.py (ce script fait seulement l'apercu)
     # apercu monte comme dans le jeu : 15 cadeaux (3 lignes de 5), cartes en 279 x 230
     ap = Image.new("RGBA", (1920, 1080), (60, 70, 90, 255))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (60, 30))
+    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (-64, 18))
     ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((110, 110))
     d = ImageDraw.Draw(ap)
     delais = [2, 5, 10, 15, 20, 30, 45, 60]
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     for k in range(21):
         x, y = 204 + (k % 7) * 226, 335 + (k // 7) * 217
         nom = "Carte_Prete.png" if k == 0 else f"Carte_{k % 6 + 1}.png"
-        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((156, 205)), (x, y))
+        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((266, 266)), (x - 55, y - 31))
         ap.alpha_composite(ic, (x + 23, y + 40))
         if k:
             cumul += delais[min(k, 7)]

@@ -45,6 +45,9 @@ classement_device := class(creative_device):
     # Ecart entre deux tambours, en cm (negatif si ils s'alignent du mauvais cote).
     @editable Espacement : float = -56.0
     @editable SensInverse : logic = false
+    # TEST : chaque joueur qui a un avion gagne 1 rebirth par seconde (pour voir les compteurs tourner).
+    # A DECOCHER avant de publier la map !
+    @editable TestRebirthParSeconde : logic = true
 
     # position de repos de chaque tambour (chiffre 0 vers l'avant), et chiffre affiche
     var Repos : [][]transform = array{}
@@ -52,6 +55,8 @@ classement_device := class(creative_device):
 
     OnBegin<override>()<suspends>:void =
         InstallerTambours()
+        if (TestRebirthParSeconde?):
+            spawn{ TestRebirths() }
         loop:
             MettreAJour()
             Sleep(Intervalle)
@@ -69,6 +74,13 @@ classement_device := class(creative_device):
             else:
                 array{}
         set Affiche = for (C : Compteurs) { for (Tb : C.Tambours) { 0 } }
+
+    TestRebirths()<suspends>:void =
+        loop:
+            Sleep(1.0)
+            for (A : Avions, A.Proprio?):
+                set A.Rebirths += 1
+            MettreAJour()
 
     AxeMonde(R:rotation):vector3 =
         case (AxeTambour):

@@ -5,7 +5,7 @@ using { /UnrealEngine.com/Temporary/UI }
 using { /Fortnite.com/UI }
 
 # Flight Attendant Tycoon - les CADEAUX du lobby (Playtime Rewards), A L'INFINI.
-# On interagit avec le cadeau 3D : une fenetre cartoon FREE GIFTS montre les 6 prochains cadeaux
+# On interagit avec le cadeau 3D : une fenetre cartoon FREE GIFTS montre les 15 prochains cadeaux
 # DANS L'ORDRE, chacun avec son temps (le temps total avant de pouvoir l'ouvrir).
 # Le premier devient la carte verte OPEN! quand il est pret -> on clique dessus -> on gagne de l'argent,
 # le couvercle saute, et la liste avance d'un cadeau.
@@ -42,7 +42,7 @@ cadeau_device := class(creative_device):
     var Numeros : [player]int = map{}              # numero du prochain cadeau a ouvrir (1, 2, 3...)
     var Debuts : [player]float = map{}             # quand son attente a commence
     var Toiles : [player]canvas = map{}
-    var Temps : [player][][]widget = map{}         # lettres des 6 temps (pour les changer)
+    var Temps : [player][][]widget = map{}         # lettres des 15 temps (pour les changer)
     var PretAffiche : [player]logic = map{}
     var Ouvertures : [player]logic = map{}
 
@@ -54,7 +54,7 @@ cadeau_device := class(creative_device):
                 if (set Debuts[P] = Maintenant, set Numeros[P] = 1) {}
             for (P -> T : Toiles):
                 Rafraichir(P, T)
-            Sleep(0.25)
+            Sleep(0.5)
 
     # attente du cadeau N, en secondes
     Delai(N:int):float =
@@ -92,8 +92,9 @@ cadeau_device := class(creative_device):
         B.OnClick().Subscribe(clic_cadeau{Cadeau := Self, Joueur := P, Action := Action}.Clique)
         Bloc(B, X, Y, L, H, 30)
 
-    CarteX(K:int):float = 350.0 + 420.0 * (if (V := Mod[K, 3]) then V else 0)
-    CarteY(K:int):float = if (K < 3) then 300.0 else 625.0
+    # 15 cartes : 3 lignes de 5, chaque carte fait 279 x 230
+    CarteX(K:int):float = 202.0 + 309.0 * (if (V := Mod[K, 5]) then V else 0)
+    CarteY(K:int):float = 262.0 + 243.0 * (if (V := Quotient[K, 5]) then V else 0)
 
     Couleur(N:int):texture =
         case (if (V := Mod[N - 1, 6]) then V else 0):
@@ -111,19 +112,19 @@ cadeau_device := class(creative_device):
             N := Numero(P)
             Pret := if (Restant(P) <= 0.0) then true else false
             var Slots : []canvas_slot = array:
-                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 1500.0, 900.0), 210.0, 60.0, 1500.0, 900.0, 1)
-                Bloc(Image(InterfacePC.Fermer, 120.0, 120.0), 1590.0, 40.0, 120.0, 120.0, 5)
-                Clic(P, 0, 1602.0, 52.0, 96.0, 96.0)
-            for (K := 0..5):
+                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 1800.0, 1000.0), 60.0, 30.0, 1800.0, 1000.0, 1)
+                Bloc(Image(InterfacePC.Fermer, 120.0, 120.0), 1740.0, 10.0, 120.0, 120.0, 5)
+                Clic(P, 0, 1752.0, 22.0, 96.0, 96.0)
+            for (K := 0..14):
                 X := CarteX(K)
                 Y := CarteY(K)
                 Fond := if (K = 0, Pret?) then InterfaceCadeau.Carte_Prete else Couleur(N + K)
                 set Slots += array:
-                    Bloc(Image(Fond, 360.0, 297.0), X, Y, 360.0, 297.0, 2)
-                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 170.0, 170.0), X + 95.0, Y + 50.0, 170.0, 170.0, 3)
-                set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 40.0, Y + 18.0, 280.0, 44.0, 4)
+                    Bloc(Image(Fond, 279.0, 230.0), X, Y, 279.0, 230.0, 2)
+                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 120.0, 120.0), X + 80.0, Y + 40.0, 120.0, 120.0, 3)
+                set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 30.0, Y + 14.0, 220.0, 32.0, 4)
             if (Pret?):
-                set Slots += array{Clic(P, 1, CarteX(0) + 14.0, CarteY(0) + 14.0, 332.0, 268.0)}
+                set Slots += array{Clic(P, 1, CarteX(0) + 11.0, CarteY(0) + 11.0, 257.0, 208.0)}
             T := canvas{Slots := Slots}
             UI.AddWidget(T, player_ui_slot{InputMode := ui_input_mode.All})
             if (set Toiles[P] = T, set PretAffiche[P] = Pret, set Temps[P] = array{}) {}
@@ -136,7 +137,7 @@ cadeau_device := class(creative_device):
         for (Cle -> V : Toiles, Cle <> P) { if (set Tx[Cle] = V) {} }
         set Toiles = Tx
 
-    # met a jour les 6 temps (le 1er = son attente, les suivants = attente cumulee)
+    # met a jour les 15 temps (le 1er = son attente, les suivants = attente cumulee)
     Rafraichir(P:player, T:canvas):void =
         R := Restant(P)
         Pret := if (R <= 0.0) then true else false
@@ -147,14 +148,14 @@ cadeau_device := class(creative_device):
             Anciens := if (A := Temps[P]) then A else array{}
             var Cumul : float = R
             var Nouveaux : [][]widget = array{}
-            for (K := 0..5):
+            for (K := 0..14):
                 if (K > 0) { set Cumul += Delai(N + K) }
                 Texte := if (K = 0, Pret?) then "OPEN!" else Duree(Cumul)
                 Teinte := if (K = 0, Pret?) then "86EFAC" else "FFFFFF"
                 Vieilles := if (V := Anciens[K]) then V else array{}
                 set Nouveaux += array:
                     Ecriture.Remplacer(T, Vieilles, Texte, Teinte, text_justification.Center,
-                                       CarteX(K) + 60.0 - 960.0, CarteY(K) + 226.0 - 540.0, 240.0, 42.0, 4, vector2{X := 0.5, Y := 0.5})
+                                       CarteX(K) + 40.0 - 960.0, CarteY(K) + 176.0 - 540.0, 200.0, 30.0, 4, vector2{X := 0.5, Y := 0.5})
             if (set Temps[P] = Nouveaux) {}
 
     Duree(Secondes:float):string =
@@ -185,7 +186,7 @@ cadeau_device := class(creative_device):
         # le cadeau suivant commence a attendre
         if (set Numeros[P] = N + 1, set Debuts[P] = GetSecondsSinceEpoch()) {}
         if (T := Toiles[P]):
-            for (Slot : Ecriture.Ecrire("+${Affiche}!", "FDE047", text_justification.Center, 310.0, 420.0, 1300.0, 160.0, 20)):
+            for (Slot : Ecriture.Ecrire("+${Affiche}!", "FDE047", text_justification.Center, 260.0, 440.0, 1400.0, 180.0, 20)):
                 T.AddWidget(Slot)
         spawn{ SauterCouvercle() }
         Sleep(1.5)

@@ -1,6 +1,6 @@
 """Interface CARTOON du cadeau du lobby (Playtime Reward) -> Textures/InterfaceCadeau/*.png
 Style : tres colore, gros contour bleu nuit, reflets, lettres arc-en-ciel (comme la Daily Spin).
-  Fenetre_Cadeaux.png (1500 x 900) : la fenetre avec le titre FREE GIFTS
+  Fenetre_Cadeaux.png (1800 x 1000) : la fenetre avec le titre FREE GIFTS
   Icone_Cadeau.png    (512 x 512)  : le cadeau dessine sur chaque carte
   Carte_1..6.png      (400 x 330)  : les cartes de couleur des cadeaux qui attendent
   Carte_Prete.png     (400 x 330)  : la carte verte (halo dore) du cadeau a ouvrir
@@ -73,7 +73,7 @@ def etincelle(d, x, y, r, col=(255, 255, 255)):
 
 
 def fenetre():
-    W, H = 1500, 900
+    W, H = 1800, 1000
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ombre = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(ombre).rounded_rectangle([20, 34, W - 6, H - 6], 70, fill=(0, 0, 0, 110))
@@ -82,7 +82,7 @@ def fenetre():
     d.rounded_rectangle([6, 20, W - 20, H - 20], 70, fill=NUIT)
     img.alpha_composite(arrondi(degrade(W - 60, H - 210, (125, 215, 255), (70, 120, 235)), 54), (24, 170))
     d = ImageDraw.Draw(img)
-    for _ in range(34):
+    for _ in range(46):
         etincelle(d, random.randint(70, W - 90), random.randint(230, H - 70), random.randint(6, 16), (255, 255, 255, 140))
     img.alpha_composite(arrondi(degrade(W - 60, 190, (255, 120, 200), (150, 70, 230)), 54), (24, 34))
     mot_arc_en_ciel(img, "FREE GIFTS", (W - 20) / 2 + 6, 130, 150)
@@ -153,19 +153,23 @@ if __name__ == "__main__":
     for i, (h, b) in enumerate(COUL):
         carte(h, b).save(os.path.join(SORTIE, f"Carte_{i + 1}.png"))
     carte((140, 240, 110), (40, 180, 70), True).save(os.path.join(SORTIE, "Carte_Prete.png"))
-    # apercu monte comme dans le jeu
+    # apercu monte comme dans le jeu : 15 cadeaux (3 lignes de 5), cartes en 279 x 230
     ap = Image.new("RGBA", (1920, 1080), (60, 70, 90, 255))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (210, 60))
-    ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((170, 170))
+    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (60, 30))
+    ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((120, 120))
     d = ImageDraw.Draw(ap)
-    textes = ["OPEN!", "05:00", "15:00", "30:00", "50:00", "1:20:00"]
-    for k in range(6):
-        x, y = 350 + (k % 3) * 420, 300 + (k // 3) * 325      # cartes affichees en 360 x 297 (comme dans Verse)
-        nom = "Carte_Prete.png" if k == 0 else f"Carte_{k + 1}.png"
-        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((360, 297)), (x, y))
-        ap.alpha_composite(ic, (x + 95, y + 50))
-        d.text((x + 180, y + 40), f"GIFT {k + 1}", font=f(38), fill="white", anchor="mm", stroke_width=8, stroke_fill=NUIT)
-        d.text((x + 180, y + 247), textes[k], font=f(40), fill=(134, 239, 172) if k == 0 else "white", anchor="mm",
-               stroke_width=8, stroke_fill=NUIT)
+    delais = [2, 5, 10, 15, 20, 30, 45, 60]
+    cumul = 0
+    for k in range(15):
+        x, y = 202 + (k % 5) * 309, 262 + (k // 5) * 243
+        nom = "Carte_Prete.png" if k == 0 else f"Carte_{k % 6 + 1}.png"
+        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((279, 230)), (x, y))
+        ap.alpha_composite(ic, (x + 80, y + 40))
+        if k:
+            cumul += delais[min(k, 7)]
+        t = "OPEN!" if k == 0 else (f"{cumul // 60}:{cumul % 60:02d}:00" if cumul >= 60 else f"{cumul:02d}:00")
+        d.text((x + 140, y + 30), f"GIFT {k + 1}", font=f(30), fill="white", anchor="mm", stroke_width=6, stroke_fill=NUIT)
+        d.text((x + 140, y + 191), t, font=f(30), fill=(134, 239, 172) if k == 0 else "white", anchor="mm",
+               stroke_width=6, stroke_fill=NUIT)
     ap.convert("RGB").save(os.path.join(os.path.dirname(ICI), "Modeles", "Lobby", "apercu_interface_cadeau.png"))
     print("ok", SORTIE)

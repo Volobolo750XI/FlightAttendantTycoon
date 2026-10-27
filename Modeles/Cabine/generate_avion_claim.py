@@ -56,6 +56,89 @@ def coque_lisse():
 D.coque = coque_lisse
 
 
+# ---------------------------------------------------------------- nez realiste
+# Le nez d'origine (quart d'ellipse + table de sections) faisait une "tete" ronde avec un bourrelet derriere
+# le cockpit. Ici : profils continus du bout du nez jusqu'au fuselage plein (comme un vrai A320).
+X_BOUT, X_PLEIN = -2.12, -1.12
+E_SECTION = 2.0 / 2.15
+
+
+def profil_nez(u):
+    """u = 0 au bout du nez, 1 au debut du fuselage plein -> (y bas, y haut, demi-largeur) en unites"""
+    v = 1.0 - u
+    yt = 0.425 + (0.769 - 0.425) * (1 - v ** 2.0) ** 0.6     # dessus : remonte vite puis pente du pare-brise
+    yb = 0.405 - (0.405 - 0.237) * (1 - v ** 2.6) ** 0.5     # dessous : arrondi puis plat
+    hw = 0.266 * (1 - v ** 2.2) ** 0.5
+    return yb, yt, hw
+
+
+def sections_lisses():
+    xs = np.concatenate([X_BOUT + (X_PLEIN - X_BOUT) * (1 - np.cos(np.linspace(0, np.pi / 2, 220))),
+                         np.linspace(X_PLEIN + 0.02, 0.68, 50), np.linspace(0.70, 2.62, 70)])
+    tab = np.array([(X_PLEIN, 0.237, 0.769, 0.266), (0.2, 0.237, 0.769, 0.266)] + D.TAIL)
+    yb, yt, hw = (np.interp(xs, tab[:, 0], tab[:, k]) for k in (1, 2, 3))
+    for i, x in enumerate(xs):
+        if x <= X_PLEIN:
+            yb[i], yt[i], hw[i] = profil_nez((x - X_BOUT) / (X_PLEIN - X_BOUT))
+    hw[0] = 0.0
+    return xs, (yb + yt) / 2, (yt - yb) / 2, hw
+
+
+D.sections_fines = sections_lisses
+D.VITRES_COCKPIT = []                                    # pare-brise refait en vraies vitres (bords nets)
+
+
+def point_coque(x, th):
+    """point de la coque (repere avion, metres) a l'abscisse x (unites) et a l'angle th (0 = cote +X, 90 = dessus)"""
+    xs, yc, ry, hw = sections_lisses()
+    c, s_ = math.cos(math.radians(th)), math.sin(math.radians(th))
+    cx = math.copysign(abs(c) ** E_SECTION, c)
+    sy = math.copysign(abs(s_) ** E_SECTION, s_)
+    return np.array([cx * np.interp(x, xs, hw) * D.S, (np.interp(x, xs, yc) + sy * np.interp(x, xs, ry)) * D.S + D.Y_SOL, x * D.S])
+
+
+def vitre(coins, n=14, decal=0.018):
+    """vitre posee sur la coque : quadrilatere (x, angle) -> grille collee a la surface, decollee de 1,8 cm"""
+    (x0, a0), (x1, a1), (x2, a2), (x3, a3) = coins
+    V, F, N_ = [], [], []
+    for i in range(n + 1):
+        for j in range(n + 1):
+            u, w = i / n, j / n
+            x = (1 - u) * (1 - w) * x0 + u * (1 - w) * x1 + u * w * x2 + (1 - u) * w * x3
+            a = (1 - u) * (1 - w) * a0 + u * (1 - w) * a1 + u * w * a2 + (1 - u) * w * a3
+            p = point_coque(x, a)
+            dx = point_coque(x + 0.002, a) - point_coque(x - 0.002, a)
+            da = point_coque(x, a + 0.5) - point_coque(x, a - 0.5)
+            nrm = np.cross(dx, da)
+            nrm /= np.linalg.norm(nrm) + 1e-9
+            if nrm @ (p - np.array([0, (D.Y_SOL + 0.5 * D.S), p[2]])) < 0:
+                nrm = -nrm
+            V.append(p + nrm * decal)
+            N_.append(nrm)
+    for i in range(n):
+        for j in range(n):
+            a_, b_ = i * (n + 1) + j, (i + 1) * (n + 1) + j
+            F += [(a_, b_, b_ + 1), (a_, b_ + 1, a_ + 1)]
+    m = trimesh.Trimesh(np.array(V), np.array(F), process=False)
+    if (m.face_normals * np.array(N_)[m.faces].mean(1)).sum(1).mean() < 0:   # faces tournees vers l'exterieur
+        m.invert()
+    return m
+
+
+def vitres_cockpit():
+    """pare-brise A320 : 2 vitres avant, 2 vitres d'angle, 2 vitres laterales (symetriques)"""
+    ms = []
+    formes = [
+        [(-2.055, 92.5), (-1.995, 92.5), (-1.995, 127), (-2.055, 124)],     # avant
+        [(-1.988, 129), (-1.935, 131), (-1.935, 152), (-1.988, 148)],       # angle
+        [(-1.928, 133), (-1.872, 134), (-1.872, 154), (-1.928, 154)],       # laterale
+    ]
+    for f in formes:
+        ms.append(vitre(f))
+        ms.append(vitre([(x, 180 - a) for x, a in f]))
+    return ms
+
+
 def lin(rgb):
     c = np.asarray(rgb, float) / 255.0
     if not APERCU:
@@ -154,15 +237,20 @@ def escalier():
             pied = trimesh.creation.cylinder(radius=0.03, segment=[p_, p_ - np.array([0, haut, 0])], sections=10)
             P.setdefault("esc_metal", []).append(pied)
     # chassis blanc sous le palier, avec 4 roues et une bande jaune/noire
-    hc = max(0.4, ys - 0.5)
-    ch = trimesh.creation.box((larg + 0.3, hc, 1.6))
-    ch.apply_translation([xp, H_SOL + 0.25 + hc / 2, zp + 0.9])
+    # chassis bas (sous la moitie haute de l'escalier, la ou les marches sont hautes) + 2 pieds sous le palier
+    z_ch = zp + 0.8 + (n - 1) * pas * 0.5
+    ch = trimesh.creation.box((larg + 0.3, 0.42, z_ch - zp))
+    ch.apply_translation([xp, H_SOL + 0.25 + 0.21, (zp + z_ch) / 2])
     P.setdefault("esc_blanc", []).append(ch)
-    bande = trimesh.creation.box((larg + 0.32, 0.12, 1.62))
-    bande.apply_translation([xp, H_SOL + 0.4, zp + 0.9])
+    bande = trimesh.creation.box((larg + 0.32, 0.1, z_ch - zp + 0.02))
+    bande.apply_translation([xp, H_SOL + 0.45, (zp + z_ch) / 2])
     P.setdefault("esc_jaune", []).append(bande)
+    for sx in (-1, 1):
+        pied = trimesh.creation.box((0.14, ys - 0.6, 0.14))
+        pied.apply_translation([xp + sx * (larg / 2 - 0.1), H_SOL + 0.67 + (ys - 0.6) / 2 - 0.05, zp + 0.4])
+        P.setdefault("esc_metal", []).append(pied)
     for dx in (-1, 1):
-        for dz in (0.3, 1.5):
+        for dz in (0.25, z_ch - zp - 0.25):
             w = trimesh.creation.cylinder(radius=0.25, height=0.2, sections=24)
             w.apply_transform(rotation_matrix(np.pi / 2, [0, 0, 1]))
             w.apply_translation([xp + dx * (larg / 2 + 0.05), H_SOL + 0.25, zp + dz])
@@ -177,6 +265,9 @@ def escalier():
 if __name__ == "__main__":
     av = D.parts()
     av.pop("av_logo", None)
+    # pas de hublot colle juste derriere la porte avant (il faisait une tache)
+    av["av_vitre"] = [m for m in av["av_vitre"] if not abs(m.centroid[2] - (-1.40 * D.S)) < 0.25]
+    av["av_vitre"] += vitres_cockpit()
     if not APERCU:
         for m_ in D.MATERIAUX.values():
             D.lineaire(m_)

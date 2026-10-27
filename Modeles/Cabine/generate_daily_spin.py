@@ -33,10 +33,13 @@ CASES = [("5 MIN", "CASH", (238, 48, 56), "horloge"), ("+10%", "MONEY", (255, 13
 
 def icone(nom, t=175):
     """icone carree (RGBA) : reprend les icones du HUD (argent, avion+argent, rebirth) ou en dessine une"""
-    hud = {"argent": "FondArgent", "revenu": "FondRevenu", "rebirth": "FondRebirth"}
+    hud = {"argent": "FondArgent"}
     if nom in hud:
         im = Image.open(os.path.join(RACINE, "Textures", "Interface", hud[nom] + ".png")).convert("RGBA")
-        return im.crop((0, 0, 256, 256)).resize((t, t), Image.LANCZOS)
+        ic = im.crop((0, 0, 208, 256))                          # sans le bout de barre a droite
+        carre = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+        carre.alpha_composite(ic, (24, 0))
+        return carre.resize((t, t), Image.LANCZOS)
     im = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     if nom == "horloge":
@@ -49,10 +52,24 @@ def icone(nom, t=175):
         d.line([(128, 128), (128, 52)], fill=(30, 150, 80), width=16)
         d.line([(128, 128), (182, 150)], fill=(30, 150, 80), width=16)
         d.ellipse([114, 114, 142, 142], fill=CONTOUR)
-    elif nom == "eclair":
-        pts = [(150, 10), (60, 140), (120, 140), (95, 246), (200, 100), (135, 100), (175, 10)]
-        d.polygon(pts, fill=(255, 255, 255), outline=CONTOUR)
-        d.line(pts + [pts[0]], fill=CONTOUR, width=12, joint="curve")
+    elif nom == "eclair":                                        # eclair bien epais
+        pts = [(160, 8), (48, 146), (118, 146), (84, 248), (214, 98), (142, 98), (196, 8)]
+        d.polygon(pts, fill=CONTOUR)
+        interieur = [(163, 30), (75, 134), (138, 134), (113, 214), (190, 112), (122, 112), (178, 30)]
+        d.polygon(interieur, fill=(255, 255, 255))
+    elif nom == "rebirth":                                       # deux fleches en cercle (rose + blanc)
+        for k, (coul, debut) in enumerate((((240, 92, 168), 200), ((255, 255, 255), 20))):
+            d.arc([30, 30, 226, 226], debut, debut + 135, fill=CONTOUR, width=58)
+            d.arc([38, 38, 218, 218], debut + 3, debut + 132, fill=coul, width=42)
+            a = math.radians(debut + 135)
+            cx, cy = 128 + 98 * math.cos(a), 128 + 98 * math.sin(a)
+            tx, ty = -math.sin(a), math.cos(a)
+            rx, ry = math.cos(a), math.sin(a)
+            tri = [(cx + rx * 52, cy + ry * 52), (cx - rx * 52, cy - ry * 52), (cx + tx * 58, cy + ty * 58)]
+            d.polygon(tri, fill=CONTOUR)
+            tri2 = [(cx + rx * 36 + tx * 4, cy + ry * 36 + ty * 4), (cx - rx * 36 + tx * 4, cy - ry * 36 + ty * 4),
+                    (cx + tx * 42, cy + ty * 42)]
+            d.polygon(tri2, fill=coul)
     else:                                                     # couronne du jackpot
         pts = [(28, 200), (28, 70), (80, 130), (128, 40), (176, 130), (228, 70), (228, 200)]
         d.polygon(pts, fill=(255, 205, 110), outline=CONTOUR)

@@ -2,6 +2,9 @@ using { /Fortnite.com/Devices }
 using { /Verse.org/Simulation }
 using { /Verse.org/Random }
 using { /UnrealEngine.com/Temporary/SpatialMath }
+using { /UnrealEngine.com/Temporary/UI }
+using { /Fortnite.com/UI }
+using { /Verse.org/Colors }
 
 # Flight Attendant Tycoon - la DAILY SPIN du lobby : chaque joueur peut tourner la roue UNE FOIS PAR JOUR.
 # Les gains SUIVENT LA PROGRESSION du joueur (un debutant et un milliardaire gagnent tous les deux un vrai coup
@@ -46,7 +49,10 @@ daily_spin_device := class(creative_device):
     @editable Roue : creative_prop = creative_prop{}
     @editable Bouton : button_device = button_device{}
     @editable Avions : []avion_tycoon = array{}
+    # (facultatif) un Message ATH en plus du bandeau a l'ecran
     @editable Message : ?hud_message_device = false
+    # Distance (cm) a laquelle le bandeau de la roue apparait sur l'ecran du joueur.
+    @editable DistanceBandeau : float = 900.0
     # Les 8 cases, dans l'ordre de la roue (case 0 en haut, puis sens des aiguilles d'une montre).
     @editable Cases : []case_roue = array:
         case_roue{Nom := "5 MIN", Type := type_gain.MinutesDeRevenu, Valeur := 5.0, Chance := 27}
@@ -73,18 +79,102 @@ daily_spin_device := class(creative_device):
     var EnCours : logic = false
     var Repos : transform = transform{}
     var AngleActuel : float = 0.0
+    # bandeau a l'ecran de chaque joueur proche de la roue
+    var Bandeaux : [player]canvas = map{}
+    var TextesBandeau : [player]text_block = map{}
+    var Annonces : [player]string = map{}
+    var FinAnnonces : [player]float = map{}
 
     OnBegin<override>()<suspends>:void =
         set Repos = Roue.GetTransform()
         Bouton.InteractedWithEvent.Subscribe(OnBouton)
+        spawn{ BoucleBandeaux() }
 
     OnBouton(Agent:agent):void =
         spawn{ Tourner(Agent) }
 
+    # Message important (resultat, refus) : affiche 5 s dans le bandeau du joueur (+ Message ATH s'il y en a un).
     Afficher(Agent:agent, Texte:string):void =
+        if (P := player[Agent]):
+            if (set Annonces[P] = Texte, set FinAnnonces[P] = GetSecondsSinceEpoch() + 5.0) {}
+            MontrerBandeau(P, Texte)
         if (M := Message?):
             M.SetText(Msg(Texte))
             M.Show(Agent)
+
+    # ---------- bandeau a l'ecran (quand on est pres de la roue) ----------
+    BoucleBandeaux()<suspends>:void =
+        loop:
+            Sleep(0.5)
+            for (P : GetPlayspace().GetPlayers()):
+                Proche := if (Perso := P.GetFortCharacter[], Distance(Perso.GetTransform().Translation, Repos.Translation) < DistanceBandeau) then true else false
+                if (Proche?):
+                    MontrerBandeau(P, TexteEtat(P))
+                else:
+                    CacherBandeau(P)
+
+    # Ce que la roue dit a ce joueur en ce moment.
+    TexteEtat(P:player):string =
+        Maintenant := GetSecondsSinceEpoch()
+        if (Fin := FinAnnonces[P], Maintenant < Fin, A := Annonces[P]):
+            A
+        else if (EnCours?):
+            "SPINNING..."
+        else:
+            var Sien : ?avion_tycoon = false
+            for (Av : Avions, J := Av.Proprio?, J = P) { set Sien = option{Av} }
+            if (not Sien?):
+                "DAILY SPIN : CLAIM A PLANE TO UNLOCK"
+            else if (Av := Sien?, Av.VolsTermines < VolsRequis):
+                "DAILY SPIN : COMPLETE {VolsRequis} FLIGHT TO UNLOCK"
+            else:
+                Dernier := if (S := DailySpinSauvegarde[P]) then S.DernierTour else 0.0
+                Reste := AttenteHeures * 3600.0 - (Maintenant - Dernier)
+                if (not TestSansAttente?, Reste > 0.0):
+                    "NEXT DAILY SPIN IN {Duree(Reste)}"
+                else:
+                    "DAILY SPIN READY !  PRESS E TO SPIN"
+
+    Duree(Secondes:float):string =
+        H := if (V := Floor[Secondes / 3600.0]) then V else 0
+        Mi := if (V := Floor[(Secondes - H * 3600.0) / 60.0]) then V else 0
+        Se := if (V := Floor[Secondes - H * 3600.0 - Mi * 60.0]) then V else 0
+        "{H}H {Mi}MIN {Se}S"
+
+    MontrerBandeau(P:player, Texte:string):void =
+        if (T := TextesBandeau[P]):
+            T.SetText(Msg(Texte))
+        else if (UI := GetPlayerUI[P]):
+            T := text_block{DefaultTextColor := NamedColors.White, DefaultShadowColor := NamedColors.Black,
+                            DefaultShadowOpacity := 0.9, DefaultShadowOffset := option{vector2{X := 2.0, Y := 2.0}}}
+            T.SetText(Msg(Texte))
+            Fond := color_block{DefaultColor := MakeColorFromHex("16203A"), DefaultOpacity := 0.88}
+            Liseret := color_block{DefaultColor := MakeColorFromHex("F05CA8"), DefaultOpacity := 1.0}
+            C := canvas:
+                Slots := array:
+                    canvas_slot:
+                        Anchors := anchors{Minimum := vector2{X := 0.5, Y := 0.80}, Maximum := vector2{X := 0.5, Y := 0.80}}
+                        Alignment := vector2{X := 0.5, Y := 0.5}
+                        SizeToContent := true
+                        Widget := overlay:
+                            Slots := array:
+                                overlay_slot{Widget := Liseret, HorizontalAlignment := horizontal_alignment.Fill, VerticalAlignment := vertical_alignment.Fill}
+                                overlay_slot{Widget := Fond, HorizontalAlignment := horizontal_alignment.Fill, VerticalAlignment := vertical_alignment.Fill,
+                                             Padding := margin{Left := 4.0, Right := 4.0, Top := 4.0, Bottom := 4.0}}
+                                overlay_slot{Widget := T, HorizontalAlignment := horizontal_alignment.Center, VerticalAlignment := vertical_alignment.Center,
+                                             Padding := margin{Left := 34.0, Right := 34.0, Top := 16.0, Bottom := 16.0}}
+            UI.AddWidget(C)
+            if (set Bandeaux[P] = C, set TextesBandeau[P] = T) {}
+
+    CacherBandeau(P:player):void =
+        if (C := Bandeaux[P], UI := GetPlayerUI[P]):
+            UI.RemoveWidget(C)
+        var B : [player]canvas = map{}
+        for (Cle -> V : Bandeaux, Cle <> P) { if (set B[Cle] = V) {} }
+        set Bandeaux = B
+        var Tx : [player]text_block = map{}
+        for (Cle -> V : TextesBandeau, Cle <> P) { if (set Tx[Cle] = V) {} }
+        set TextesBandeau = Tx
 
     Tirage():int =
         var Total : int = 0

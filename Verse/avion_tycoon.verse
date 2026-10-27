@@ -37,7 +37,7 @@ reglages_claim := class<concrete>:
     # Un petit prop repère dans l'avion (caché en jeu) :
     # sa position = où on arrive, sa rotation = où on regarde en arrivant.
     @editable Arrivee:creative_prop = creative_prop{}
-    # LA PARCELLE qui apparait au claim (le rond, l'avion, l'escalier : Parcelle_Avion.glb). Cachee avant.
+    # CE QUI APPARAIT au claim (Avion_Claim.glb : Claim_Chemin, Claim_Socle, Claim_Avion, Claim_Escalier). Cache avant.
     @editable Parcelle:[]creative_prop = array{}
     # La plaque ENTER au pied de l'escalier : apres le claim, c'est ELLE qui fait entrer dans l'avion.
     @editable PlaqueEntrer:?creative_prop = false

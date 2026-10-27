@@ -25,9 +25,42 @@ PBR = trimesh.visual.material.PBRMaterial
 CONTOUR = (22, 27, 48)
 
 # (texte, couleur de la case) -- meme ordre que Gains dans daily_spin.verse
-CASES = [("5 MIN", "CASH", (40, 185, 100)), ("+10%", "MONEY", (60, 140, 240)), ("x2", "10 MIN", (140, 90, 220)),
-         ("15 MIN", "CASH", (40, 185, 100)), ("REBIRTH", "+1", (240, 92, 168)), ("1 HOUR", "CASH", (60, 140, 240)),
-         ("x3", "5 MIN", (140, 90, 220)), ("JACKPOT", "3 HOURS", (22, 27, 48))]
+CASES = [("5 MIN", "CASH", (40, 185, 100), "horloge"), ("+10%", "MONEY", (60, 140, 240), "argent"),
+         ("x2", "10 MIN", (140, 90, 220), "eclair"), ("15 MIN", "CASH", (40, 185, 100), "horloge"),
+         ("REBIRTH", "+1", (240, 92, 168), "rebirth"), ("1 HOUR", "CASH", (60, 140, 240), "horloge"),
+         ("x3", "5 MIN", (140, 90, 220), "eclair"), ("JACKPOT", "3 HOURS", (22, 27, 48), "couronne")]
+
+
+def icone(nom, t=175):
+    """icone carree (RGBA) : reprend les icones du HUD (argent, avion+argent, rebirth) ou en dessine une"""
+    hud = {"argent": "FondArgent", "revenu": "FondRevenu", "rebirth": "FondRebirth"}
+    if nom in hud:
+        im = Image.open(os.path.join(RACINE, "Textures", "Interface", hud[nom] + ".png")).convert("RGBA")
+        return im.crop((0, 0, 256, 256)).resize((t, t), Image.LANCZOS)
+    im = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    if nom == "horloge":
+        d.ellipse([14, 14, 242, 242], fill=(255, 255, 255), outline=CONTOUR, width=16)
+        for k in range(12):
+            a = math.radians(k * 30)
+            r0 = 92 if k % 3 else 80
+            d.line([(128 + math.cos(a) * r0, 128 + math.sin(a) * r0), (128 + math.cos(a) * 104, 128 + math.sin(a) * 104)],
+                   fill=CONTOUR, width=8 if k % 3 == 0 else 5)
+        d.line([(128, 128), (128, 52)], fill=(30, 150, 80), width=16)
+        d.line([(128, 128), (182, 150)], fill=(30, 150, 80), width=16)
+        d.ellipse([114, 114, 142, 142], fill=CONTOUR)
+    elif nom == "eclair":
+        pts = [(150, 10), (60, 140), (120, 140), (95, 246), (200, 100), (135, 100), (175, 10)]
+        d.polygon(pts, fill=(255, 255, 255), outline=CONTOUR)
+        d.line(pts + [pts[0]], fill=CONTOUR, width=12, joint="curve")
+    else:                                                     # couronne du jackpot
+        pts = [(28, 200), (28, 70), (80, 130), (128, 40), (176, 130), (228, 70), (228, 200)]
+        d.polygon(pts, fill=(255, 205, 110), outline=CONTOUR)
+        d.line(pts + [pts[0]], fill=CONTOUR, width=12, joint="curve")
+        d.rectangle([28, 200, 228, 232], fill=(255, 205, 110), outline=CONTOUR, width=10)
+        for x in (80, 128, 176):
+            d.ellipse([x - 13, 155, x + 13, 181], fill=(240, 92, 168), outline=CONTOUR, width=5)
+    return im.resize((t, t), Image.LANCZOS)
 R_ROUE = 2.0
 CENTRE_Y = 3.0
 
@@ -54,7 +87,7 @@ def tex_roue(n=2048):
     c = n / 2
     N = len(CASES)
     pas = 360 / N
-    for i, (txt, sous, couleur) in enumerate(CASES):
+    for i, (txt, sous, couleur, ico) in enumerate(CASES):
         # PIL : angles en degres, 0 = droite, sens horaire ; case i centree a "haut + i*pas" (sens horaire)
         a0 = -90 + i * pas - pas / 2
         d.pieslice([8, 8, n - 8, n - 8], a0, a0 + pas, fill=couleur + (255,), outline=(255, 255, 255, 255), width=14)
@@ -66,8 +99,8 @@ def tex_roue(n=2048):
         a = math.radians(-90 + i * pas - pas / 2)
         d.line([(c, c), (c + math.cos(a) * (c - 8), c + math.sin(a) * (c - 8))], fill=(255, 255, 255, 255), width=16)
     # textes radiaux : gros mot + petite ligne en dessous
-    for i, (txt, sous, couleur) in enumerate(CASES):
-        taille = 150 if len(txt) <= 3 else (118 if len(txt) <= 5 else (100 if len(txt) <= 6 else 92))
+    for i, (txt, sous, couleur, ico) in enumerate(CASES):
+        taille = 140 if len(txt) <= 3 else (108 if len(txt) <= 5 else (90 if len(txt) <= 6 else 80))
         couche = Image.new("RGBA", (900, 320), (0, 0, 0, 0))
         dc = ImageDraw.Draw(couche)
         encre = (255, 214, 120) if txt == "JACKPOT" else (255, 255, 255)
@@ -78,9 +111,14 @@ def tex_roue(n=2048):
         if 90 < (ang % 360) < 270:                              # moitie gauche : on retourne pour lire a l'endroit
             rot += 180
         couche = couche.rotate(rot, expand=True, resample=Image.BICUBIC)
-        rx = c + math.cos(math.radians(ang)) * c * 0.58
-        ry = c + math.sin(math.radians(ang)) * c * 0.58
+        rx = c + math.cos(math.radians(ang)) * c * 0.47
+        ry = c + math.sin(math.radians(ang)) * c * 0.47
         img.alpha_composite(couche, (int(rx - couche.width / 2), int(ry - couche.height / 2)))
+        # icone pres du bord, droite (tournee comme la case)
+        ic = icone(ico).rotate(-(ang + 90), expand=True, resample=Image.BICUBIC)
+        ix = c + math.cos(math.radians(ang)) * c * 0.79
+        iy = c + math.sin(math.radians(ang)) * c * 0.79
+        img.alpha_composite(ic, (int(ix - ic.width / 2), int(iy - ic.height / 2)))
     return img
 
 

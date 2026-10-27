@@ -49,14 +49,14 @@ daily_spin_device := class(creative_device):
     @editable Message : ?hud_message_device = false
     # Les 8 cases, dans l'ordre de la roue (case 0 en haut, puis sens des aiguilles d'une montre).
     @editable Cases : []case_roue = array:
-        case_roue{Nom := "5 MIN", Type := type_gain.MinutesDeRevenu, Valeur := 5.0, Chance := 26}
+        case_roue{Nom := "5 MIN", Type := type_gain.MinutesDeRevenu, Valeur := 5.0, Chance := 27}
         case_roue{Nom := "+10%", Type := type_gain.PourcentArgent, Valeur := 10.0, Chance := 18}
         case_roue{Nom := "x2 10 MIN", Type := type_gain.Boost, Valeur := 2.0, DureeMinutes := 10.0, Chance := 14}
         case_roue{Nom := "15 MIN", Type := type_gain.MinutesDeRevenu, Valeur := 15.0, Chance := 16}
-        case_roue{Nom := "REBIRTH", Type := type_gain.Rebirth, Valeur := 1.0, Chance := 4}
+        case_roue{Nom := "REBIRTH", Type := type_gain.Rebirth, Valeur := 1.0, Chance := 2}
         case_roue{Nom := "1 HOUR", Type := type_gain.MinutesDeRevenu, Valeur := 60.0, Chance := 10}
         case_roue{Nom := "x3 5 MIN", Type := type_gain.Boost, Valeur := 3.0, DureeMinutes := 5.0, Chance := 8}
-        case_roue{Nom := "JACKPOT", Type := type_gain.MinutesDeRevenu, Valeur := 180.0, Chance := 4}
+        case_roue{Nom := "JACKPOT", Type := type_gain.MinutesDeRevenu, Valeur := 180.0, Chance := 5}
     # Gain minimum (pour les debutants qui ne gagnent encore presque rien).
     @editable GainMinimum : int = 1000
     @editable AttenteHeures : float = 24.0

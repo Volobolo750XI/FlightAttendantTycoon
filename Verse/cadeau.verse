@@ -155,7 +155,8 @@ cadeau_device := class(creative_device):
                 if (Pret?):
                     set Prets += 1
                     set Slots += array:
-                        Bloc(Image(InterfaceCadeau.Bouton_Open, 100.0, 50.0), X + 20.0, Y + 86.0, 100.0, 50.0, 5)
+                        # image AU-DESSUS de la zone de clic : sinon le voile gris du bouton Fortnite la ternit
+                        Bloc(Image(InterfaceCadeau.Bouton_Open, 100.0, 50.0), X + 20.0, Y + 86.0, 100.0, 50.0, 31)
                         Clic(P, 1, N, X + 24.0, Y + 90.0, 92.0, 36.0)
             T := canvas{Slots := Slots}
             UI.AddWidget(T, player_ui_slot{InputMode := ui_input_mode.All})

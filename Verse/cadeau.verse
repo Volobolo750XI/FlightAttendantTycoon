@@ -3,6 +3,7 @@ using { /Verse.org/Simulation }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 using { /UnrealEngine.com/Temporary/UI }
 using { /Fortnite.com/UI }
+using { /Verse.org/Assets }
 
 # Flight Attendant Tycoon - les CADEAUX du lobby (Playtime Rewards), A L'INFINI.
 # On interagit avec le cadeau 3D : une fenetre cartoon FREE GIFTS montre les 21 prochains cadeaux
@@ -110,7 +111,8 @@ cadeau_device := class(creative_device):
         Retirer(P)
         if (UI := GetPlayerUI[P]):
             N := Numero(P)
-            Pret := if (Restant(P) <= 0.0) then true else false
+            R := Restant(P)
+            Pret := if (R <= 0.0) then true else false
             var Slots : []canvas_slot = array:
                 # images en puissance de 2 avec des marges transparentes autour du dessin
                 Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 2048.0, 1024.0), -64.0, 18.0, 2048.0, 1024.0, 1)
@@ -170,9 +172,10 @@ cadeau_device := class(creative_device):
 
     # Action 0 : fermer ; 1 : ouvrir le cadeau pret
     Agir(P:player, Action:int):void =
+        R := Restant(P)
         if (Action = 0):
             Retirer(P)
-        else if (Restant(P) <= 0.0, not Ouvertures[P]?):
+        else if (R <= 0.0, not Ouvertures[P]?):
             if (set Ouvertures[P] = true) {}
             spawn{ OuvrirCadeau(P) }
 
@@ -187,7 +190,8 @@ cadeau_device := class(creative_device):
         # le cadeau suivant commence a attendre
         if (set Numeros[P] = N + 1, set Debuts[P] = GetSecondsSinceEpoch()) {}
         if (T := Toiles[P]):
-            for (Slot : Ecriture.Ecrire("+${Affiche}!", "FDE047", text_justification.Center, 260.0, 440.0, 1400.0, 180.0, 20)):
+            Gros := Ecriture.Ecrire("+${Affiche}!", "FDE047", text_justification.Center, 260.0, 440.0, 1400.0, 180.0, 20)
+            for (Slot : Gros):
                 T.AddWidget(Slot)
         spawn{ SauterCouvercle() }
         Sleep(1.5)

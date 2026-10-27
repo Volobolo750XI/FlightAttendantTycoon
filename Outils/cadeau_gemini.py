@@ -30,6 +30,28 @@ def detourer(chemin):
     return im
 
 
+def sans_pastille(c):
+    """efface la pastille sombre du bas de la carte (le temps s'ecrit directement sur la carte)"""
+    a = np.asarray(c).copy()
+    h, w = a.shape[:2]
+    rgb = a[..., :3].astype(int)
+    sombre = (rgb.sum(2) < 170) & (a[..., 3] > 200)
+    zone = np.zeros_like(sombre)
+    zone[int(h * 0.68):int(h * 0.94), int(w * 0.18):int(w * 0.82)] = True
+    masque = ndimage.binary_dilation(sombre & zone, iterations=3) & zone
+    # chaque colonne : on remplace la pastille par un degrade entre le pixel juste au-dessus et juste en dessous
+    for x in range(w):
+        ys = np.where(masque[:, x])[0]
+        if len(ys) == 0:
+            continue
+        y0, y1 = ys.min() - 1, ys.max() + 1
+        haut, bas = a[y0, x, :3].astype(float), a[min(y1, h - 1), x, :3].astype(float)
+        for y in range(y0 + 1, y1):
+            t = (y - y0) / (y1 - y0)
+            a[y, x, :3] = (haut * (1 - t) + bas * t).astype(np.uint8)
+    return Image.fromarray(a, "RGBA")
+
+
 def boite(im, seuil=200):
     al = np.asarray(im.getchannel("A"))
     ys, xs = np.where(al > seuil)
@@ -91,5 +113,6 @@ if __name__ == "__main__":
             halo.putalpha(al)
             halo.alpha_composite(c)
             c = halo
+        c = sans_pastille(c)
         c.resize((300, 394), Image.LANCZOS).save(os.path.join(DOS, nom + ".png"))
     print("ok", L, y1 - y0)

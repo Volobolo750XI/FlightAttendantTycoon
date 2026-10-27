@@ -226,6 +226,17 @@ def tambour():
 
 T_OUT = os.path.join(os.path.dirname(HERE), "Lobby", "Tambour_Chiffres.glb")
 tambour().export(T_OUT)
+# un seul objet (faces + flancs), pivot au centre du tambour (sur son axe de rotation)
+b = open(T_OUT, "rb").read()
+lj = struct.unpack("<I", b[12:16])[0]
+js = json.loads(b[20:20 + lj])
+rest = b[20 + lj:]
+prims = [pr for nd in js["nodes"] if "mesh" in nd for pr in js["meshes"][nd["mesh"]]["primitives"]]
+js["meshes"], js["nodes"] = [{"name": "Tambour_Chiffres", "primitives": prims}], [{"name": "Tambour_Chiffres", "mesh": 0}]
+js["scenes"], js["scene"] = [{"nodes": [0]}], 0
+s = json.dumps(js, separators=(",", ":")).encode()
+s += b" " * ((4 - len(s) % 4) % 4)
+open(T_OUT, "wb").write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(s) + len(rest)) + struct.pack("<II", len(s), 0x4E4F534A) + s + rest)
 print(T_OUT, round(os.path.getsize(T_OUT) / 1e3), "Ko")
 print("Centres des tambours (metres, repere du podium ; x vers la GAUCHE vue de face, y haut, z profondeur) :")
 for place, i, x, y in TAMBOURS:

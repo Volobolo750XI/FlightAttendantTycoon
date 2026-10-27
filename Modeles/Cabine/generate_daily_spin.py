@@ -336,3 +336,48 @@ if __name__ == "__main__":
             T, g = b.graph[n]
             a.add_geometry(b.geometry[g].copy().apply_transform(translation_matrix([0, CENTRE_Y, 0]) @ T))
         a.export(os.path.join(dossier, "dailyspin_apercu.glb"))
+
+
+def fichier_unique(chemin):
+    """Daily_Spin.glb : 2 objets dans 1 fichier. Le support (origine au sol) et la roue, dont le pivot reste
+    au centre de la roue (noeud deplace de 3 m vers le haut), pour qu'elle tourne sur elle-meme."""
+    import json
+    import struct
+    sc = trimesh.Scene()
+    for obj, P, T in (("Support_DailySpin", support(), np.eye(4)), ("Roue_DailySpin", roue(), translation_matrix([0, CENTRE_Y, 0]))):
+        for k, ms in P.items():
+            m = trimesh.util.concatenate(ms)
+            if k in ("roue_face", "moyeu", "panneau"):
+                m.visual = trimesh.visual.TextureVisuals(uv=np.vstack([x.visual.uv for x in ms]), material=M[k])
+            else:
+                m.visual = trimesh.visual.TextureVisuals(material=M[k])
+            sc.add_geometry(m, node_name=f"{obj}__{k}", geom_name=f"{obj}__{k}", transform=T)
+    sc.export(chemin)
+    b = open(chemin, "rb").read()
+    lj = struct.unpack("<I", b[12:16])[0]
+    js = json.loads(b[20:20 + lj])
+    rest = b[20 + lj:]
+    meshes, nodes, idx = [], [], {}
+    for nd in js["nodes"]:
+        if "mesh" not in nd:
+            continue
+        o = nd["name"].split("__")[0]
+        if o not in idx:
+            idx[o] = len(meshes)
+            meshes.append({"name": o, "primitives": []})
+            n2 = {"name": o, "mesh": idx[o]}
+            for cle in ("matrix", "translation", "rotation", "scale"):
+                if cle in nd:
+                    n2[cle] = nd[cle]
+            nodes.append(n2)
+        meshes[idx[o]]["primitives"] += js["meshes"][nd["mesh"]]["primitives"]
+    js["meshes"], js["nodes"] = meshes, nodes
+    js["scenes"], js["scene"] = [{"nodes": list(range(len(nodes)))}], 0
+    s = json.dumps(js, separators=(",", ":")).encode()
+    s += b" " * ((4 - len(s) % 4) % 4)
+    open(chemin, "wb").write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(s) + len(rest)) + struct.pack("<II", len(s), 0x4E4F534A) + s + rest)
+    print(chemin, round(os.path.getsize(chemin) / 1e3), "Ko", [(n["name"], n.get("matrix", n.get("translation"))) for n in nodes])
+
+
+if __name__ == "__main__" and not APERCU:
+    fichier_unique(os.path.join(LOBBY, "Daily_Spin.glb"))

@@ -20,7 +20,7 @@ using { /Verse.org/Assets }
 #   - pose la boite, puis le couvercle dessus ;
 #   - pose un appareil "Bouton" (Button) devant le cadeau (texte d'interaction : GIFTS) ;
 #   - pose ce device, et dans ses Details : Bouton, Couvercle, Avions (tes avion_tycoon).
-#   TestRapide : les delais sont en SECONDES au lieu de minutes (pour tester). A DECOCHER avant de publier !
+#   TestRapide (decoche par defaut) : les delais en SECONDES au lieu de minutes, seulement pour tester vite.
 
 clic_cadeau := class:
     Cadeau:cadeau_device
@@ -37,7 +37,7 @@ cadeau_device := class(creative_device):
     @editable Delais : []float = array{5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0}
     @editable PartDuGain : float = 0.5
     @editable GainMinimum : int = 1000
-    @editable TestRapide : logic = true
+    @editable TestRapide : logic = false
 
     Ecriture:ecriture_cartoon = ecriture_cartoon{}
 

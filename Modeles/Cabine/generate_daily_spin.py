@@ -2,7 +2,7 @@
 - Roue_DailySpin.glb    : la roue (8 cases de gains), pivot AU CENTRE de la roue (c'est elle qui tourne)
 - Support_DailySpin.glb : le pied, l'axe, la fleche (en haut) et le panneau "DAILY SPIN"
 La case 0 est en haut (sous la fleche) ; les cases suivantes dans le sens des aiguilles d'une montre (vue de face).
-L'ordre et les textes doivent correspondre a la liste Gains de Verse/daily_spin.verse.
+L'ordre et les textes doivent correspondre a la liste Cases de Verse/daily_spin.verse.
 Repere : face avant vers -Z, Y en haut. Le centre de la roue est a (0, 3, 0) sur le support.
 Usage : python3 generate_daily_spin.py [--apercu]
 """
@@ -25,8 +25,9 @@ PBR = trimesh.visual.material.PBRMaterial
 CONTOUR = (22, 27, 48)
 
 # (texte, couleur de la case) -- meme ordre que Gains dans daily_spin.verse
-CASES = [("$500", (40, 185, 100)), ("$1K", (60, 140, 240)), ("$2.5K", (240, 92, 168)), ("$5K", (140, 90, 220)),
-         ("$10K", (40, 185, 100)), ("$25K", (60, 140, 240)), ("$50K", (240, 92, 168)), ("JACKPOT", (22, 27, 48))]
+CASES = [("5 MIN", "CASH", (40, 185, 100)), ("+10%", "MONEY", (60, 140, 240)), ("x2", "10 MIN", (140, 90, 220)),
+         ("15 MIN", "CASH", (40, 185, 100)), ("REBIRTH", "+1", (240, 92, 168)), ("1 HOUR", "CASH", (60, 140, 240)),
+         ("x3", "5 MIN", (140, 90, 220)), ("JACKPOT", "3 HOURS", (22, 27, 48))]
 R_ROUE = 2.0
 CENTRE_Y = 3.0
 
@@ -53,7 +54,7 @@ def tex_roue(n=2048):
     c = n / 2
     N = len(CASES)
     pas = 360 / N
-    for i, (txt, couleur) in enumerate(CASES):
+    for i, (txt, sous, couleur) in enumerate(CASES):
         # PIL : angles en degres, 0 = droite, sens horaire ; case i centree a "haut + i*pas" (sens horaire)
         a0 = -90 + i * pas - pas / 2
         d.pieslice([8, 8, n - 8, n - 8], a0, a0 + pas, fill=couleur + (255,), outline=(255, 255, 255, 255), width=14)
@@ -64,21 +65,21 @@ def tex_roue(n=2048):
     for i in range(N):                                          # rayons blancs entre les cases
         a = math.radians(-90 + i * pas - pas / 2)
         d.line([(c, c), (c + math.cos(a) * (c - 8), c + math.sin(a) * (c - 8))], fill=(255, 255, 255, 255), width=16)
-    # textes radiaux (lus depuis le centre vers le bord)
-    for i, (txt, couleur) in enumerate(CASES):
-        taille = 150 if len(txt) <= 4 else (128 if len(txt) <= 5 else 104)
-        f = police(taille)
-        couche = Image.new("RGBA", (900, 260), (0, 0, 0, 0))
+    # textes radiaux : gros mot + petite ligne en dessous
+    for i, (txt, sous, couleur) in enumerate(CASES):
+        taille = 150 if len(txt) <= 3 else (118 if len(txt) <= 5 else (100 if len(txt) <= 6 else 92))
+        couche = Image.new("RGBA", (900, 320), (0, 0, 0, 0))
         dc = ImageDraw.Draw(couche)
         encre = (255, 214, 120) if txt == "JACKPOT" else (255, 255, 255)
-        dc.text((450, 130), txt, font=f, fill=encre, anchor="mm", stroke_width=14, stroke_fill=CONTOUR)
+        dc.text((450, 125), txt, font=police(taille), fill=encre, anchor="mm", stroke_width=14, stroke_fill=CONTOUR)
+        dc.text((450, 245), sous, font=police(62), fill=(255, 255, 255), anchor="mm", stroke_width=9, stroke_fill=CONTOUR)
         ang = -90 + i * pas                                      # direction de la case (PIL, sens horaire)
         rot = -ang
         if 90 < (ang % 360) < 270:                              # moitie gauche : on retourne pour lire a l'endroit
             rot += 180
         couche = couche.rotate(rot, expand=True, resample=Image.BICUBIC)
-        rx = c + math.cos(math.radians(ang)) * c * 0.60
-        ry = c + math.sin(math.radians(ang)) * c * 0.60
+        rx = c + math.cos(math.radians(ang)) * c * 0.58
+        ry = c + math.sin(math.radians(ang)) * c * 0.58
         img.alpha_composite(couche, (int(rx - couche.width / 2), int(ry - couche.height / 2)))
     return img
 

@@ -115,6 +115,8 @@ avion_tycoon := class(creative_device):
     var MultiRepas:float = 1.0
     var MultiPatience:float = 1.0
     var MultiRebirth:float = 1.0
+    # Boost temporaire des gains (roue Daily Spin : x2, x3...). 1.0 = pas de boost.
+    var BoostGains:float = 1.0
     var UICree:logic = false
     # Le device passagers de cet avion (il s'inscrit tout seul au démarrage).
     var Passagers:?passagers = false
@@ -388,7 +390,9 @@ avion_tycoon := class(creative_device):
     # ---------- l'argent qui rentre et qui sort ----------
     # Cat : 0 billets (argent par seconde du vol : pas d'animation), 1 commandes servies,
     # 2 missions, 3 fraudeurs attrapés.
-    Gagner(Montant:int, Cat:int):void =
+    Gagner(MontantBrut:int, Cat:int):void =
+        # le boost (x2, x3) s'applique aux billets du vol et aux commandes servies
+        Montant := if (Cat <= 1, BoostGains > 1.0, V := Floor[MontantBrut * BoostGains]) then V else MontantBrut
         if (Montant > 0):
             # l'argent du vol va dans la borne MONEY (s'il y en a une), le reste directement
             if (Cat = 0, PlaqueATM?):
@@ -407,6 +411,21 @@ avion_tycoon := class(creative_device):
             if (Cat > 0):
                 if (Son := SonArgent?) { Son.Play() }
                 Popup("+${Abreger(Montant)}", "86EFAC")
+
+    # ---------- Récompenses de la Daily Spin ----------
+    # Revenu par seconde de référence (même au sol) : le plus grand entre le vol en cours et les achats.
+    RevenuDeBase():int = Max(RevenuParSeconde, RevenuAchats)
+
+    DonnerRebirth():void =
+        set Rebirths += 1
+        MettreAJourUI()
+        Popup("+1 REBIRTH", "F9A8D4")
+
+    ActiverBoost(Mult:float, Secondes:float, Nom:string)<suspends>:void =
+        set BoostGains = Mult
+        Popup("BOOST {Nom} !", "C4B5FD")
+        Sleep(Secondes)
+        set BoostGains = 1.0
 
     # Une perte (faux billet laissé passer...) : l'argent ne descend pas sous 0.
     Perdre(Montant:int, Texte:string):void =

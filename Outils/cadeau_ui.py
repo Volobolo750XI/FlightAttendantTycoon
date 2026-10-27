@@ -205,19 +205,21 @@ if __name__ == "__main__":
     ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((80, 80), Image.LANCZOS)
     bo = Image.open(os.path.join(SORTIE, "Bouton_Open.png")).resize((100, 50), Image.LANCZOS)
     d = ImageDraw.Draw(ap)
-    delais = [2, 5, 10, 15, 20, 30, 45, 60]
+    delais = [5, 10, 15, 20, 30, 45, 60]     # apercu : le joueur est la depuis 7 min
     cumul = 0
+    ecoule = 7
     for k in range(21):
         x, y = 398 + (k % 7) * 164, 372 + (k // 7) * 166
         nom = "Carte_Prete.png" if k == 0 else f"Carte_{k % 6 + 1}.png"
         ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((140, 140), Image.LANCZOS), (x, y))
         ap.alpha_composite(ic, (x + 30, y + 30))
         d.text((x + 70, y + 24), f"GIFT {k + 1}", font=f(17), fill="white", anchor="mm", stroke_width=4, stroke_fill=NUIT)
-        if k == 0:
+        cumul += delais[min(k, 6)]
+        reste = cumul - ecoule
+        if reste <= 0:
             ap.alpha_composite(bo, (x + 20, y + 86))
         else:
-            cumul += delais[min(k, 7)]
-            t = f"{cumul // 60}:{cumul % 60:02d}:00" if cumul >= 60 else f"{cumul:02d}:00"
+            t = f"{reste // 60}:{reste % 60:02d}:00" if reste >= 60 else f"{reste:02d}:00"
             d.text((x + 70, y + 112), t, font=f(20), fill="white", anchor="mm", stroke_width=4, stroke_fill=NUIT)
     ap.convert("RGB").save(os.path.join(os.path.dirname(ICI), "Modeles", "Lobby", "apercu_interface_cadeau.png"))
     print("ok", SORTIE)

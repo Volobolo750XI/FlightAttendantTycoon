@@ -1,4 +1,5 @@
 using { /Fortnite.com/Devices }
+using { /Fortnite.com/Characters }
 using { /Verse.org/Simulation }
 using { /Verse.org/Random }
 using { /UnrealEngine.com/Temporary/SpatialMath }

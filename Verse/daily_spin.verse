@@ -52,8 +52,10 @@ daily_spin_device := class(creative_device):
     @editable Avions : []avion_tycoon = array{}
     # (facultatif) un Message ATH en plus du bandeau a l'ecran
     @editable Message : ?hud_message_device = false
-    # Distance (cm) a laquelle le bandeau de la roue apparait sur l'ecran du joueur.
-    @editable DistanceBandeau : float = 900.0
+    # Le bandeau apparait quand le joueur VISE la roue, a moins de DistanceBandeau (cm).
+    @editable DistanceBandeau : float = 1500.0
+    # Taille de la zone a viser autour du centre de la roue (cm) : ~ le rayon de la roue.
+    @editable RayonVisee : float = 240.0
     # Les 8 cases, dans l'ordre de la roue (case 0 en haut, puis sens des aiguilles d'une montre).
     @editable Cases : []case_roue = array:
         case_roue{Nom := "5 MIN", Type := type_gain.MinutesDeRevenu, Valeur := 5.0, Chance := 27}
@@ -106,13 +108,23 @@ daily_spin_device := class(creative_device):
     # ---------- bandeau a l'ecran (quand on est pres de la roue) ----------
     BoucleBandeaux()<suspends>:void =
         loop:
-            Sleep(0.5)
+            Sleep(0.15)
             for (P : GetPlayspace().GetPlayers()):
-                Proche := if (Perso := P.GetFortCharacter[], Distance(Perso.GetTransform().Translation, Repos.Translation) < DistanceBandeau) then true else false
-                if (Proche?):
+                if (Perso := P.GetFortCharacter[], Vise[Perso]):
                     MontrerBandeau(P, TexteEtat(P))
                 else:
                     CacherBandeau(P)
+
+    # Le joueur est assez pres ET regarde la roue (sa ligne de visee passe a moins de RayonVisee du centre).
+    Vise(Perso:fort_character)<transacts><decides>:void =
+        Oeil := Perso.GetViewLocation()
+        Devant := Perso.GetViewRotation().GetLocalForward()
+        VersRoue := Repos.Translation - Oeil
+        Distance(Oeil, Repos.Translation) < DistanceBandeau
+        Profondeur := DotProduct(VersRoue, Devant)
+        Profondeur > 0.0
+        Ecart := VersRoue - Devant * Profondeur
+        Ecart.Length() < RayonVisee
 
     # Ce que la roue dit a ce joueur en ce moment.
     TexteEtat(P:player):string =

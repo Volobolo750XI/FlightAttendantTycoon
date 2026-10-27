@@ -143,33 +143,28 @@ def icone_cadeau():
 
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
-    for vieux in ("Fenetre_Cadeau", "Barre_Fond", "Barre_Plein", "Bouton_Open", "Bouton_Attente"):
-        if os.path.exists(os.path.join(SORTIE, vieux + ".png")):
-            os.remove(os.path.join(SORTIE, vieux + ".png"))
-    fenetre().save(os.path.join(SORTIE, "Fenetre_Cadeaux.png"))
-    icone_cadeau().save(os.path.join(SORTIE, "Icone_Cadeau.png"))
-    COUL = [((255, 110, 110), (220, 50, 70)), ((255, 180, 80), (240, 120, 30)), ((170, 120, 255), (120, 60, 220)),
-            ((90, 220, 255), (30, 150, 220)), ((255, 130, 210), (220, 60, 160)), ((255, 225, 90), (235, 170, 20))]
-    for i, (h, b) in enumerate(COUL):
-        carte(h, b).save(os.path.join(SORTIE, f"Carte_{i + 1}.png"))
-    carte((140, 240, 110), (40, 180, 70), True).save(os.path.join(SORTIE, "Carte_Prete.png"))
+    # les images viennent de Gemini : voir Outils/cadeau_gemini.py (ce script fait seulement l'apercu)
     # apercu monte comme dans le jeu : 15 cadeaux (3 lignes de 5), cartes en 279 x 230
     ap = Image.new("RGBA", (1920, 1080), (60, 70, 90, 255))
     ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (60, 30))
-    ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((120, 120))
+    ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((110, 110))
     d = ImageDraw.Draw(ap)
     delais = [2, 5, 10, 15, 20, 30, 45, 60]
     cumul = 0
-    for k in range(15):
-        x, y = 202 + (k % 5) * 309, 262 + (k // 5) * 243
+    for k in range(21):
+        x, y = 204 + (k % 7) * 226, 335 + (k // 7) * 217
         nom = "Carte_Prete.png" if k == 0 else f"Carte_{k % 6 + 1}.png"
-        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((279, 230)), (x, y))
-        ap.alpha_composite(ic, (x + 80, y + 40))
+        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((156, 205)), (x, y))
+        ap.alpha_composite(ic, (x + 23, y + 40))
         if k:
             cumul += delais[min(k, 7)]
         t = "OPEN!" if k == 0 else (f"{cumul // 60}:{cumul % 60:02d}:00" if cumul >= 60 else f"{cumul:02d}:00")
-        d.text((x + 140, y + 30), f"GIFT {k + 1}", font=f(30), fill="white", anchor="mm", stroke_width=6, stroke_fill=NUIT)
-        d.text((x + 140, y + 191), t, font=f(30), fill=(134, 239, 172) if k == 0 else "white", anchor="mm",
-               stroke_width=6, stroke_fill=NUIT)
+        d.text((x + 78, y + 24), f"GIFT {k + 1}", font=f(22), fill="white", anchor="mm", stroke_width=4, stroke_fill=NUIT)
+        d.text((x + 78, y + 168), t, font=f(20), fill=(134, 239, 172) if k == 0 else "white", anchor="mm",
+               stroke_width=4, stroke_fill=NUIT)
+    fx = Image.open(os.path.join(os.path.dirname(ICI), "Textures", "InterfacePC", "Fermer.png")).resize((110, 110)) \
+        if os.path.exists(os.path.join(os.path.dirname(ICI), "Textures", "InterfacePC", "Fermer.png")) else None
+    if fx:
+        ap.alpha_composite(fx, (1690, 150))
     ap.convert("RGB").save(os.path.join(os.path.dirname(ICI), "Modeles", "Lobby", "apercu_interface_cadeau.png"))
     print("ok", SORTIE)

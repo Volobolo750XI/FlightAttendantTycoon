@@ -92,6 +92,9 @@ avion_tycoon := class(creative_device):
     @editable EnfoncementATM:float = 4.0
     # TEST : argent infini (coche pour tester, DECOCHE avant de publier).
     @editable TestArgentInfini:logic = false
+    # TEST : pas besoin de claim, l'avion est donne au 1er joueur et le HUD (argent, /sec, rebirths)
+    # s'affiche des le debut. DECOCHE avant de publier.
+    @editable TestSansClaim:logic = true
 
     var Proprio:?agent = false
     var Argent:int = 0
@@ -150,15 +153,24 @@ avion_tycoon := class(creative_device):
             for (S : R.Sieges) { S.Hide() }
 
         # 1. Claim
-        race:
-            block:
-                Joueur := AttendreSurPlaque(Claim.Plaque, false)
-                set Proprio = option{Joueur}
-                Print("Avion : claim OK")
-                if (TestArgentInfini?) { set Argent = 1000000000000000 }
-            SuivreRegard(Claim.Panneau)
+        if (TestSansClaim?):
+            # TEST : pas de claim, le 1er joueur sans avion recoit celui-ci et voit son HUD tout de suite
+            Joueur := AttendreJoueurLibre()
+            set Proprio = option{Joueur}
+            Print("Avion : test sans claim")
+            if (TestArgentInfini?) { set Argent = 1000000000000000 }
+            set UICree = true
+            CreerUI()
+        else:
+            race:
+                block:
+                    Joueur := AttendreSurPlaque(Claim.Plaque, false)
+                    set Proprio = option{Joueur}
+                    Print("Avion : claim OK")
+                    if (TestArgentInfini?) { set Argent = 1000000000000000 }
+                SuivreRegard(Claim.Panneau)
         Claim.Panneau.Hide()
-        if (Joueur := Proprio?):
+        if (not TestSansClaim?, Joueur := Proprio?):
             Teleporter(Joueur)
         spawn{BoucleRetourAvion()}
         if (Pad := PlaqueATM?) { spawn{BoucleATM(Pad)} }
@@ -250,6 +262,17 @@ avion_tycoon := class(creative_device):
             if (J := Trouve?):
                 if (not Seul?) { EnregistrerAvion(J) }
                 return J
+
+    # (test sans claim) le 1er joueur de la partie qui n'a pas encore d'avion
+    AttendreJoueurLibre()<suspends>:agent =
+        loop:
+            var Trouve:?agent = false
+            for (Joueur : GetPlayspace().GetPlayers(), not Trouve?, not ADejaUnAvion[Joueur]):
+                set Trouve = option{Joueur}
+            if (J := Trouve?):
+                EnregistrerAvion(J)
+                return J
+            Sleep(0.5)
 
     ADejaUnAvion(Joueur:agent)<transacts><decides>:void =
         Liste := JoueursAvecAvion[GetSession()]

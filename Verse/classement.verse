@@ -45,6 +45,8 @@ classement_device := class(creative_device):
     # Ecart entre deux tambours, en cm (negatif si ils s'alignent du mauvais cote).
     @editable Espacement : float = -56.0
     @editable SensInverse : logic = false
+    # Coche si tu veux que le Verse aligne les tambours 2, 3, 4 a cote du 1er (sinon : ils restent ou tu les as poses).
+    @editable AlignerTambours : logic = false
     # TEST : chaque joueur qui a un avion gagne 1 rebirth par seconde (pour voir les compteurs tourner).
     # A DECOCHER avant de publier la map !
     @editable TestRebirthParSeconde : logic = true
@@ -62,17 +64,19 @@ classement_device := class(creative_device):
             Sleep(Intervalle)
 
     # Le 1er tambour de chaque compteur sert de repere : les autres sont alignes a cote de lui.
+    # Chaque tambour garde la position ou tu l'as pose (chiffre 0 vers l'avant).
+    # Si AlignerTambours est coche, les tambours 2, 3, 4 sont alignes automatiquement a cote du 1er.
     InstallerTambours():void =
         set Repos = for (C : Compteurs):
-            if (Premier := C.Tambours[0]):
+            if (AlignerTambours?, Premier := C.Tambours[0]):
                 T0 := Premier.GetTransform()
                 Axe := AxeMonde(T0.Rotation)
                 for (I -> Tb : C.Tambours):
-                    T := transform{Translation := T0.Translation + Axe * (Espacement * 1.0 * I), Rotation := T0.Rotation, Scale := T0.Scale}
+                    T := transform{Translation := T0.Translation + Axe * (Espacement * I), Rotation := T0.Rotation, Scale := T0.Scale}
                     if (Tb.TeleportTo[T]) {}
                     T
             else:
-                array{}
+                for (Tb : C.Tambours) { Tb.GetTransform() }
         set Affiche = for (C : Compteurs) { for (Tb : C.Tambours) { 0 } }
 
     TestRebirths()<suspends>:void =

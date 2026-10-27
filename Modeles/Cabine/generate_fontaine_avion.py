@@ -80,7 +80,7 @@ M = {
     "pierre": mat_tex("FontainePierre", tex_pierre((214, 207, 194), joints=True), 0.75),
     "pierre_sombre": mat_tex("FontainePierreSombre", tex_pierre((150, 150, 152), 9), 0.8),
     "mosaique": mat_tex("FontaineMosaique", tex_mosaique(), 0.3),
-    "eau": mat_tex("FontaineEau", tex_eau(), 0.04, 190),
+    "eau": mat_tex("FontaineEau", tex_eau(), 0.04),
     "jet": PBR(name="FontaineJet", baseColorFactor=lin((215, 240, 255), 150), roughnessFactor=0.05, metallicFactor=0.0,
                alphaMode="BLEND"),
     "alu": PBR(name="StatueAlu", baseColorFactor=lin((222, 226, 232)), roughnessFactor=0.28, metallicFactor=0.65),
@@ -155,7 +155,7 @@ Y_EAU = 0.48
 
 def bassin(P):
     # marche / dallage autour
-    P.setdefault("pierre_sombre", []).append(tour([(0.0, 0.0), (R_BASSIN + 1.6, 0.0), (R_BASSIN + 1.6, 0.06),
+    P.setdefault("pierre_sombre", []).append(tour([(0.0, -0.10), (R_BASSIN + 1.6, -0.10), (R_BASSIN + 1.6, 0.06),
                                                     (R_BASSIN + 1.55, 0.08), (R_BASSIN + 1.1, 0.08), (R_BASSIN + 1.1, 0.14),
                                                     (R_BASSIN + 1.05, 0.16), (0.0, 0.16)]))
     # moulure (boudin) sur la face exterieure du bassin
@@ -171,7 +171,7 @@ def bassin(P):
     prof += [(ri - 0.06, 0.62), (ri - 0.04, 0.56), (ri, 0.54)]
     P.setdefault("pierre", []).append(tour(prof))
     # interieur : fond + paroi en mosaique (un peu sous l'eau)
-    P.setdefault("mosaique", []).append(tour([(0.0, 0.14), (ri - 0.01, 0.14), (ri - 0.01, 0.53), (ri - 0.02, 0.53), (ri - 0.02, 0.16), (0.0, 0.16)]))
+    P.setdefault("mosaique", []).append(tour([(0.0, 0.19), (ri - 0.01, 0.19), (ri - 0.01, 0.53), (ri - 0.02, 0.53), (ri - 0.02, 0.21), (0.0, 0.21)]))
     # l'eau
     P.setdefault("eau", []).append(tour([(0.0, Y_EAU - 0.02), (ri - 0.015, Y_EAU - 0.02), (ri - 0.015, Y_EAU), (0.0, Y_EAU)]))
 
@@ -226,7 +226,7 @@ def colonne(P):
     pts = [(r, y) for r, y in rideau] + [(r - 0.025, y) for r, y in reversed(rideau)]
     P.setdefault("jet", []).append(tour(pts, 96))
     # petites gouttes / eclaboussures au pied du rideau (anneau d'ecume)
-    P["jet"].append(tour([(2.05, Y_EAU), (2.38, Y_EAU), (2.34, Y_EAU + 0.05), (2.10, Y_EAU + 0.06)], 96))
+    P["jet"].append(tour([(2.05, Y_EAU + 0.008), (2.38, Y_EAU + 0.008), (2.34, Y_EAU + 0.05), (2.10, Y_EAU + 0.06)], 96))
     # socle de la statue au centre de la vasque
     P["pierre"].append(tour([(0.0, 2.68), (0.42, 2.68), (0.42, 3.25), (0.36, 3.32), (0.0, 3.32)]))
     P.setdefault("bronze", []).append(tour([(0.0, 3.32), (0.37, 3.32), (0.37, 3.36), (0.0, 3.36)]))

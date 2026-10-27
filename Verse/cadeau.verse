@@ -93,9 +93,9 @@ cadeau_device := class(creative_device):
         B.OnClick().Subscribe(clic_cadeau{Cadeau := Self, Joueur := P, Action := Action}.Clique)
         Bloc(B, X, Y, L, H, 30)
 
-    # 21 cartes : 3 lignes de 7, chaque carte fait 156 x 205
-    CarteX(K:int):float = 204.0 + 226.0 * (if (V := Mod[K, 7]) then V else 0)
-    CarteY(K:int):float = 335.0 + 217.0 * (if (V := Quotient[K, 7]) then V else 0)
+    # 21 cartes : 3 lignes de 7, chaque carte fait 140 x 140
+    CarteX(K:int):float = 398.0 + 164.0 * (if (V := Mod[K, 7]) then V else 0)
+    CarteY(K:int):float = 372.0 + 166.0 * (if (V := Quotient[K, 7]) then V else 0)
 
     Couleur(N:int):texture =
         case (if (V := Mod[N - 1, 6]) then V else 0):
@@ -114,20 +114,22 @@ cadeau_device := class(creative_device):
             R := Restant(P)
             Pret := if (R <= 0.0) then true else false
             var Slots : []canvas_slot = array:
-                # images en puissance de 2 avec des marges transparentes autour du dessin
-                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 2048.0, 1024.0), -64.0, 18.0, 2048.0, 1024.0, 1)
-                Bloc(Image(InterfacePC.Fermer, 120.0, 120.0), 1690.0, 150.0, 110.0, 110.0, 5)
-                Clic(P, 0, 1701.0, 161.0, 88.0, 88.0)
+                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 1440.0, 720.0), 240.0, 180.0, 1440.0, 720.0, 1)
+                Bloc(Image(InterfacePC.Fermer, 80.0, 80.0), 1612.0, 236.0, 80.0, 80.0, 5)
+                Clic(P, 0, 1620.0, 244.0, 64.0, 64.0)
             for (K := 0..20):
                 X := CarteX(K)
                 Y := CarteY(K)
                 Fond := if (K = 0, Pret?) then InterfaceCadeau.Carte_Prete else Couleur(N + K)
                 set Slots += array:
-                    Bloc(Image(Fond, 266.24, 266.24), X - 55.12, Y - 30.68, 266.24, 266.24, 2)
-                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 110.0, 110.0), X + 23.0, Y + 40.0, 110.0, 110.0, 3)
-                set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 16.0, Y + 10.0, 124.0, 28.0, 4)
+                    Bloc(Image(Fond, 140.0, 140.0), X, Y, 140.0, 140.0, 2)
+                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 80.0, 80.0), X + 30.0, Y + 30.0, 80.0, 80.0, 3)
+                set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 22.0, Y + 14.0, 96.0, 20.0, 4)
+            # cadeau pret : le bouton OPEN est le SEUL endroit cliquable
             if (Pret?):
-                set Slots += array{Clic(P, 1, CarteX(0) + 8.0, CarteY(0) + 8.0, 140.0, 189.0)}
+                set Slots += array:
+                    Bloc(Image(InterfaceCadeau.Bouton_Open, 100.0, 50.0), CarteX(0) + 20.0, CarteY(0) + 86.0, 100.0, 50.0, 5)
+                    Clic(P, 1, CarteX(0) + 24.0, CarteY(0) + 90.0, 92.0, 36.0)
             T := canvas{Slots := Slots}
             UI.AddWidget(T, player_ui_slot{InputMode := ui_input_mode.All})
             if (set Toiles[P] = T, set PretAffiche[P] = Pret, set Temps[P] = array{}) {}
@@ -153,12 +155,12 @@ cadeau_device := class(creative_device):
             var Nouveaux : [][]widget = array{}
             for (K := 0..20):
                 if (K > 0) { set Cumul += Delai(N + K) }
-                Texte := if (K = 0, Pret?) then "OPEN!" else Duree(Cumul)
+                Texte := if (K = 0, Pret?) then "" else Duree(Cumul)
                 Teinte := if (K = 0, Pret?) then "86EFAC" else "FFFFFF"
                 Vieilles := if (V := Anciens[K]) then V else array{}
                 set Nouveaux += array:
                     Ecriture.Remplacer(T, Vieilles, Texte, Teinte, text_justification.Center,
-                                       CarteX(K) + 16.0 - 960.0, CarteY(K) + 155.0 - 540.0, 124.0, 26.0, 4, vector2{X := 0.5, Y := 0.5})
+                                       CarteX(K) + 14.0 - 960.0, CarteY(K) + 101.0 - 540.0, 112.0, 22.0, 4, vector2{X := 0.5, Y := 0.5})
             if (set Temps[P] = Nouveaux) {}
 
     Duree(Secondes:float):string =

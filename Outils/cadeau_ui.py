@@ -1,11 +1,9 @@
 """Interface CARTOON du cadeau du lobby (Playtime Reward) -> Textures/InterfaceCadeau/*.png
 Style : tres colore, gros contour bleu nuit, reflets, lettres arc-en-ciel (comme la Daily Spin).
-  Fenetre_Cadeau.png  (1100 x 900) : la fenetre avec le titre FREE GIFT
-  Icone_Cadeau.png    (512 x 512)  : le gros cadeau au milieu
-  Barre_Fond.png      (900 x 110)  : le fond de la barre de progression
-  Barre_Plein.png     (900 x 110)  : le remplissage (vert -> arc-en-ciel), etire par Verse
-  Bouton_Open.png     (560 x 190)  : le gros bouton OPEN! (vert)
-  Bouton_Attente.png  (560 x 190)  : le bouton gris WAIT...
+  Fenetre_Cadeaux.png (1500 x 900) : la fenetre avec le titre FREE GIFTS
+  Icone_Cadeau.png    (512 x 512)  : le cadeau dessine sur chaque carte
+  Carte_1..6.png      (400 x 330)  : les cartes de couleur des cadeaux qui attendent
+  Carte_Prete.png     (400 x 330)  : la carte verte (halo dore) du cadeau a ouvrir
 Usage : python3 Outils/cadeau_ui.py
 """
 import math
@@ -75,29 +73,37 @@ def etincelle(d, x, y, r, col=(255, 255, 255)):
 
 
 def fenetre():
-    W, H = 1100, 900
+    W, H = 1500, 900
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    # ombre portee
     ombre = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(ombre).rounded_rectangle([20, 34, W - 6, H - 6], 70, fill=(0, 0, 0, 110))
     img.alpha_composite(ombre.filter(ImageFilter.GaussianBlur(10)))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([6, 20, W - 20, H - 20], 70, fill=NUIT)
-    corps = arrondi(degrade(W - 60, H - 210, (125, 215, 255), (70, 120, 235)), 54)
-    img.alpha_composite(corps, (24, 170))
-    # paillettes dans le fond
+    img.alpha_composite(arrondi(degrade(W - 60, H - 210, (125, 215, 255), (70, 120, 235)), 54), (24, 170))
     d = ImageDraw.Draw(img)
-    for _ in range(26):
-        x, y = random.randint(70, W - 90), random.randint(220, H - 80)
-        etincelle(d, x, y, random.randint(6, 16), (255, 255, 255, 140))
-    # bandeau titre rose -> violet
-    bandeau = arrondi(degrade(W - 60, 190, (255, 120, 200), (150, 70, 230)), 54)
-    img.alpha_composite(bandeau, (24, 34))
+    for _ in range(34):
+        etincelle(d, random.randint(70, W - 90), random.randint(230, H - 70), random.randint(6, 16), (255, 255, 255, 140))
+    img.alpha_composite(arrondi(degrade(W - 60, 190, (255, 120, 200), (150, 70, 230)), 54), (24, 34))
+    mot_arc_en_ciel(img, "FREE GIFTS", (W - 20) / 2 + 6, 130, 150)
+    return img
+
+
+def carte(haut, bas, pret=False):
+    W, H = 400, 330
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([40, 44, W - 76, 120], 40, fill=(255, 255, 255, 55))
-    mot_arc_en_ciel(img, "FREE GIFT", (W - 20) / 2 + 6, 130, 150)
-    # carte claire au milieu (pour le temps / la barre)
-    d.rounded_rectangle([90, 600, W - 110, 700], 36, fill=(255, 255, 255, 70))
+    if pret:                                                    # halo dore autour de la carte prete
+        halo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(halo).rounded_rectangle([0, 0, W - 1, H - 1], 50, fill=(255, 240, 120, 230))
+        img.alpha_composite(halo.filter(ImageFilter.GaussianBlur(6)))
+        d = ImageDraw.Draw(img)
+    d.rounded_rectangle([8, 8, W - 9, H - 9], 44, fill=NUIT)
+    img.alpha_composite(arrondi(degrade(W - 40, H - 40, haut, bas), 34), (20, 20))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([44, 250, W - 45, 300], 25, fill=(22, 27, 48, 150))   # pastille du temps
+    for x, y, r in ((60, 70, 12), (340, 110, 9), (330, 50, 7), (80, 200, 8)):
+        etincelle(d, x, y, r, (255, 255, 255, 170))
     return img
 
 
@@ -135,62 +141,31 @@ def icone_cadeau():
     return img
 
 
-def barre(fond):
-    W, H = 900, 110
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    if fond:
-        d.rounded_rectangle([0, 0, W - 1, H - 1], 55, fill=NUIT)
-        d.rounded_rectangle([12, 12, W - 13, H - 13], 44, fill=(40, 52, 96))
-        return img
-    # remplissage arc-en-ciel avec reflet
-    bande = Image.new("RGBA", (W, H))
-    db = ImageDraw.Draw(bande)
-    for x in range(W):
-        t = x / (W - 1) * (len(ARC) - 1)
-        i = min(int(t), len(ARC) - 2)
-        u = t - i
-        c = tuple(int(a + (b - a) * u) for a, b in zip(ARC[i], ARC[i + 1]))
-        db.line([(x, 0), (x, H)], fill=c + (255,))
-    bande = arrondi(bande, 44)
-    img.alpha_composite(bande)
-    reflet = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(reflet).rounded_rectangle([18, 10, W - 18, H / 2 - 6], 24, fill=(255, 255, 255, 90))
-    img.alpha_composite(reflet)
-    return img
-
-
-def bouton(texte, haut, bas, bord):
-    W, H = 560, 190
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 10, W - 1, H - 1], 60, fill=NUIT)
-    d.rounded_rectangle([12, 22, W - 13, H - 13], 50, fill=bord)                 # epaisseur 3D (bas)
-    face = arrondi(degrade(W - 24, H - 58, haut, bas), 48)
-    img.alpha_composite(face, (12, 14))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([34, 24, W - 34, 70], 22, fill=(255, 255, 255, 80))
-    d.text((W / 2, 86), texte, font=f(96), fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=NUIT)
-    return img
-
-
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
-    fenetre().save(os.path.join(SORTIE, "Fenetre_Cadeau.png"))
+    for vieux in ("Fenetre_Cadeau", "Barre_Fond", "Barre_Plein", "Bouton_Open", "Bouton_Attente"):
+        if os.path.exists(os.path.join(SORTIE, vieux + ".png")):
+            os.remove(os.path.join(SORTIE, vieux + ".png"))
+    fenetre().save(os.path.join(SORTIE, "Fenetre_Cadeaux.png"))
     icone_cadeau().save(os.path.join(SORTIE, "Icone_Cadeau.png"))
-    barre(True).save(os.path.join(SORTIE, "Barre_Fond.png"))
-    barre(False).save(os.path.join(SORTIE, "Barre_Plein.png"))
-    bouton("OPEN!", (120, 235, 90), (40, 175, 70), (25, 120, 50)).save(os.path.join(SORTIE, "Bouton_Open.png"))
-    bouton("WAIT...", (190, 196, 210), (130, 138, 156), (90, 96, 112)).save(os.path.join(SORTIE, "Bouton_Attente.png"))
-    # apercu de l'interface montee (comme dans le jeu)
+    COUL = [((255, 110, 110), (220, 50, 70)), ((255, 180, 80), (240, 120, 30)), ((170, 120, 255), (120, 60, 220)),
+            ((90, 220, 255), (30, 150, 220)), ((255, 130, 210), (220, 60, 160)), ((255, 225, 90), (235, 170, 20))]
+    for i, (h, b) in enumerate(COUL):
+        carte(h, b).save(os.path.join(SORTIE, f"Carte_{i + 1}.png"))
+    carte((140, 240, 110), (40, 180, 70), True).save(os.path.join(SORTIE, "Carte_Prete.png"))
+    # apercu monte comme dans le jeu
     ap = Image.new("RGBA", (1920, 1080), (60, 70, 90, 255))
-    F = Image.open(os.path.join(SORTIE, "Fenetre_Cadeau.png"))
-    ap.alpha_composite(F, (410, 90))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((380, 380)), (770, 270))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Barre_Fond.png")), (500, 700))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Barre_Plein.png")).crop((0, 0, 620, 110)), (500, 700))
-    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Bouton_Open.png")), (680, 830))
+    ap.alpha_composite(Image.open(os.path.join(SORTIE, "Fenetre_Cadeaux.png")), (210, 60))
+    ic = Image.open(os.path.join(SORTIE, "Icone_Cadeau.png")).resize((170, 170))
     d = ImageDraw.Draw(ap)
-    d.text((950, 650), "READY IN 04:32", font=f(64), fill="white", anchor="mm", stroke_width=10, stroke_fill=NUIT)
+    textes = ["OPEN!", "05:00", "15:00", "30:00", "50:00", "1:20:00"]
+    for k in range(6):
+        x, y = 350 + (k % 3) * 420, 300 + (k // 3) * 325      # cartes affichees en 360 x 297 (comme dans Verse)
+        nom = "Carte_Prete.png" if k == 0 else f"Carte_{k + 1}.png"
+        ap.alpha_composite(Image.open(os.path.join(SORTIE, nom)).resize((360, 297)), (x, y))
+        ap.alpha_composite(ic, (x + 95, y + 50))
+        d.text((x + 180, y + 40), f"GIFT {k + 1}", font=f(38), fill="white", anchor="mm", stroke_width=8, stroke_fill=NUIT)
+        d.text((x + 180, y + 247), textes[k], font=f(40), fill=(134, 239, 172) if k == 0 else "white", anchor="mm",
+               stroke_width=8, stroke_fill=NUIT)
     ap.convert("RGB").save(os.path.join(os.path.dirname(ICI), "Modeles", "Lobby", "apercu_interface_cadeau.png"))
     print("ok", SORTIE)

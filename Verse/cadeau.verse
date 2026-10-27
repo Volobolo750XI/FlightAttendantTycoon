@@ -4,19 +4,22 @@ using { /UnrealEngine.com/Temporary/SpatialMath }
 using { /UnrealEngine.com/Temporary/UI }
 using { /Fortnite.com/UI }
 
-# Flight Attendant Tycoon - le CADEAU du lobby (Playtime Reward).
-# Reste MinutesRequises minutes sur la map -> le cadeau est pret. On interagit avec : une fenetre
-# cartoon s'ouvre (FREE GIFT, compte a rebours, barre arc-en-ciel, bouton OPEN!). On clique OPEN! :
-# on gagne MinutesDeGain minutes de son revenu (au moins GainMinimum), le couvercle saute, et le
-# compteur repart a zero.
+# Flight Attendant Tycoon - les CADEAUX du lobby (Playtime Rewards), A L'INFINI.
+# On interagit avec le cadeau 3D : une fenetre cartoon FREE GIFTS montre les 6 prochains cadeaux
+# DANS L'ORDRE, chacun avec son temps (le temps total avant de pouvoir l'ouvrir).
+# Le premier devient la carte verte OPEN! quand il est pret -> on clique dessus -> on gagne de l'argent,
+# le couvercle saute, et la liste avance d'un cadeau.
+# Chaque cadeau attend un peu plus que le precedent (Delais, en minutes). Apres le dernier
+# delai de la liste, ca STAGNE : tous les cadeaux suivants attendent ce dernier delai.
+# Le gain = PartDuGain x (le temps attendu) de ton revenu, et au moins GainMinimum.
 #
 # Installation dans UEFN :
 #   - importe Modeles/Lobby/Cadeau.glb (2 objets : Cadeau_Boite et Cadeau_Couvercle), Convert to Prop ;
 #   - importe le dossier Textures/InterfaceCadeau a la racine du projet (comme InterfacePC) ;
 #   - pose la boite, puis le couvercle dessus ;
-#   - pose un appareil "Bouton" (Button) devant le cadeau (texte d'interaction : GIFT) ;
+#   - pose un appareil "Bouton" (Button) devant le cadeau (texte d'interaction : GIFTS) ;
 #   - pose ce device, et dans ses Details : Bouton, Couvercle, Avions (tes avion_tycoon).
-#   TestRapide : le cadeau est pret en 10 secondes (pour tester). A DECOCHER avant de publier !
+#   TestRapide : les delais sont en SECONDES au lieu de minutes (pour tester). A DECOCHER avant de publier !
 
 clic_cadeau := class:
     Cadeau:cadeau_device
@@ -28,18 +31,18 @@ cadeau_device := class(creative_device):
     @editable Bouton : button_device = button_device{}
     @editable Couvercle : ?creative_prop = false
     @editable Avions : []avion_tycoon = array{}
-    @editable MinutesRequises : float = 15.0
-    @editable MinutesDeGain : float = 10.0
+    # attente de chaque cadeau en minutes ; apres le dernier, on garde le dernier pour toujours
+    @editable Delais : []float = array{2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0}
+    @editable PartDuGain : float = 0.5
     @editable GainMinimum : int = 1000
     @editable TestRapide : logic = true
 
     Ecriture:ecriture_cartoon = ecriture_cartoon{}
 
-    var Debuts : [player]float = map{}            # depuis quand le joueur attend son cadeau
+    var Numeros : [player]int = map{}              # numero du prochain cadeau a ouvrir (1, 2, 3...)
+    var Debuts : [player]float = map{}             # quand son attente a commence
     var Toiles : [player]canvas = map{}
-    var Lettres : [player][]widget = map{}
-    var Barres : [player]widget = map{}
-    var Boutons : [player]widget = map{}
+    var Temps : [player][][]widget = map{}         # lettres des 6 temps (pour les changer)
     var PretAffiche : [player]logic = map{}
     var Ouvertures : [player]logic = map{}
 
@@ -48,20 +51,28 @@ cadeau_device := class(creative_device):
         loop:
             Maintenant := GetSecondsSinceEpoch()
             for (P : GetPlayspace().GetPlayers(), not Debuts[P]):
-                if (set Debuts[P] = Maintenant) {}
+                if (set Debuts[P] = Maintenant, set Numeros[P] = 1) {}
             for (P -> T : Toiles):
                 Rafraichir(P, T)
             Sleep(0.25)
 
-    Attente():float = if (TestRapide?) then 10.0 else MinutesRequises * 60.0
+    # attente du cadeau N, en secondes
+    Delai(N:int):float =
+        Unite := if (TestRapide?) then 1.0 else 60.0
+        if (D := Delais[N - 1]) then D * Unite
+        else if (D := Delais[Delais.Length - 1]) then D * Unite
+        else 60.0 * Unite
 
+    Numero(P:player):int = if (N := Numeros[P]) then N else 1
+
+    # secondes avant de pouvoir ouvrir le cadeau en cours
     Restant(P:player):float =
         Debut := if (D := Debuts[P]) then D else GetSecondsSinceEpoch()
-        Max(0.0, Attente() - (GetSecondsSinceEpoch() - Debut))
+        Max(0.0, Delai(Numero(P)) - (GetSecondsSinceEpoch() - Debut))
 
     OnBouton(Agent:agent):void =
         if (P := player[Agent], not Toiles[P]):
-            Ouvrir(P)
+            Construire(P)
 
     # ---------- la fenetre ----------
     Bloc(W:widget, X:float, Y:float, L:float, H:float, Couche:type{_X:int where 0 <= _X, _X <= 2147483647}):canvas_slot =
@@ -81,97 +92,105 @@ cadeau_device := class(creative_device):
         B.OnClick().Subscribe(clic_cadeau{Cadeau := Self, Joueur := P, Action := Action}.Clique)
         Bloc(B, X, Y, L, H, 30)
 
-    Ouvrir(P:player):void =
-        if (UI := GetPlayerUI[P]):
-            T := canvas:
-                Slots := array:
-                    Bloc(Image(InterfaceCadeau.Fenetre_Cadeau, 1100.0, 900.0), 410.0, 90.0, 1100.0, 900.0, 1)
-                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 380.0, 380.0), 770.0, 260.0, 380.0, 380.0, 2)
-                    Bloc(Image(InterfaceCadeau.Barre_Fond, 900.0, 110.0), 500.0, 700.0, 900.0, 110.0, 2)
-                    Bloc(Image(InterfacePC.Fermer, 130.0, 130.0), 1400.0, 70.0, 130.0, 130.0, 5)
-                    Clic(P, 0, 1413.0, 83.0, 104.0, 104.0)
-                    Clic(P, 1, 708.0, 858.0, 504.0, 128.0)
-            UI.AddWidget(T, player_ui_slot{InputMode := ui_input_mode.All})
-            if (set Toiles[P] = T, set Lettres[P] = array{}, set PretAffiche[P] = false) {}
-            Rafraichir(P, T)
-            # bouton dessine au premier passage (pret ou pas)
-            DessinerBouton(P, T, Restant(P) <= 0.0)
+    CarteX(K:int):float = 350.0 + 420.0 * (if (V := Mod[K, 3]) then V else 0)
+    CarteY(K:int):float = if (K < 3) then 300.0 else 625.0
 
-    Fermer(P:player):void =
+    Couleur(N:int):texture =
+        case (if (V := Mod[N - 1, 6]) then V else 0):
+            0 => InterfaceCadeau.Carte_1
+            1 => InterfaceCadeau.Carte_2
+            2 => InterfaceCadeau.Carte_3
+            3 => InterfaceCadeau.Carte_4
+            4 => InterfaceCadeau.Carte_5
+            _ => InterfaceCadeau.Carte_6
+
+    # (re)dessine toute la fenetre : au debut, et quand le premier cadeau devient pret ou est ouvert
+    Construire(P:player):void =
+        Retirer(P)
+        if (UI := GetPlayerUI[P]):
+            N := Numero(P)
+            Pret := if (Restant(P) <= 0.0) then true else false
+            var Slots : []canvas_slot = array:
+                Bloc(Image(InterfaceCadeau.Fenetre_Cadeaux, 1500.0, 900.0), 210.0, 60.0, 1500.0, 900.0, 1)
+                Bloc(Image(InterfacePC.Fermer, 120.0, 120.0), 1590.0, 40.0, 120.0, 120.0, 5)
+                Clic(P, 0, 1602.0, 52.0, 96.0, 96.0)
+            for (K := 0..5):
+                X := CarteX(K)
+                Y := CarteY(K)
+                Fond := if (K = 0, Pret?) then InterfaceCadeau.Carte_Prete else Couleur(N + K)
+                set Slots += array:
+                    Bloc(Image(Fond, 360.0, 297.0), X, Y, 360.0, 297.0, 2)
+                    Bloc(Image(InterfaceCadeau.Icone_Cadeau, 170.0, 170.0), X + 95.0, Y + 50.0, 170.0, 170.0, 3)
+                set Slots += Ecriture.Ecrire("GIFT {N + K}", "FFFFFF", text_justification.Center, X + 40.0, Y + 18.0, 280.0, 44.0, 4)
+            if (Pret?):
+                set Slots += array{Clic(P, 1, CarteX(0) + 14.0, CarteY(0) + 14.0, 332.0, 268.0)}
+            T := canvas{Slots := Slots}
+            UI.AddWidget(T, player_ui_slot{InputMode := ui_input_mode.All})
+            if (set Toiles[P] = T, set PretAffiche[P] = Pret, set Temps[P] = array{}) {}
+            Rafraichir(P, T)
+
+    Retirer(P:player):void =
         if (T := Toiles[P], UI := GetPlayerUI[P]):
             UI.RemoveWidget(T)
         var Tx : [player]canvas = map{}
         for (Cle -> V : Toiles, Cle <> P) { if (set Tx[Cle] = V) {} }
         set Toiles = Tx
-        var Br : [player]widget = map{}
-        for (Cle -> V : Barres, Cle <> P) { if (set Br[Cle] = V) {} }
-        set Barres = Br
-        var Bo : [player]widget = map{}
-        for (Cle -> V : Boutons, Cle <> P) { if (set Bo[Cle] = V) {} }
-        set Boutons = Bo
 
-    DessinerBouton(P:player, T:canvas, Pret:logic):void =
-        if (Ancien := Boutons[P]) { T.RemoveWidget(Ancien) }
-        Img := if (Pret?) then InterfaceCadeau.Bouton_Open else InterfaceCadeau.Bouton_Attente
-        W := Image(Img, 560.0, 190.0)
-        T.AddWidget(Bloc(W, 680.0, 830.0, 560.0, 190.0, 6))
-        if (set Boutons[P] = W, set PretAffiche[P] = Pret) {}
-
+    # met a jour les 6 temps (le 1er = son attente, les suivants = attente cumulee)
     Rafraichir(P:player, T:canvas):void =
         R := Restant(P)
         Pret := if (R <= 0.0) then true else false
-        # texte : READY IN 04:32 / READY!
-        Texte := if (Pret?) then "READY!" else "READY IN {MinSec(R)}"
-        Couleur := if (Pret?) then "86EFAC" else "FFFFFF"
-        Anciennes := if (L := Lettres[P]) then L else array{}
-        Nouvelles := Ecriture.Remplacer(T, Anciennes, Texte, Couleur, text_justification.Center,
-                                        500.0 - 960.0, 618.0 - 540.0, 900.0, 66.0, 4, vector2{X := 0.5, Y := 0.5})
-        if (set Lettres[P] = Nouvelles) {}
-        # barre arc-en-ciel
-        if (Ancienne := Barres[P]) { T.RemoveWidget(Ancienne) }
-        Part := Min(1.0, Max(0.0, 1.0 - R / Attente()))
-        if (Part > 0.0):
-            Largeur := Max(110.0, 900.0 * Part)
-            W := Image(InterfaceCadeau.Barre_Plein, Largeur, 110.0)
-            T.AddWidget(Bloc(W, 500.0, 700.0, Largeur, 110.0, 3))
-            if (set Barres[P] = W) {}
-        # le bouton change d'image quand le cadeau devient pret
         if (Avant := PretAffiche[P], Avant <> Pret):
-            DessinerBouton(P, T, Pret)
+            Construire(P)
+        else:
+            N := Numero(P)
+            Anciens := if (A := Temps[P]) then A else array{}
+            var Cumul : float = R
+            var Nouveaux : [][]widget = array{}
+            for (K := 0..5):
+                if (K > 0) { set Cumul += Delai(N + K) }
+                Texte := if (K = 0, Pret?) then "OPEN!" else Duree(Cumul)
+                Teinte := if (K = 0, Pret?) then "86EFAC" else "FFFFFF"
+                Vieilles := if (V := Anciens[K]) then V else array{}
+                set Nouveaux += array:
+                    Ecriture.Remplacer(T, Vieilles, Texte, Teinte, text_justification.Center,
+                                       CarteX(K) + 60.0 - 960.0, CarteY(K) + 226.0 - 540.0, 240.0, 42.0, 4, vector2{X := 0.5, Y := 0.5})
+            if (set Temps[P] = Nouveaux) {}
 
-    MinSec(Secondes:float):string =
+    Duree(Secondes:float):string =
         Total := if (V := Ceil[Secondes]) then V else 0
-        Mi := if (V := Quotient[Total, 60]) then V else 0
-        Se := Total - Mi * 60
-        "{Deux(Mi)}:{Deux(Se)}"
+        H := if (V := Quotient[Total, 3600]) then V else 0
+        Mi := if (V := Quotient[Total - H * 3600, 60]) then V else 0
+        Se := Total - H * 3600 - Mi * 60
+        if (H > 0) then "{H}:{Deux(Mi)}:{Deux(Se)}" else "{Deux(Mi)}:{Deux(Se)}"
 
     Deux(N:int):string = if (N < 10) then "0{N}" else "{N}"
 
-    # Action 0 : fermer ; 1 : OPEN!
+    # Action 0 : fermer ; 1 : ouvrir le cadeau pret
     Agir(P:player, Action:int):void =
         if (Action = 0):
-            Fermer(P)
+            Retirer(P)
         else if (Restant(P) <= 0.0, not Ouvertures[P]?):
             if (set Ouvertures[P] = true) {}
             spawn{ OuvrirCadeau(P) }
 
     OuvrirCadeau(P:player)<suspends>:void =
-        var Montant : int = GainMinimum
+        N := Numero(P)
         var Affiche : string = "{GainMinimum}"
         for (Av : Avions, J := Av.Proprio?, J = P):
-            Brut := Av.RevenuDeBase() * MinutesDeGain * 60.0
-            set Montant = Max(GainMinimum, if (V := Floor[Brut]) then V else 0)
+            Brut := Av.RevenuDeBase() * Delai(N) * PartDuGain
+            Montant := Max(GainMinimum, if (V := Floor[Brut]) then V else 0)
             Av.Gagner(Montant, 2)
             set Affiche = Av.Abreger(Montant)
-        if (set Debuts[P] = GetSecondsSinceEpoch()) {}
-        # gros texte du gain par-dessus la fenetre
+        # le cadeau suivant commence a attendre
+        if (set Numeros[P] = N + 1, set Debuts[P] = GetSecondsSinceEpoch()) {}
         if (T := Toiles[P]):
-            Texte := "+${Affiche}!"
-            for (Slot : Ecriture.Ecrire(Texte, "FDE047", text_justification.Center, 460.0, 400.0, 1000.0, 150.0, 20)):
+            for (Slot : Ecriture.Ecrire("+${Affiche}!", "FDE047", text_justification.Center, 310.0, 420.0, 1300.0, 160.0, 20)):
                 T.AddWidget(Slot)
         spawn{ SauterCouvercle() }
-        Sleep(2.0)
-        Fermer(P)
+        Sleep(1.5)
+        if (Toiles[P]):
+            Construire(P)
         if (set Ouvertures[P] = false) {}
 
     SauterCouvercle()<suspends>:void =

@@ -187,13 +187,13 @@ COULEURS = [((255, 112, 112), (214, 42, 64)), ((255, 184, 80), (238, 116, 26)), 
 if __name__ == "__main__":
     os.makedirs(SORTIE, exist_ok=True)
     for vieux in os.listdir(SORTIE):
-        if vieux.endswith(".png"):
+        if vieux.endswith(".png") and vieux != "Icone_Cadeau.png":
             os.remove(os.path.join(SORTIE, vieux))
     fenetre().save(os.path.join(SORTIE, "Fenetre_Cadeaux.png"))
     for i, (h, b) in enumerate(COULEURS):
         carte(h, b).save(os.path.join(SORTIE, f"Carte_{i + 1}.png"))
     carte((140, 240, 110), (36, 176, 66), True).save(os.path.join(SORTIE, "Carte_Prete.png"))
-    icone_cadeau().save(os.path.join(SORTIE, "Icone_Cadeau.png"))
+    # Icone_Cadeau.png = le cadeau Gemini du joueur (sources/gemini_icone.webp), detoure a part
     bouton_open().save(os.path.join(SORTIE, "Bouton_Open.png"))
 
     # apercu monte exactement comme dans Verse (ecran 1920 x 1080)

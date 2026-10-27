@@ -25,10 +25,10 @@ PBR = trimesh.visual.material.PBRMaterial
 CONTOUR = (22, 27, 48)
 
 # (texte, couleur de la case) -- meme ordre que Gains dans daily_spin.verse
-CASES = [("5 MIN", "CASH", (40, 185, 100), "horloge"), ("+10%", "MONEY", (60, 140, 240), "argent"),
-         ("x2", "10 MIN", (140, 90, 220), "eclair"), ("15 MIN", "CASH", (40, 185, 100), "horloge"),
-         ("REBIRTH", "+1", (240, 92, 168), "rebirth"), ("1 HOUR", "CASH", (60, 140, 240), "horloge"),
-         ("x3", "5 MIN", (140, 90, 220), "eclair"), ("JACKPOT", "3 HOURS", (22, 27, 48), "couronne")]
+CASES = [("5 MIN", "CASH", (238, 48, 56), "horloge"), ("+10%", "MONEY", (255, 136, 24), "argent"),
+         ("x2", "10 MIN", (250, 205, 30), "eclair"), ("15 MIN", "CASH", (64, 196, 64), "horloge"),
+         ("REBIRTH", "+1", (24, 186, 220), "rebirth"), ("1 HOUR", "CASH", (44, 104, 240), "horloge"),
+         ("x3", "5 MIN", (136, 60, 230), "eclair"), ("JACKPOT", "3 HOURS", (230, 50, 170), "couronne")]
 
 
 def icone(nom, t=175):
@@ -103,7 +103,7 @@ def tex_roue(n=2048):
         taille = 140 if len(txt) <= 3 else (108 if len(txt) <= 5 else (90 if len(txt) <= 6 else 80))
         couche = Image.new("RGBA", (900, 320), (0, 0, 0, 0))
         dc = ImageDraw.Draw(couche)
-        encre = (255, 214, 120) if txt == "JACKPOT" else (255, 255, 255)
+        encre = (255, 255, 255)
         dc.text((450, 125), txt, font=police(taille), fill=encre, anchor="mm", stroke_width=14, stroke_fill=CONTOUR)
         dc.text((450, 245), sous, font=police(62), fill=(255, 255, 255), anchor="mm", stroke_width=9, stroke_fill=CONTOUR)
         ang = -90 + i * pas                                      # direction de la case (PIL, sens horaire)
@@ -135,15 +135,37 @@ def tex_moyeu(n=512):
     return img
 
 
+ARC_EN_CIEL = [(238, 48, 56), (255, 136, 24), (250, 205, 30), (64, 196, 64), (24, 186, 220), (44, 104, 240),
+              (136, 60, 230), (230, 50, 170)]
+
+
 def tex_panneau(w=2048, h=512):
+    """DAILY SPIN en lettres arc-en-ciel (chaque lettre sa couleur, reflet clair en haut, gros contour sombre)"""
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([10, 10, w - 10, h - 10], 110, fill=CONTOUR)
-    d.rounded_rectangle([34, 34, w - 34, h - 34], 90, fill=(240, 92, 168))
-    d.rounded_rectangle([34, 34, w - 34, h // 2], 90, fill=(255, 130, 195))
-    d.rectangle([34, h // 2 - 60, w - 34, h // 2], fill=(255, 130, 195))
-    d.text((w / 2, h / 2 + 10), "DAILY SPIN", font=police(270), fill=(255, 255, 255), anchor="mm", stroke_width=22,
-           stroke_fill=CONTOUR)
+    d.rounded_rectangle([34, 34, w - 34, h - 34], 90, fill=(30, 44, 92))
+    f = police(285)
+    mot = "DAILY SPIN"
+    larg = [d.textlength(ch, font=f) + (10 if ch != " " else 0) for ch in mot]
+    x = w / 2 - sum(larg) / 2
+    k = 0
+    for ch, lg in zip(mot, larg):
+        if ch != " ":
+            coul = ARC_EN_CIEL[k % len(ARC_EN_CIEL)]
+            k += 1
+            lettre = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            dl = ImageDraw.Draw(lettre)
+            dl.text((x, h / 2 + 14), ch, font=f, fill=coul + (255,), anchor="lm", stroke_width=24, stroke_fill=CONTOUR)
+            # reflet : moitie haute plus claire
+            clair = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            ImageDraw.Draw(clair).text((x, h / 2 + 14), ch, font=f, fill=tuple(min(255, int(v * 0.6 + 110)) for v in coul) + (255,),
+                                       anchor="lm")
+            masque = Image.new("L", (w, h), 0)
+            ImageDraw.Draw(masque).rectangle([0, 0, w, h / 2 - 10], fill=255)
+            lettre.alpha_composite(Image.composite(clair, Image.new("RGBA", (w, h), (0, 0, 0, 0)), masque))
+            img.alpha_composite(lettre)
+        x += lg
     return img
 
 

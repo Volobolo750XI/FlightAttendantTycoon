@@ -102,23 +102,39 @@ for place, x, h in MARCHES:
     c.apply_translation([x, h + 0.065, 0.0])
     add(o, "vert_fonce", c)
 
-# ------------------------------------------------------------------ grand panneau
+# ------------------------------------------------------------------ grand panneau + compteurs de rebirths
+# Les compteurs : la barre rose "rebirth" du HUD (Textures/Interface/FondRebirth.png) avec 4 TAMBOURS
+# (Tambour_Chiffres.glb, un prop par chiffre) qui tournent pour afficher le nombre de rebirths, comme un compteur.
+M["fond_rebirth"] = mat_tex("ClassementFondRebirth", Image.open(os.path.join(RACINE, "Textures", "Interface", "FondRebirth.png")).convert("RGBA"))
 o = "Panneau_TopPilots"
-for x in (-7.0, 7.0):
-    add(o, "poteau", boite(x - 0.3, 0, 3.0, x + 0.3, 10.5, 3.6))
-add(o, "contour", boite(-8.2, 5.2, 3.6, 8.2, 11.2, 4.1))
-add(o, "vert", boite(-8.0, 5.4, 3.55, 8.0, 11.0, 3.62))
-add(o, "vert_fonce", boite(-8.0, 5.4, 3.54, 8.0, 5.9, 3.61))
-PARTS[o].setdefault("titre", []).append(quad("titre", 0, 8.4, 3.53, 15.0, 3.75))
-for i in range(8):                                                           # petites lumieres
-    x = -7.0 + i * 2.0
-    add(o, "lumiere", trimesh.creation.icosphere(1, 0.22).apply_translation([x, 11.0, 3.45]))
+for x in (-7.6, 7.6):
+    add(o, "poteau", boite(x - 0.3, 0, 3.0, x + 0.3, 13.6, 3.6))
+add(o, "contour", boite(-8.7, 6.0, 3.6, 8.7, 13.8, 4.1))
+add(o, "vert", boite(-8.5, 6.2, 3.55, 8.5, 13.6, 3.62))
+add(o, "vert_fonce", boite(-8.5, 6.2, 3.54, 8.5, 6.7, 3.61))
+PARTS[o].setdefault("titre", []).append(quad("titre", 0, 11.7, 3.53, 15.0, 3.75))
+for i in range(9):                                                           # petites lumieres
+    x = -8.0 + i * 2.0
+    add(o, "lumiere", trimesh.creation.icosphere(1, 0.22).apply_translation([x, 13.6, 3.45]))
+
+ZP = 3.53 - 1.45                     # face avant des barres roses (les tambours sont derriere, dans un caisson)
+YC = 8.35                            # hauteur du centre de la barre
+TAMBOURS = []                        # (place, chiffre 0..3 de gauche a droite, x, y, z du centre du tambour)
+for place, cx in ((1, 0.0), (2, 4.4), (3, -4.4)):
+    oc = f"Compteur_{place}"
+    add(oc, "contour", boite(cx - 2.05, YC - 0.62, ZP + 0.02, cx + 2.05, YC + 0.62, 3.55))     # caisson
+    add(oc, "contour", boite(cx - 2.02, YC - 0.75, ZP + 0.004, cx + 2.02, YC + 0.75, ZP + 0.03))   # fond qui cache le tambour
+    PARTS.setdefault(oc, {}).setdefault("fond_rebirth", []).append(quad("fond_rebirth", cx, YC, ZP, 4.0, 1.0))
+    xbar = cx + 2.0 - 4.0 * (570 / 1024)        # centre de la partie rose (vue de face, la gauche est +X)
+    ybar = YC + 0.5 - 130 / 256                 # centre vertical de la partie rose
+    for i in range(4):
+        TAMBOURS.append((place, i, round(xbar + (1.5 - i) * 0.56, 3), round(ybar, 3)))
 
 # ------------------------------------------------------------------ export (un noeud par objet)
 for obj, d in PARTS.items():
     for k, ms in d.items():
         m = trimesh.util.concatenate(ms)
-        if not k.startswith("num_") and k != "titre":
+        if not k.startswith("num_") and k not in ("titre", "fond_rebirth"):
             m.visual = trimesh.visual.TextureVisuals(material=M[k])
         else:
             m.visual = trimesh.visual.TextureVisuals(uv=np.vstack([x.visual.uv for x in ms]), material=M[k])
@@ -147,3 +163,70 @@ s = json.dumps(js, separators=(",", ":")).encode()
 s += b" " * ((4 - len(s) % 4) % 4)
 open(SORTIE, "wb").write(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(s) + len(rest)) + struct.pack("<II", len(s), 0x4E4F534A) + s + rest)
 print(SORTIE, round(os.path.getsize(SORTIE) / 1e3), "Ko", [n["name"] for n in nodes])
+
+
+# ------------------------------------------------------------------ le tambour (un prop par chiffre)
+# Decagone : 10 faces, une par chiffre. Chiffre 0 face a l'avant (-Z) ; en tournant de +36 deg autour de X
+# on passe au chiffre suivant. Pivot = centre du tambour (pour qu'il tourne sur lui-meme).
+S_FACE, L_FACE = 0.42, 0.50
+R = S_FACE / (2 * np.sin(np.radians(18)))
+APO = R * np.cos(np.radians(18))
+
+
+def atlas():
+    W, H = 256, 2048
+    img = Image.new("RGB", (W, H), (236, 92, 145))
+    d = ImageDraw.Draw(img)
+    f = ImageFont.truetype(POLICE, 170)
+    for k in range(10):
+        y0 = k * H / 10
+        d.rectangle([0, y0, W, y0 + 14], fill=(255, 150, 190))                 # reflet en haut
+        d.rectangle([0, y0 + H / 10 - 10, W, y0 + H / 10], fill=CONTOUR)       # separation
+        d.text((W / 2, y0 + H / 20 + 4), str(k), font=f, fill=(255, 255, 255), anchor="mm", stroke_width=12,
+               stroke_fill=CONTOUR)
+    return img
+
+
+def tambour():
+    V, F, UV = [], [], []
+    for k in range(10):
+        b = np.radians(36 * k)
+        n = np.array([-np.sin(b), -np.cos(b)])        # (y, z) normale de la face k
+        t = np.array([np.cos(b), -np.sin(b)])         # (y, z) "haut" de la face k
+        c = n * APO
+        haut, bas = c + t * S_FACE / 2, c - t * S_FACE / 2
+        v0 = 1 - (k + 1) / 10 + 0.003
+        v1 = 1 - k / 10 - 0.003
+        i = len(V)
+        # vue de face (depuis -Z), la droite est -X : u = 0 a +X
+        V += [[L_FACE / 2, bas[0], bas[1]], [-L_FACE / 2, bas[0], bas[1]], [-L_FACE / 2, haut[0], haut[1]], [L_FACE / 2, haut[0], haut[1]]]
+        UV += [[0, v0], [1, v0], [1, v1], [0, v1]]
+        F += [[i, i + 2, i + 1], [i, i + 3, i + 2]]
+    m = trimesh.Trimesh(np.array(V), np.array(F), process=False)
+    if np.mean(np.einsum("ij,ij->i", m.face_normals, m.triangles_center)) < 0:
+        m.invert()
+    m.visual = trimesh.visual.TextureVisuals(uv=np.array(UV), material=PBR(
+        name="TambourChiffres", baseColorTexture=atlas(), roughnessFactor=0.45, metallicFactor=0.0))
+    ang = np.radians(np.arange(10) * 36 + 18)
+    cap = []
+    for sx in (1, -1):
+        pts = np.c_[np.full(10, sx * L_FACE / 2), -np.sin(ang) * R, -np.cos(ang) * R]
+        c = trimesh.Trimesh(np.vstack([pts, [[sx * L_FACE / 2, 0, 0]]]),
+                            [[10, j, (j + 1) % 10] for j in range(10)], process=False)
+        if c.face_normals[0][0] * sx < 0:
+            c.invert()
+        cap.append(c)
+    cap = trimesh.util.concatenate(cap)
+    cap.visual = trimesh.visual.TextureVisuals(material=PBR(name="TambourFlancs", baseColorFactor=lin(CONTOUR), roughnessFactor=0.6))
+    sc = trimesh.Scene()
+    sc.add_geometry(m, node_name="Tambour", geom_name="Tambour_Faces")
+    sc.add_geometry(cap, node_name="Tambour_Flancs", geom_name="Tambour_Flancs")
+    return sc
+
+
+T_OUT = os.path.join(os.path.dirname(HERE), "Lobby", "Tambour_Chiffres.glb")
+tambour().export(T_OUT)
+print(T_OUT, round(os.path.getsize(T_OUT) / 1e3), "Ko")
+print("Centres des tambours (metres, repere du podium ; x vers la GAUCHE vue de face, y haut, z profondeur) :")
+for place, i, x, y in TAMBOURS:
+    print(f"  place {place}, chiffre {i + 1}/4 : x={x:+.3f}  y={y:.3f}  z={ZP - 0.03 + APO:.3f}")

@@ -1,6 +1,6 @@
-"""CLASSEMENT du lobby : podium a 4 places + grand panneau "TOP PILOTS", style cartoon (vert argent, blanc,
+"""CLASSEMENT du lobby : podium a 3 places + grand panneau "TOP PILOTS", style cartoon (vert argent, blanc,
 gros contour sombre). Les joueurs (Player Reference) se posent sur les marches, les scores sur les billboards.
-Ordre des marches de gauche a droite (vu de face) : 4 - 2 - 1 - 3.
+Ordre des marches de gauche a droite (vu de face) : 2 - 1 - 3.
 Repere : face avant vers -Z, Y en haut, sol a y = 0, centre en x = 0.
 Sortie : Modeles/Lobby/Classement.glb (+ apercu_classement.png)   Usage : python3 generate_classement.py
 """
@@ -58,7 +58,7 @@ M = {
     "lumiere": col("ClassementLumiere", (255, 255, 255), 0.3, [1.0, 1.0, 1.0]),
     "titre": mat_tex("ClassementTitre", tex_titre("TOP PILOTS")),
 }
-for n in range(1, 5):
+for n in range(1, 4):
     M[f"num_{n}"] = mat_tex(f"ClassementNumero{n}", tex_numero(n))
 
 SC = trimesh.Scene()
@@ -86,7 +86,7 @@ def quad(k, cx, cy, z, w, h):
 
 
 # ------------------------------------------------------------------ podium
-MARCHES = [(4, -6.6, 0.7), (2, -2.2, 1.4), (1, 2.2, 2.0), (3, 6.6, 1.05)]   # (place, x, hauteur)
+MARCHES = [(2, 4.4, 1.4), (1, 0.0, 2.0), (3, -4.4, 1.05)]  # vu de face (depuis -Z) la droite est -X   # (place, x, hauteur)
 for place, x, h in MARCHES:
     o = f"Marche_{place}"
     add(o, "contour", boite(x - 2.2, 0, -1.9, x + 2.2, h, 1.9))
@@ -104,14 +104,14 @@ for place, x, h in MARCHES:
 
 # ------------------------------------------------------------------ grand panneau
 o = "Panneau_TopPilots"
-for x in (-9.0, 9.0):
+for x in (-7.0, 7.0):
     add(o, "poteau", boite(x - 0.3, 0, 3.0, x + 0.3, 10.5, 3.6))
-add(o, "contour", boite(-10.2, 5.2, 3.6, 10.2, 11.2, 4.1))
-add(o, "vert", boite(-10.0, 5.4, 3.55, 10.0, 11.0, 3.62))
-add(o, "vert_fonce", boite(-10.0, 5.4, 3.54, 10.0, 5.9, 3.61))
-PARTS[o].setdefault("titre", []).append(quad("titre", 0, 8.4, 3.53, 18.0, 4.5))
-for i in range(9):                                                           # petites lumieres
-    x = -8.8 + i * 2.2
+add(o, "contour", boite(-8.2, 5.2, 3.6, 8.2, 11.2, 4.1))
+add(o, "vert", boite(-8.0, 5.4, 3.55, 8.0, 11.0, 3.62))
+add(o, "vert_fonce", boite(-8.0, 5.4, 3.54, 8.0, 5.9, 3.61))
+PARTS[o].setdefault("titre", []).append(quad("titre", 0, 8.4, 3.53, 15.0, 3.75))
+for i in range(8):                                                           # petites lumieres
+    x = -7.0 + i * 2.0
     add(o, "lumiere", trimesh.creation.icosphere(1, 0.22).apply_translation([x, 11.0, 3.45]))
 
 # ------------------------------------------------------------------ export (un noeud par objet)

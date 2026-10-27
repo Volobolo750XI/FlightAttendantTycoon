@@ -10,12 +10,12 @@ using { /Verse.org/Simulation }
 #
 # Installation dans UEFN :
 #   - importe Modeles/Lobby/Classement.glb (podium + panneau), Convert to Prop, pose-le dans le lobby ;
-#   - sur chaque marche (1, 2, 3, 4), pose un appareil "Reference de joueur" (Player Reference) ;
+#   - sur chaque marche (1, 2, 3), pose un appareil "Reference de joueur" (Player Reference) ;
 #   - devant chaque marche, pose un "Panneau d'affichage" (Billboard) pour le score ;
 #   - pose ce device, et dans ses Details :
 #       Avions : tes devices avion_tycoon (un par parcelle) ;
-#       Places : les 4 Player Reference, DANS L'ORDRE (1er, 2e, 3e, 4e) ;
-#       Scores : les 4 Billboards, dans le meme ordre.
+#       Places : les 3 Player Reference, DANS L'ORDRE (1er, 2e, 3e) ;
+#       Scores : les 3 Billboards, dans le meme ordre.
 
 classement_device := class(creative_device):
 

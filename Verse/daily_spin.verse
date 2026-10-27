@@ -53,7 +53,7 @@ daily_spin_device := class(creative_device):
     # (facultatif) un Message ATH en plus du bandeau a l'ecran
     @editable Message : ?hud_message_device = false
     # Le bandeau apparait quand le joueur VISE la roue, a moins de DistanceBandeau (cm).
-    @editable DistanceBandeau : float = 1500.0
+    @editable DistanceBandeau : float = 450.0
     # Taille de la zone a viser autour du centre de la roue (cm) : ~ le rayon de la roue.
     @editable RayonVisee : float = 240.0
     # Les 8 cases, dans l'ordre de la roue (case 0 en haut, puis sens des aiguilles d'une montre).

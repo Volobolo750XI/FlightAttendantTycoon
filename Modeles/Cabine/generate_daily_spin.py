@@ -25,14 +25,18 @@ PBR = trimesh.visual.material.PBRMaterial
 CONTOUR = (22, 27, 48)
 
 # (texte, couleur de la case) -- meme ordre que Gains dans daily_spin.verse
-CASES = [("5 MIN", "CASH", (238, 48, 56), "horloge"), ("+10%", "MONEY", (255, 136, 24), "argent"),
-         ("x2", "10 MIN", (250, 205, 30), "eclair"), ("15 MIN", "CASH", (64, 196, 64), "horloge"),
-         ("REBIRTH", "+1", (24, 186, 220), "rebirth"), ("1 HOUR", "CASH", (44, 104, 240), "horloge"),
-         ("x3", "5 MIN", (136, 60, 230), "eclair"), ("JACKPOT", "3 HOURS", (230, 50, 170), "couronne")]
+CASES = [("5 MIN", "CASH", (238, 48, 56), "Horloge_5min"), ("+10%", "MONEY", (255, 136, 24), "Pourcent"),
+         ("x2", "10 MIN", (250, 205, 30), "Eclair_x2"), ("15 MIN", "CASH", (64, 196, 64), "Horloge_15min"),
+         ("REBIRTH", "+1", (24, 186, 220), "Rebirth"), ("1 HOUR", "CASH", (44, 104, 240), "Sablier_1h"),
+         ("x3", "5 MIN", (136, 60, 230), "Eclairs_x3"), ("JACKPOT", "3 HOURS", (230, 50, 170), "Jackpot")]
 
 
 def icone(nom, t=175):
-    """icone carree (RGBA) : reprend les icones du HUD (argent, avion+argent, rebirth) ou en dessine une"""
+    """icone carree (RGBA) : les icones cartoon de Textures/DailySpin (Icone_<nom>.png, fond retire),
+    sinon reprend l'icone du HUD (argent) ou en dessine une"""
+    fichier = os.path.join(RACINE, "Textures", "DailySpin", f"Icone_{nom}.png")
+    if os.path.exists(fichier):
+        return Image.open(fichier).convert("RGBA").resize((t, t), Image.LANCZOS)
     hud = {"argent": "FondArgent"}
     if nom in hud:
         im = Image.open(os.path.join(RACINE, "Textures", "Interface", hud[nom] + ".png")).convert("RGBA")
@@ -132,7 +136,7 @@ def tex_roue(n=2048):
         ry = c + math.sin(math.radians(ang)) * c * 0.47
         img.alpha_composite(couche, (int(rx - couche.width / 2), int(ry - couche.height / 2)))
         # icone pres du bord, droite (tournee comme la case)
-        ic = icone(ico).rotate(-(ang + 90), expand=True, resample=Image.BICUBIC)
+        ic = icone(ico, 250).rotate(-(ang + 90), expand=True, resample=Image.BICUBIC)
         ix = c + math.cos(math.radians(ang)) * c * 0.79
         iy = c + math.sin(math.radians(ang)) * c * 0.79
         img.alpha_composite(ic, (int(ix - ic.width / 2), int(iy - ic.height / 2)))
